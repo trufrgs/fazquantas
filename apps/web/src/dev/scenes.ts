@@ -40,6 +40,11 @@ export const SCENES: Record<string, Scene> = {
     seed: 11,
     until: (s) => s.phase === 'bidding' && s.round.cards >= 4 && currentActor(s)?.playerId === YOU,
   },
+  palpite8: {
+    players: 8,
+    seed: 3,
+    until: (s) => s.phase === 'bidding' && s.round.cards >= 4 && currentActor(s)?.playerId === YOU,
+  },
   cega: {
     players: 6,
     seed: 1,

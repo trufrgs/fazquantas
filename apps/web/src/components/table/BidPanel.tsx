@@ -73,6 +73,9 @@ export function BidPanel(p: BidPanelProps) {
   }, [open, keyboard, legal, onBid]);
   const big = options.length > 8;
   const compact = p.compact ?? false;
+  // Barra de uma linha só com largura para título, números e aviso; tela estreita usa duas linhas
+  // curtas (botões largos o bastante para o dedo).
+  const oneRow = compact && (p.hintInline ?? false);
   const title = (
     <h2
       className={`font-display font-bold leading-tight ${compact ? 'text-lg' : 'text-[1.35rem]'}`}
@@ -124,14 +127,16 @@ export function BidPanel(p: BidPanelProps) {
         >
           {p.deadline ? <TimeLeft key={p.deadline} deadline={p.deadline} /> : null}
           <CoachTip tip={p.tip ?? null} inline />
-          {!compact && (
-            <header className="mb-2.5 flex items-baseline justify-between gap-3">
+          {(!compact || !oneRow) && (
+            <header
+              className={`flex items-baseline justify-between gap-3 ${compact ? 'mb-1.5' : 'mb-2.5'}`}
+            >
               {title}
               {sum}
             </header>
           )}
-          <div className={compact ? 'flex items-center gap-3' : undefined}>
-            {compact && (
+          <div className={oneRow ? 'flex items-center gap-3' : undefined}>
+            {oneRow && (
               <div className="flex shrink-0 flex-col">
                 {title}
                 {sum}
@@ -174,7 +179,7 @@ export function BidPanel(p: BidPanelProps) {
                 );
               })}
             </div>
-            {compact && hint}
+            {oneRow && hint}
           </div>
           {!compact && hint}
         </motion.section>

@@ -120,7 +120,9 @@ export function tableGeometry(
   const panelW = Math.min(width - 2 * BID_PANEL.margin * scale, BID_PANEL.maxWidth * scale);
   const panelOverSides = (width - panelW) / 2 < box.w + 4 * scale;
   const limit = panelOverSides ? height - BID_PANEL.band * scale - box.h / 2 - 12 * scale : null;
-  const places = placeSeats(others.length, L, R, T, B, box, limit);
+  // Se nem assim couber, pelo menos acima da barra de uma linha (o painel vira barra: `compactBidPanel`).
+  const barLimit = panelOverSides ? height - 52 * scale - box.h / 2 - 6 * scale : null;
+  const places = placeSeats(others.length, L, R, T, B, box, limit, barLimit);
 
   // O monte da vaza fica no meio da faixa livre entre os assentos do topo e a sua mão.
   const seatBottom = T + 50 * scale;
@@ -240,7 +242,9 @@ export function tableRevealLayout(
     g.width - 2 * BID_PANEL.margin * s,
     o.compactPanel ? Infinity : BID_PANEL.maxWidth * s,
   );
-  const panelH = (o.compactPanel ? 64 : 142) * s - o.mySeatH;
+  // Barra de uma linha (larga) ou de duas linhas curtas (estreita), como no BidPanel.
+  const barH = g.width >= 600 * s ? 64 : 90;
+  const panelH = (o.compactPanel ? barH : 142) * s - o.mySeatH;
   const obstacles: Rect[] = [
     { l: (g.width - panelW) / 2, t: g.height - panelH, r: (g.width + panelW) / 2, b: g.height },
   ];
@@ -475,7 +479,8 @@ export function revealLayout(
 /**
  * Vagas dos oponentes com o pé das colunas laterais em `B`. Se o assento lateral mais baixo cairia
  * atrás do painel de palpite (abaixo de `limit`), sobe as colunas: primeiro até o limite, depois até
- * o meio do caminho; se nem isso cabe, fica como estava.
+ * acima da barra de uma linha (`barLimit`), depois até o meio do caminho; se nem isso cabe, fica como
+ * estava.
  */
 function placeSeats(
   m: number,
@@ -485,13 +490,18 @@ function placeSeats(
   B: number,
   box: SeatBox,
   limit: number | null,
+  barLimit: number | null = null,
 ): Point[] {
   const base = slots(m, L, R, T, B, box);
   const lowestSide = (places: Point[]) =>
     Math.max(-Infinity, ...places.filter((p) => p.y > T).map((p) => p.y));
   if (limit === null || limit >= B || (base && lowestSide(base) <= limit))
     return base ?? fallbackU(m, L, R, T, B);
-  for (const b of [limit, (limit + B) / 2]) {
+  for (const b of [
+    limit,
+    ...(barLimit !== null && barLimit < B ? [barLimit] : []),
+    (limit + B) / 2,
+  ]) {
     const places = b > T ? slots(m, L, R, T, b, box) : null;
     if (places) return places;
   }
