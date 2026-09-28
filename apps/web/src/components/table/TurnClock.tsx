@@ -81,3 +81,35 @@ export function MyTurnClock({ deadline, totalMs }: { deadline: number | null; to
     </motion.div>
   );
 }
+
+/**
+ * A luz do lampião em quem está na vez: um clarão quente na mesa que desliza até o assento da vez
+ * (e desce até a tua mão quando é contigo). Vermelho quando o tempo aperta.
+ */
+export function TurnSpotlight({ at, urgent }: { at: { x: number; y: number } | null; urgent?: boolean }) {
+  const reduce = useReducedMotion();
+  if (!at) return null;
+  const size = 300;
+  return (
+    <motion.div
+      aria-hidden="true"
+      className="pointer-events-none absolute z-0 rounded-full"
+      style={{
+        width: size,
+        height: size,
+        marginLeft: -size / 2,
+        marginTop: -size / 2,
+        background: urgent
+          ? 'radial-gradient(circle, rgb(230 80 60 / 0.34) 0%, rgb(230 80 60 / 0.12) 40%, transparent 70%)'
+          : 'radial-gradient(circle, rgb(255 214 150 / 0.32) 0%, rgb(255 214 150 / 0.11) 40%, transparent 70%)',
+      }}
+      initial={false}
+      animate={{ left: at.x, top: at.y, opacity: reduce ? 1 : [0.75, 1, 0.75] }}
+      transition={{
+        left: { type: 'spring', stiffness: 120, damping: 20 },
+        top: { type: 'spring', stiffness: 120, damping: 20 },
+        opacity: { duration: 1.8, repeat: Infinity, ease: 'easeInOut' },
+      }}
+    />
+  );
+}

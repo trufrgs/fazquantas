@@ -18,7 +18,8 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { GameConnection, SeatInfo, ViewUpdate } from '../../lib/connection';
 import { leaveTable, startLocalGame } from '../../lib/game-actions';
 import { untilLabel } from '../setup/TuasSalas';
-import { MyTurnClock } from './TurnClock';
+import { useTimeLeft, MyTurnClock, TurnSpotlight } from './TurnClock';
+import { isUrgent } from '../../lib/tempo';
 import { haptic } from '../../lib/haptics';
 import { play } from '../../lib/sound';
 import { useApp } from '../../stores/app';
@@ -376,6 +377,7 @@ function Table({
   };
   const asyncRoom = online && !!room && isAsyncTurn(room.turnTimeoutSec);
   const turnTotalMs = online && room?.turnTimeoutSec ? room.turnTimeoutSec * 1000 : null;
+  const turnLeft = useTimeLeft(view.turnDeadline);
   const park = () => {
     useOnline.getState().park();
     leaveTable();
@@ -407,6 +409,18 @@ function Table({
             <div className="absolute right-3 top-2 z-30 rounded-full bg-copas px-3 py-1 text-xs font-bold">
               Reconectando…
             </div>
+          )}
+          {table.width > 0 && view.phase !== 'gameOver' && (
+            <TurnSpotlight
+              at={
+                !view.actor
+                  ? null
+                  : view.actor.playerId === you
+                    ? { x: table.width / 2, y: table.height + 30 }
+                    : (geometry.seats.get(view.actor.playerId) ?? null)
+              }
+              urgent={turnLeft !== null && isUrgent(turnLeft, turnTotalMs)}
+            />
           )}
           {table.width > 0 &&
             view.players

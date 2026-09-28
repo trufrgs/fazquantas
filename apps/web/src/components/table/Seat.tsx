@@ -208,7 +208,11 @@ export const Seat = memo(function Seat(p: SeatProps) {
       role="group"
       aria-label={`${player.name}${out ? ', fora do jogo' : ''}`}
     >
-      <div className="relative">
+      <motion.div
+        className="relative"
+        animate={{ scale: p.isTurn && !out ? 1.12 : 1 }}
+        transition={{ type: 'spring', stiffness: 300, damping: 18 }}
+      >
         {p.isTurn && !out && <TurnRing size={avatarSize} deadline={p.deadline} />}
         {p.isTurn && !out && p.deadline && (
           <span className="absolute -right-5 -top-3 z-20">
@@ -243,9 +247,15 @@ export const Seat = memo(function Seat(p: SeatProps) {
           </span>
         )}
         <ReactionBubble reaction={p.reaction} placement={p.y < 90 ? 'below' : 'above'} />
-      </div>
+      </motion.div>
       <span
-        className={`mt-1 max-w-full truncate px-1 text-center text-xs font-bold texto-gravado ${out ? 'text-papel/50 line-through' : 'text-papel'}`}
+        className={`max-w-full truncate px-1 text-center text-xs font-bold ${p.isTurn && !out ? 'mt-2' : 'mt-1'} ${
+          out
+            ? 'text-papel/50 line-through texto-gravado'
+            : p.isTurn
+              ? 'rounded-full bg-ouros px-2 text-tinta shadow-[0_2px_0_var(--color-ouros-escuro)]'
+              : 'text-papel texto-gravado'
+        }`}
       >
         {player.name}
       </span>
