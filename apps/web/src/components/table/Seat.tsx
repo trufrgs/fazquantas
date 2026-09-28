@@ -48,6 +48,7 @@ export function BidBadge({
       initial={{ scale: 0.3, opacity: 0 }}
       animate={{ scale: 1, opacity: 1 }}
       transition={{ type: 'spring', stiffness: 500, damping: 22 }}
+      role="img"
       aria-label={label}
       title={label}
       className={`inline-flex items-baseline justify-center rounded-full font-bold tabular-nums shadow-[0_2px_0_rgb(0_0_0/0.35)] ring-1 ring-black/15 ${TONE_CLASS[tone]} ${
@@ -167,6 +168,7 @@ export const Seat = memo(function Seat(p: SeatProps) {
     <div
       className={`absolute z-10 flex flex-col items-center ${p.compact ? 'w-[72px]' : 'w-[84px]'}`}
       style={{ left: p.x, top: p.y, transform: 'translate(-50%, -50%)' }}
+      role="group"
       aria-label={`${player.name}${out ? ', fora do jogo' : ''}`}
     >
       {p.shownCards && p.shownCards.length > 0 && (

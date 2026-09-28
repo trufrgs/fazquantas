@@ -60,6 +60,7 @@ export function TrickArea(p: TrickAreaProps) {
                 }),
               }}
               transition={{ type: 'spring', stiffness: 380, damping: 30 }}
+              role="img"
               aria-label={cardName(cardOf(play.cardId))}
             >
               <div

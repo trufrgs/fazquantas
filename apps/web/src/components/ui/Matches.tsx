@@ -68,7 +68,7 @@ export function Matches({ lives, starting, size = 16, className }: MatchesProps)
   const label = `${alive} ${alive === 1 ? 'vida' : 'vidas'}`;
   if (starting > 6) {
     return (
-      <span className={`inline-flex items-center gap-1 ${className ?? ''}`} aria-label={label} title={label}>
+      <span role="img" className={`inline-flex items-center gap-1 ${className ?? ''}`} aria-label={label} title={label}>
         <Match burnt={alive === 0} height={size} />
         <span className="font-bold tabular-nums" style={{ fontSize: size * 0.8 }}>
           {alive}
@@ -78,6 +78,7 @@ export function Matches({ lives, starting, size = 16, className }: MatchesProps)
   }
   return (
     <span
+      role="img"
       className={`inline-flex items-end ${className ?? ''}`}
       style={{ gap: size * 0.12 }}
       aria-label={label}

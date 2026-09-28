@@ -20,6 +20,8 @@ export function Scoreboard({ open, onClose, view, seats }: { open: boolean; onCl
       <p className="text-sm text-tinta-2">Palpite / vazas feitas em cada rodada.</p>
       <div
         ref={scroller}
+        tabIndex={0}
+        aria-label="Rodadas anotadas"
         className="sem-barra mt-3 max-h-[55dvh] overflow-auto rounded-xl ring-1 ring-tinta/10"
         style={{
           backgroundImage:

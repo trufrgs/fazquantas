@@ -54,7 +54,7 @@ export function Home() {
         </IconButton>
       </header>
 
-      <main className="sem-barra flex min-h-0 flex-1 flex-col items-center justify-center gap-6 overflow-y-auto px-6 py-4">
+      <main tabIndex={-1} className="sem-barra flex min-h-0 flex-1 flex-col items-center justify-center gap-6 overflow-y-auto px-6 py-4">
         <div className="flex flex-col items-center text-center">
           <motion.h1
             className="font-display font-extrabold leading-[0.9] text-papel texto-gravado"

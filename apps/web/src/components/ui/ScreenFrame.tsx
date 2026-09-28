@@ -35,7 +35,7 @@ export function ScreenFrame({
         </h1>
         {right}
       </header>
-      <main className="sem-barra min-h-0 flex-1 overflow-y-auto px-4 pb-6">
+      <main tabIndex={0} aria-label={title} className="sem-barra min-h-0 flex-1 overflow-y-auto px-4 pb-6 focus-visible:outline-offset-[-4px]">
         <div className="mx-auto flex w-full max-w-lg flex-col gap-4">{children}</div>
       </main>
       {footer && (

@@ -83,7 +83,7 @@ export function Lobby() {
     >
       <div className="flex flex-col items-center gap-1 pt-1">
         <span className="text-sm text-papel/75">Código da sala</span>
-        <div className="flex gap-2" aria-label={`Código ${room.code.split('').join(' ')}`}>
+        <div className="flex gap-2" role="img" aria-label={`Código ${room.code.split('').join(' ')}`}>
           {room.code.split('').map((c, i) => (
             <span
               key={i}
