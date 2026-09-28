@@ -40,7 +40,9 @@ pnpm exec playwright test                  # E2E locais (sobem os servidores soz
 ## Convenções
 
 - **Texto para o jogador em pt-BR, com fala gaúcha** ("tu", "Buenas", "mão", "empardou", "tri",
-  "deu pra ti"). Mensagens de erro dizem o que houve e o que fazer, sem pedir desculpa.
+  "deu pra ti"). Cada disputa de cartas é uma **mão** (nunca "vaza"); dizer quantas faz é
+  **cantar** ("Faço 2!", "As cantadas"). Mensagens de erro dizem o que houve e o que fazer, sem pedir
+  desculpa.
 - Código, identificadores e comentários seguem o que já existe: identificadores de domínio em
   português (`sala`, `palpite`, `apelido`), comentários em português.
 - Commits em inglês, Conventional Commits com escopo quando ajuda (`feat(web):`, `fix(worker):`).
@@ -68,6 +70,10 @@ pnpm exec playwright test                  # E2E locais (sobem os servidores soz
 
 - Toda mudança de regra, sala ou servidor vem com teste de unidade (`packages/*/test`,
   `apps/worker/test`).
+- **Atualização do app:** o service worker novo assume na hora e o app confere o `version.json`
+  (`lib/atualizacao.ts`). Mexeu em service worker, `vite.config.ts`, `public/_headers` ou nesse
+  arquivo? Rode `pnpm exec playwright test e2e/atualizacao.spec.ts`: o bug de aba presa na versão
+  antiga já aconteceu uma vez (28/09/2026).
 - **Fase atual (antes da v1 validada com gente de verdade): testes exploratórios.** Os E2E existem
   e rodam à mão (local e contra a produção), mas a CI não os roda. Depois da v1, as verificações
   viram E2E na CI e os testes com pessoas ganham runbooks.

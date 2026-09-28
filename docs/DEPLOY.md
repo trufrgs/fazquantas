@@ -38,8 +38,12 @@ estão no [CONTRIBUTING](../CONTRIBUTING.md#publicação).
     o apelido e o avatar dele, apelido de outro ganha número, bloqueado não senta.
   - `PainelDO`: o painel do `/admin` — visitas por dia (IP truncado, cidade, aparelho), salas abertas
     e encerradas, contadores (salas, partidas, ranqueadas, avisos). Guarda 90 dias.
-- O Worker publica com `wrangler deploy` na CI. Os builds pelo Git do próprio Cloudflare (Workers
-  Builds e Pages) ficam desligados, para não publicar duas vezes nem fora de ordem.
+- O Worker publica com `wrangler deploy` na CI. Os builds pelo Git do próprio Cloudflare ficam
+  desligados (desde 28/09/2026, pela API: Pages com `deployments_enabled: false` e os gatilhos do
+  Workers Builds apagados), para não publicar duas vezes nem fora de ordem.
+- **Cache:** `sw.js`, `index.html`, `manifest.webmanifest` e `version.json` nunca ficam em cache
+  (`public/_headers`); `/assets/*` tem hash no nome e fica em cache para sempre. Cada build publica
+  `version.json` com o commit, e o app compara com o dele (ver `apps/web/src/lib/atualizacao.ts`).
 
 ## Variáveis e segredos do Worker
 

@@ -44,6 +44,9 @@ pnpm exec playwright test
   ```
 
   Com `E2E_ADMIN_SENHA` no ambiente, `e2e/perfil-admin.spec.ts` também roda contra a produção.
+- **Atualização do app** (`e2e/atualizacao.spec.ts`): gera três builds de produção e prova que uma
+  aba aberta passa sozinha para a versão nova, e que no meio da partida espera a pessoa sair da mesa.
+  Rode sempre que mexer em service worker, `vite.config.ts`, `_headers` ou `lib/atualizacao.ts`.
 - **Fase atual: exploratória.** Até a v1 ser validada com gente de verdade, os E2E rodam à mão e a
   CI não os roda. Depois da v1: as verificações viram E2E na CI e os testes com pessoas ganham
   runbooks.
@@ -63,10 +66,10 @@ limites do plano gratuito e operação em [docs/DEPLOY.md](docs/DEPLOY.md).
 
 | No GitHub (`trufrgs/fazquantas`) | Tipo | Para quê |
 |---|---|---|
-| `CLOUDFLARE_API_TOKEN` | segredo | A CI publica no Cloudflare. Token com Workers Scripts: Edit, Cloudflare Pages: Edit, Account Settings: Read |
+| `CLOUDFLARE_API_TOKEN` | segredo | A CI publica no Cloudflare. Token `fazquantas-github-actions`: Workers Scripts, Cloudflare Pages e Workers Builds Configuration (Edit), Account Settings (Read). Cópia no Keychain: `pessoal/fazquantas/cloudflare-api-token` |
 | `CLOUDFLARE_ACCOUNT_ID` | variável | Conta do Cloudflare |
 | `VAPID_PRIVADO` | segredo | Assina o Web Push; a CI copia para o Worker |
-| `ADMIN_SENHA` | segredo | Senha do `/admin` (8+ caracteres); a CI copia para o Worker |
+| `ADMIN_SENHA` | segredo | Senha do `/admin` (8+ caracteres); a CI copia para o Worker. Cópia no Keychain: `pessoal/fazquantas/admin-senha` |
 
 Trocar um segredo: `gh secret set NOME -R trufrgs/fazquantas` (pede o valor sem mostrar) e rodar a
 CI de novo (`gh workflow run CI -R trufrgs/fazquantas`). Nunca passe segredo como argumento de
