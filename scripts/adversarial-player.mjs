@@ -3,7 +3,8 @@
 // se alguma carta ficou fora da tela, encavalada, atrás do painel de palpite ou cobrindo o rosto
 // de alguém. Sai com código 1 se achar problema ou erro de página.
 //
-// Uso (com `pnpm dev` rodando): node scripts/adversarial-player.mjs [pasta-das-capturas] [url]
+// Uso (com `pnpm dev` rodando): node scripts/adversarial-player.mjs [pasta-das-capturas] [url] [telas]
+// `telas` filtra pelos nomes da lista abaixo, separados por vírgula (ex.: desktop,tablet).
 import { mkdirSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -141,8 +142,9 @@ async function play(cfg) {
   return { errors, maxReveal };
 }
 
+const only = process.argv[4]?.split(',');
 let failed = false;
-for (const cfg of CONFIGS) {
+for (const cfg of CONFIGS.filter((c) => !only || only.includes(c.name))) {
   const { errors, maxReveal } = await play(cfg);
   if (errors.length) failed = true;
   console.log(`${cfg.name} ${cfg.w}x${cfg.h} ${cfg.players}p: cartas à mostra até ${Math.round(maxReveal)}px, erros: ${errors.length}`);

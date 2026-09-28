@@ -397,7 +397,7 @@ export function revealLayout(
       rect.t >= 0 &&
       rect.b <= g.height &&
       !(tight ? faceRects : seatRects).some((o) => overlaps(rect, o)) &&
-      !rects.some((o) => overlaps(rect, o, 2)) &&
+      !rects.some((o) => overlaps(rect, o, -4)) && // uma folga entre cartas (a inclinação come um pouco)
       !(opts.obstacles ?? []).some((o) => overlaps(rect, o)) &&
       (tight || !(opts.softObstacles ?? []).some((o) => overlaps(rect, o)));
     // Direções candidatas para cada assento: de frente para o centro, ao lado (para dentro),

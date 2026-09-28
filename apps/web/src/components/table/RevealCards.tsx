@@ -38,7 +38,7 @@ export function RevealCards({ players, you, layout }: { players: readonly Public
                 key={id}
                 aria-hidden="true"
                 className="absolute top-0 drop-shadow-[0_6px_10px_rgb(0_0_0/0.45)]"
-                style={{ left: i * step, transform: `rotate(${n === 1 ? tossRotation(id) * 0.6 : (i - (n - 1) / 2) * 4}deg)` }}
+                style={{ left: i * step, transform: `rotate(${n === 1 ? tossRotation(id) * 0.25 : (i - (n - 1) / 2) * 4}deg)` }}
               >
                 <Card id={id} width={w} />
               </span>

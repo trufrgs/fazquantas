@@ -1,5 +1,5 @@
 import { AnimatePresence, motion } from 'motion/react';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Lightbulb } from 'lucide-react';
 import { CoachTip, type TipId } from './CoachTip';
 
@@ -26,6 +26,28 @@ export interface BidPanelProps {
   bottom?: number;
   /** Na barra de uma linha, há largura para o aviso ao lado dos números. */
   hintInline?: boolean;
+  /** Prazo da tua vez (online com tempo por jogada): o painel cobre a tua faixa, então a conta vai nele. */
+  deadline?: number | null;
+}
+
+/** Tempo que falta para palpitar: uma linha fina no alto do painel, que esvazia até o prazo. */
+function TimeLeft({ deadline }: { deadline: number }) {
+  const [start] = useState(() => Date.now());
+  const total = Math.max(0, deadline - start);
+  if (total === 0) return null;
+  return (
+    <span
+      className="pointer-events-none absolute inset-x-5 top-1.5 h-1 overflow-hidden rounded-full bg-tinta/10"
+      aria-hidden="true"
+    >
+      <motion.span
+        className="block h-full origin-left rounded-full bg-copas"
+        initial={{ scaleX: 1 }}
+        animate={{ scaleX: 0 }}
+        transition={{ duration: total / 1000, ease: 'linear' }}
+      />
+    </span>
+  );
 }
 
 /** Painel "Quantas tu faz?" — toque no número confirma o palpite. */
@@ -100,6 +122,7 @@ export function BidPanel(p: BidPanelProps) {
           exit={{ y: 30, opacity: 0, scale: 0.97, transition: { duration: 0.15 } }}
           transition={{ type: 'spring', stiffness: 420, damping: 32 }}
         >
+          {p.deadline ? <TimeLeft key={p.deadline} deadline={p.deadline} /> : null}
           <CoachTip tip={p.tip ?? null} inline />
           {!compact && (
             <header className="mb-2.5 flex items-baseline justify-between gap-3">

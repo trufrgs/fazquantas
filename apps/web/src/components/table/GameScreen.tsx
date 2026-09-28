@@ -415,6 +415,7 @@ function Table({
             keyboard={!layerOpen}
             compact={panelCompact}
             hintInline={vw >= 600 * s}
+            deadline={myTurn ? view.turnDeadline : null}
             bottom={panelBottom}
           />
           <AnimatePresence>
