@@ -1,0 +1,9 @@
+**/node_modules
+**/dist
+**/dev-dist
+apps/web/android
+apps/web/ios
+test-results
+playwright-report
+.git
+*.log
