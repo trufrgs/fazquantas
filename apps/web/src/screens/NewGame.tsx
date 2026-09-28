@@ -1,21 +1,25 @@
 import { BOT_DIFFICULTIES, MAX_PLAYERS, MIN_PLAYERS, type BotDifficulty } from '@fodinha/engine';
+import { useState } from 'react';
+import { ConfirmNewGame } from '../components/setup/ConfirmNewGame';
 import { RulesEditor } from '../components/setup/RulesEditor';
 import { Avatar } from '../components/ui/Avatar';
 import { Button } from '../components/ui/Button';
 import { Segmented, Stepper } from '../components/ui/Controls';
 import { Panel, ScreenFrame } from '../components/ui/ScreenFrame';
 import { startLocalGame } from '../lib/game-actions';
+import { hasSavedGame } from '../lib/local-connection';
 import { useSettings } from '../stores/settings';
 
 const BOT_SEEDS = ['bento', 'neca', 'juca', 'lurdes', 'tonho', 'zeca', 'cida'];
 
 export function NewGame() {
   const s = useSettings();
+  const [confirmNew, setConfirmNew] = useState(false);
   return (
     <ScreenFrame
       title="Montar partida"
       footer={
-        <Button variant="ouro" size="lg" className="w-full" onClick={startLocalGame}>
+        <Button variant="ouro" size="lg" className="w-full" onClick={() => (hasSavedGame() ? setConfirmNew(true) : startLocalGame())}>
           Começar partida
         </Button>
       }
@@ -44,6 +48,14 @@ export function NewGame() {
       <Panel title="Regras">
         <RulesEditor value={s.rules} onChange={(rules) => s.set({ rules })} />
       </Panel>
+      <ConfirmNewGame
+        open={confirmNew}
+        onCancel={() => setConfirmNew(false)}
+        onConfirm={() => {
+          setConfirmNew(false);
+          startLocalGame();
+        }}
+      />
     </ScreenFrame>
   );
 }

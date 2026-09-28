@@ -1,28 +1,19 @@
-import type { HostSnapshot } from '@fodinha/engine';
 import { Settings } from 'lucide-react';
 import { motion } from 'motion/react';
 import { useState } from 'react';
 import { Card } from '../components/cards/Card';
+import { ConfirmNewGame } from '../components/setup/ConfirmNewGame';
 import { ProfileEditor } from '../components/setup/ProfileEditor';
 import { Avatar } from '../components/ui/Avatar';
 import { Button, IconButton } from '../components/ui/Button';
 import { Sheet } from '../components/ui/Sheet';
 import { resumeLocalGame, startLocalGame } from '../lib/game-actions';
-import { hasSavedGame, LOCAL_SAVE_KEY } from '../lib/local-connection';
-import { storage } from '../lib/storage';
+import { hasSavedGame, savedGameSummary } from '../lib/local-connection';
 import { useApp } from '../stores/app';
 import { savedSession, useOnline } from '../stores/online';
 import { useSettings } from '../stores/settings';
 
 const FAN = ['O7', 'E7', 'P1', 'E1'] as const;
-
-function savedSummary(): string | null {
-  const saved = storage.get<{ snapshot: HostSnapshot }>(LOCAL_SAVE_KEY);
-  const s = saved?.snapshot?.state;
-  if (!s) return null;
-  const alive = s.players.filter((p) => p.eliminatedRound === null).length;
-  return `Rodada ${s.round.number} · ${alive} na mesa`;
-}
 
 export function Home() {
   const go = useApp((s) => s.go);
@@ -98,7 +89,7 @@ export function Home() {
           {saved && (
             <Button variant="ouro" size="lg" onClick={() => resumeLocalGame()} className="flex-col !gap-0">
               <span>Continuar partida</span>
-              <span className="text-xs font-semibold opacity-75">{savedSummary()}</span>
+              <span className="text-xs font-semibold opacity-75">{savedGameSummary()}</span>
             </Button>
           )}
           <Button variant={saved ? 'papel' : 'ouro'} size="lg" onClick={withName(() => (saved ? setConfirmNew(true) : startLocalGame()))}>
@@ -137,22 +128,14 @@ export function Home() {
         </button>
       </footer>
 
-      <Sheet open={confirmNew} onClose={() => setConfirmNew(false)} label="Começar outra partida">
-        <p className="pr-10 text-lg font-semibold">Começar outra partida?</p>
-        <p className="mt-1 text-tinta-2">A partida que tá salva ({savedSummary()}) se perde.</p>
-        <div className="mt-4 grid grid-cols-2 gap-2">
-          <Button onClick={() => setConfirmNew(false)}>Deixa quieto</Button>
-          <Button
-            variant="copas"
-            onClick={() => {
-              setConfirmNew(false);
-              startLocalGame();
-            }}
-          >
-            Começar outra
-          </Button>
-        </div>
-      </Sheet>
+      <ConfirmNewGame
+        open={confirmNew}
+        onCancel={() => setConfirmNew(false)}
+        onConfirm={() => {
+          setConfirmNew(false);
+          startLocalGame();
+        }}
+      />
 
       <Sheet open={ask !== null} onClose={() => setAsk(null)} label="Teu apelido">
         <ProfileEditor />

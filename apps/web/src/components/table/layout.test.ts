@@ -1,10 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { isCompact, SEAT_BOX, tableGeometry } from './layout';
+import { BID_PANEL, isCompact, SEAT_BOX, tableGeometry } from './layout';
 
 const SCREENS = [
   // Área da mesa (entre a barra de cima e a mão) em telas reais.
   { name: 'celular pequeno em pé', w: 360, h: 430, vw: 360, vh: 640 },
+  { name: 'celular pequeno em pé (740)', w: 360, h: 514, vw: 360, vh: 740 },
   { name: 'celular em pé', w: 390, h: 560, vw: 390, vh: 844 },
+  { name: 'celular em pé (medido)', w: 390, h: 608, vw: 390, vh: 844 },
+  { name: 'celular grande em pé', w: 412, h: 673, vw: 412, vh: 915 },
   { name: 'celular deitado', w: 844, h: 190, vw: 844, vh: 390 },
   { name: 'tablet', w: 768, h: 700, vw: 768, vh: 1024 },
   { name: 'desktop', w: 1180, h: 640, vw: 1440, vh: 900 },
@@ -44,6 +47,34 @@ describe('tableGeometry', () => {
     expect(a!.x).toBeGreaterThan(195);
     expect(b!.y).toBeLessThan(a!.y);
     expect(c!.x).toBeLessThan(195);
+  });
+
+  describe('painel de palpite', () => {
+    // Área da mesa medida no navegador (entre a barra de cima e a tua faixa).
+    const PHONES = [
+      { name: 'celular em pé', w: 390, h: 608, vw: 390, vh: 844 },
+      { name: 'celular grande em pé', w: 412, h: 673, vw: 412, vh: 915 },
+    ];
+    for (const phone of PHONES) {
+      for (let n = 2; n <= 8; n++) {
+        it(`${phone.name}, ${n} jogadores: nenhum assento fica atrás do painel`, () => {
+          const order = Array.from({ length: n }, (_, i) => `p${i}`);
+          const box = SEAT_BOX[isCompact(n, phone.vw, phone.vh) ? 'compact' : 'normal'];
+          const g = tableGeometry(phone.w, phone.h, order, 'p0', 48, box);
+          for (const id of order.slice(1)) {
+            const seat = g.seats.get(id)!;
+            expect(seat.y + box.h / 2, id).toBeLessThanOrEqual(phone.h - BID_PANEL.band);
+          }
+        });
+      }
+    }
+
+    it('em tela larga o painel não chega nos lados e as colunas usam a altura toda', () => {
+      const order = Array.from({ length: 8 }, (_, i) => `p${i}`);
+      const g = tableGeometry(768, 700, order, 'p0', 48, SEAT_BOX.compact);
+      const lowest = Math.max(...order.slice(1).map((id) => g.seats.get(id)!.y));
+      expect(lowest).toBeGreaterThan(700 - BID_PANEL.band);
+    });
   });
 
   it('gira a mesa para quem está vendo ficar embaixo', () => {

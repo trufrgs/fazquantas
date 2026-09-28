@@ -42,7 +42,7 @@ export const SCENES: Record<string, Scene> = {
   },
   cega: {
     players: 6,
-    seed: 5,
+    seed: 1,
     until: (s) => s.phase === 'bidding' && s.round.blind && currentActor(s)?.playerId === YOU && s.round.bidTurn >= 2,
   },
   mao: {
@@ -84,7 +84,7 @@ export const SCENES: Record<string, Scene> = {
 
 function simulate(scene: Scene): { state: GameState; seats: SeatInfo[] } {
   const rng = createRng(scene.seed);
-  const names = pickBotNames(scene.players - 1, ['Você'], rng);
+  const names = pickBotNames(scene.players - 1, ['Thomas'], rng);
   const players = [{ id: YOU, name: 'Thomas' }, ...names.map((name, i) => ({ id: `bot${i + 1}`, name }))];
   let state = createGame({ players, rules: normalizeRules(scene.rules ?? {}), seed: scene.seed });
   for (let i = 0; i < 20_000 && !scene.until(state); i++) {

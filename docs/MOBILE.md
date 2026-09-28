@@ -26,7 +26,7 @@ O app é o próprio build web empacotado pelo Capacitor 8. Os projetos nativos j
    echo "VITE_SERVER_URL=https://seu-servidor.exemplo.com" > .env.native.local
    ```
 
-   Sem isso, o app tenta `http://localhost:3001`, que só funciona no emulador com o servidor local.
+   Sem isso, o app procura o servidor na porta 3001 do próprio aparelho, e o online não conecta.
 
 2. Gere o build nativo e sincronize:
 

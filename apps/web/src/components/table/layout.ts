@@ -40,6 +40,14 @@ export function isCompact(players: number, width: number, height: number): boole
 }
 
 /**
+ * Painel "Quantas tu faz?": largura máxima, margem lateral e a faixa que ele ocupa no pé da mesa
+ * no pior caso de mesa cheia (duas fileiras de números e o aviso do pé). Em tela estreita ele cobre
+ * as colunas dos lados, então os assentos laterais param acima dessa faixa sempre que couber — a
+ * mesa não muda de lugar entre o palpite e as mãos.
+ */
+export const BID_PANEL = { maxWidth: 448, margin: 12, band: 220 } as const;
+
+/**
  * Distribui `m` oponentes em vagas: coluna direita (de baixo para cima), fileira de cima (da
  * direita para a esquerda) e coluna esquerda (de cima para baixo) — o sentido do jogo. A divisão
  * segue o espaço disponível e garante que vizinhos não se sobreponham.
@@ -65,9 +73,12 @@ function slots(m: number, L: number, R: number, T: number, B: number, box: SeatB
   // Fileira de cima, da direita para a esquerda.
   const xMin = k > 0 ? L + box.w : L;
   const xMax = k > 0 ? R - box.w : R;
+  // Sem colunas, a fileira fica em células centralizadas (mais bonito); se elas não cabem, vai de
+  // ponta a ponta, que é o que `topCap` conta.
+  const cells = k === 0 && t > 1 && (xMax - xMin) / t >= box.w;
   for (let i = 0; i < t; i++) {
     const x = t === 1 ? (L + R) / 2 : xMax - (i * (xMax - xMin)) / (t - 1);
-    out.push({ x: k === 0 && t > 1 ? xMin + ((xMax - xMin) * (t - 1 - i + 0.5)) / t : x, y: T });
+    out.push({ x: cells ? xMin + ((xMax - xMin) * (t - 1 - i + 0.5)) / t : x, y: T });
   }
   // Coluna esquerda, de cima para baixo.
   for (let j = k - 1; j >= 0; j--) out.push({ x: L, y: sideY(j) });
@@ -95,7 +106,10 @@ export function tableGeometry(
   const R = Math.max(L + 1, width - box.w / 2 - 4);
   const T = 62;
   const B = Math.max(T + 1, Math.min(height - 46, T + (height - T) * 0.78));
-  const places = slots(others.length, L, R, T, B, box) ?? fallbackU(others.length, L, R, T, B);
+  const panelW = Math.min(width - 2 * BID_PANEL.margin, BID_PANEL.maxWidth);
+  const panelOverSides = (width - panelW) / 2 < box.w + 4;
+  const limit = panelOverSides ? height - BID_PANEL.band - box.h / 2 - 12 : null;
+  const places = placeSeats(others.length, L, R, T, B, box, limit);
 
   // O monte da vaza fica no meio da faixa livre entre os assentos do topo e a sua mão;
   // em tela baixa ele achata (as cartas se espalham mais na horizontal).
@@ -119,6 +133,22 @@ export function tableGeometry(
     tricks.set(me, { x: center.x, y: center.y + tr_y });
   }
   return { width, height, center, seats, tricks, deck: { x: center.x, y: center.y } };
+}
+
+/**
+ * Vagas dos oponentes com o pé das colunas laterais em `B`. Se o assento lateral mais baixo cairia
+ * atrás do painel de palpite (abaixo de `limit`), sobe as colunas: primeiro até o limite, depois até
+ * o meio do caminho; se nem isso cabe, fica como estava.
+ */
+function placeSeats(m: number, L: number, R: number, T: number, B: number, box: SeatBox, limit: number | null): Point[] {
+  const base = slots(m, L, R, T, B, box);
+  const lowestSide = (places: Point[]) => Math.max(-Infinity, ...places.filter((p) => p.y > T).map((p) => p.y));
+  if (limit === null || limit >= B || (base && lowestSide(base) <= limit)) return base ?? fallbackU(m, L, R, T, B);
+  for (const b of [limit, (limit + B) / 2]) {
+    const places = b > T ? slots(m, L, R, T, b, box) : null;
+    if (places) return places;
+  }
+  return base ?? fallbackU(m, L, R, T, B);
 }
 
 /** Último recurso (tela minúscula para a quantidade de gente): espaça igual ao longo do "U". */

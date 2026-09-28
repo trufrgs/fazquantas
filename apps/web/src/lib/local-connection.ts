@@ -43,6 +43,14 @@ export function clearSavedGame(): void {
   storage.remove(LOCAL_SAVE_KEY);
 }
 
+/** Resumo da partida salva para botões e avisos ("Rodada 4 · 3 na mesa"). */
+export function savedGameSummary(): string | null {
+  const s = storage.get<SavedGame>(LOCAL_SAVE_KEY)?.snapshot?.state;
+  if (!s) return null;
+  const alive = s.players.filter((p) => p.eliminatedRound === null).length;
+  return `Rodada ${s.round.number} · ${alive} na mesa`;
+}
+
 /** Partida contra bots rodando inteira no navegador, salva a cada jogada. */
 export class LocalConnection implements GameConnection {
   readonly kind = 'local' as const;

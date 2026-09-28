@@ -78,17 +78,24 @@ export function TrickArea(p: TrickAreaProps) {
             </motion.div>
           );
         })}
-        {/* Carimbos por cima de todas as cartas (senão a carta seguinte cobre o carimbo). */}
+        {/*
+          Carimbos acima das outras cartas (senão a carta seguinte cobre o carimbo), mas abaixo da
+          vencedora: um carimbo nunca pode parecer estar nela. Cada um vai para a borda de fora da
+          carta, a parte que costuma ficar à mostra.
+        */}
         {p.resolved &&
           p.plays
             .filter((play) => p.cancelled.includes(play.playerId))
             .map((play) => {
               const at = p.geometry.tricks.get(play.playerId) ?? p.geometry.center;
+              const c = p.geometry.center;
+              const d = Math.hypot(at.x - c.x, at.y - c.y) || 1;
+              const push = ch * 0.22;
               return (
                 <motion.span
                   key={`carimbo-${play.cardId}`}
-                  className="absolute z-[60] -translate-x-1/2 -translate-y-1/2 whitespace-nowrap rounded-md border-2 border-copas bg-papel/95 px-1.5 font-hand text-xl font-bold leading-none text-copas shadow"
-                  style={{ left: at.x, top: at.y }}
+                  className="absolute z-40 -translate-x-1/2 -translate-y-1/2 whitespace-nowrap rounded-md border-2 border-copas bg-papel/95 px-1.5 font-hand text-xl font-bold leading-none text-copas shadow"
+                  style={{ left: at.x + ((at.x - c.x) / d) * push, top: at.y + ((at.y - c.y) / d) * push }}
                   initial={{ scale: 2, opacity: 0, rotate: -24 }}
                   animate={{ scale: 1, opacity: 1, rotate: -14 }}
                   exit={{ opacity: 0, transition: { duration: 0.15 } }}

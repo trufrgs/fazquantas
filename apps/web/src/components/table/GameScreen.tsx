@@ -73,12 +73,14 @@ export function GameScreen() {
   const seats = useGame((s) => s.seats);
   const reactions = useGame((s) => s.reactions);
   const gameKey = useGame((s) => s.gameKey);
+  const inRoom = useOnline((s) => s.room !== null);
   useTableEffects(update);
   if (!conn || !update) {
+    // Mesa vazia: numa sala online, o caminho é a sala (sair do início deixaria o assento preso).
     return (
       <div className="mesa flex h-full items-center justify-center">
-        <Button variant="ouro" onClick={leaveTable}>
-          Voltar ao início
+        <Button variant="ouro" onClick={inRoom ? () => useApp.getState().reset('lobby') : leaveTable}>
+          {inRoom ? 'Voltar pra sala' : 'Voltar ao início'}
         </Button>
       </div>
     );
@@ -320,7 +322,7 @@ function Table({ conn, update, seats, reactions }: { conn: GameConnection; updat
             startingLives={view.rules.startingLives}
             status={status}
             reaction={reactionFor(me.id)}
-            isTurn={myTurn && !view.handHidden}
+            isTurn={myTurn && !(view.phase === 'playing' && view.handHidden)}
             deadline={myTurn ? view.turnDeadline : null}
           />
         )}
@@ -381,7 +383,6 @@ function Table({ conn, update, seats, reactions }: { conn: GameConnection; updat
         <Hierarchy mode={view.rules.hierarchy} vira={view.vira} />
       </Sheet>
       <PauseMenu
-        key={menu ? 'aberto' : 'fechado'}
         open={menu}
         online={online}
         onClose={() => setMenu(false)}

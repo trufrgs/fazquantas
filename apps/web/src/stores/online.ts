@@ -50,8 +50,9 @@ class OnlineConnection implements GameConnection {
   ) {}
 
   push(msg: ViewMessage) {
-    // O prazo vem no relógio do servidor: converte para o relógio deste aparelho.
-    const skew = msg.serverNow - Date.now();
+    // O prazo vem no relógio do servidor: converte para o relógio deste aparelho
+    // (servidor antigo, sem `serverNow`: usa o prazo como veio).
+    const skew = typeof msg.serverNow === 'number' ? msg.serverNow - Date.now() : 0;
     const deadline = msg.view.turnDeadline;
     const view = deadline === null ? msg.view : { ...msg.view, turnDeadline: deadline - skew };
     const u: ViewUpdate = { view, auto: msg.auto, reason: msg.reason ?? null, actorId: msg.actorId };
@@ -137,12 +138,17 @@ interface OnlineState {
 
 let socket: FodinhaSocket | null = null;
 let connection: OnlineConnection | null = null;
+/** Cada tentativa de voltar ao assento depois de uma queda; só a mais nova decide o resultado. */
+let rejoinAttempt = 0;
+const REJOIN_RETRY_MS = 2500;
 
 const NO_ANSWER = { ok: false as const, error: { code: 'TIMEOUT', message: 'O servidor não respondeu. Tenta de novo.' } };
 const NO_SERVER = {
   ok: false as const,
   error: { code: 'OFFLINE', message: 'Não deu pra falar com o servidor. Confere a conexão e tenta de novo.' },
 };
+/** Falhas que passam sozinhas (rede, servidor ocupado): a sala e o lugar continuam valendo. */
+const TRANSIENT = new Set(['TIMEOUT', 'OFFLINE', 'RATE_LIMITED', 'SERVER_FULL', 'INTERNAL_ERROR']);
 
 /** Espera o socket conectar (sem enfileirar mensagens que chegariam atrasadas). */
 function whenConnected(s: FodinhaSocket, timeoutMs = ACK_TIMEOUT_MS): Promise<boolean> {
@@ -171,12 +177,50 @@ async function emitAck<T extends object>(fn: (s: FodinhaSocket, ack: (r: Ack<T>)
   });
 }
 
-/** Sai da sala localmente e mostra o motivo na tela "Jogar com a gurizada". */
-function dropToOnlineScreen(error: string) {
-  storage.remove(SESSION_KEY);
+/**
+ * Sai da sala localmente e mostra o motivo na tela "Jogar com a gurizada". `keepSession` preserva
+ * o token salvo: ele é compartilhado entre abas e pode ser o de outra aba que assumiu o lugar.
+ */
+function dropToOnlineScreen(error: string, { keepSession = false } = {}) {
+  if (!keepSession) storage.remove(SESSION_KEY);
   resetOnline();
   useOnline.setState({ error });
   if (useApp.getState().screen !== 'home') useApp.getState().reset('online');
+}
+
+function requestJoin(code: string, useToken: boolean): Promise<Ack<JoinResult>> {
+  const session = savedSession();
+  const token = useToken && session?.code === code ? session.token : undefined;
+  return emitAck<JoinResult>((s, ack) => s.emit('room:join', { code, ...profile(), token }, ack));
+}
+
+function saveSession(r: JoinResult) {
+  storage.set(SESSION_KEY, { code: r.code, token: r.token, playerId: r.playerId });
+}
+
+/**
+ * Depois de uma queda, volta ao mesmo assento com o token. Falha passageira mantém o "reconectando"
+ * e tenta de novo; só sala sumida ou lugar perdido tiram o jogador da mesa.
+ */
+async function rejoin(): Promise<void> {
+  const { room, status } = useOnline.getState();
+  if (!room || status !== 'reconnecting') return;
+  const attempt = ++rejoinAttempt;
+  const r = await requestJoin(room.code, true);
+  if (attempt !== rejoinAttempt) return;
+  if (r.ok) {
+    saveSession(r);
+    useOnline.setState({ status: 'online', error: null });
+    return;
+  }
+  if (TRANSIENT.has(r.error.code)) {
+    window.setTimeout(() => {
+      if (attempt === rejoinAttempt && socket?.connected) void rejoin();
+    }, REJOIN_RETRY_MS);
+    return;
+  }
+  // A sala sumiu (servidor reiniciou, ficou ociosa…) ou o lugar foi perdido.
+  dropToOnlineScreen(r.error.message);
 }
 
 function ensureSocket(): FodinhaSocket {
@@ -189,22 +233,16 @@ function ensureSocket(): FodinhaSocket {
   socket = s;
 
   s.on('connect', () => {
-    const st = useOnline.getState();
-    if (st.status === 'reconnecting' && st.room) {
-      const code = st.room.code;
-      void st.join(code, true).then((ok) => {
-        // A sala sumiu (servidor reiniciou, ficou ociosa…) ou o lugar foi perdido.
-        if (!ok) dropToOnlineScreen(useOnline.getState().error ?? `A sala ${code} não existe mais.`);
-      });
-    }
+    if (useOnline.getState().status === 'reconnecting') void rejoin();
   });
   s.on('disconnect', (reason) => {
     if (reason === 'io server disconnect') {
       // O servidor derrubou este socket: o mesmo jogador entrou por outro aparelho ou aba.
-      // Esse socket não reconecta sozinho — descarta para o próximo uso abrir outro.
+      // Esse socket não reconecta sozinho — descarta para o próximo uso abrir outro. O token
+      // salvo agora é o da outra aba: fica onde está.
       s.removeAllListeners();
       socket = null;
-      dropToOnlineScreen('Tu abriu essa sala em outro aparelho ou aba. Segue por lá.');
+      dropToOnlineScreen('Tu abriu essa sala em outro aparelho ou aba. Segue por lá.', { keepSession: true });
       return;
     }
     if (useOnline.getState().room) useOnline.setState({ status: 'reconnecting' });
@@ -212,12 +250,13 @@ function ensureSocket(): FodinhaSocket {
   s.on('room:state', (room) => {
     useOnline.setState({ room, status: 'online' });
     const app = useApp.getState();
-    if (room.status !== 'lobby' && connection && app.screen === 'lobby') app.reset('game');
+    if (room.status !== 'lobby' && connection) app.swap('lobby', 'game');
     if (room.status === 'lobby' && useGame.getState().conn?.kind === 'online') {
-      // Voltou para a sala: a partida anterior sai da mesa (a próxima chega do zero).
+      // Voltou para a sala: a partida anterior sai da mesa (a próxima chega do zero). Quem estava
+      // lendo as regras volta para a sala, não para uma mesa vazia.
       useGame.getState().detach();
       connection = null;
-      if (app.screen === 'game') app.reset('lobby');
+      app.swap('game', 'lobby');
     }
   });
   s.on('game:view', (msg) => {
@@ -230,8 +269,9 @@ function ensureSocket(): FodinhaSocket {
     } else {
       connection.push(msg);
     }
-    const screen = useApp.getState().screen;
-    if (screen === 'lobby' || screen === 'online') useApp.getState().reset('game');
+    const app = useApp.getState();
+    if (app.screen === 'online') app.reset('game');
+    else app.swap('lobby', 'game');
   });
   s.on('game:reaction', (r) => connection?.pushReaction({ playerId: r.playerId, reaction: r.reaction }));
   s.on('room:kicked', () => {
@@ -244,6 +284,7 @@ function ensureSocket(): FodinhaSocket {
 function resetOnline() {
   if (useGame.getState().conn?.kind === 'online') useGame.getState().detach();
   connection = null;
+  rejoinAttempt++; // uma volta ao assento ainda pendente não ressuscita a sala
   useOnline.setState({ room: null, status: 'idle' });
 }
 
@@ -253,7 +294,7 @@ function profile() {
   return { name: (s.name.trim() || 'Jogador').slice(0, 16), avatar: s.avatar };
 }
 
-export const useOnline = create<OnlineState>((set, get) => ({
+export const useOnline = create<OnlineState>((set) => ({
   status: 'idle',
   error: null,
   room: null,
@@ -274,16 +315,15 @@ export const useOnline = create<OnlineState>((set, get) => ({
 
   join: async (rawCode, useToken = true) => {
     const code = rawCode.trim().toUpperCase();
-    set({ status: get().status === 'reconnecting' ? 'reconnecting' : 'connecting', error: null, kicked: false });
-    const session = savedSession();
-    const token = useToken && session?.code === code ? session.token : undefined;
-    const r = await emitAck<JoinResult>((s, ack) => s.emit('room:join', { code, ...profile(), token }, ack));
+    set({ status: 'connecting', error: null, kicked: false });
+    const r = await requestJoin(code, useToken);
     if (!r.ok) {
-      if (session?.code === code) storage.remove(SESSION_KEY);
-      set({ status: get().status === 'reconnecting' ? 'reconnecting' : 'idle', error: r.error.message });
+      // Só esquece a sala quando ela não serve mais; falha de rede deixa o "Voltar pra sala".
+      if (!TRANSIENT.has(r.error.code) && savedSession()?.code === code) storage.remove(SESSION_KEY);
+      set({ status: 'idle', error: r.error.message });
       return false;
     }
-    storage.set(SESSION_KEY, { code: r.code, token: r.token, playerId: r.playerId });
+    saveSession(r);
     set({ status: 'online' });
     return true;
   },

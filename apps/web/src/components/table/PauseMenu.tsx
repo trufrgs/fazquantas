@@ -19,6 +19,13 @@ export interface PauseMenuProps {
 export function PauseMenu(p: PauseMenuProps) {
   const s = useSettings();
   const [confirm, setConfirm] = useState<'exit' | 'restart' | null>(null);
+  // Cada abertura começa no menu principal. Ajusta no render (e não remontando a folha) para a
+  // animação de saída continuar mostrando o que estava na tela.
+  const [wasOpen, setWasOpen] = useState(p.open);
+  if (p.open !== wasOpen) {
+    setWasOpen(p.open);
+    if (p.open) setConfirm(null);
+  }
   return (
     <Sheet open={p.open} onClose={p.onClose} label="Menu da partida">
       <h2 className="font-display text-2xl font-bold" style={{ fontVariationSettings: '"SOFT" 100, "WONK" 1' }}>

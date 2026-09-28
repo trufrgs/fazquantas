@@ -21,7 +21,7 @@ pnpm dev
 - Abra <http://localhost:5173> e toque em **Jogar agora**: começa uma partida contra 3 bots.
 - O `pnpm dev` também sobe o servidor multiplayer na porta 3001. Para jogar online na rede de casa,
   abra `http://<IP-do-computador>:5173` em outro navegador ou no celular (o Vite mostra o endereço
-  "Network" no terminal), toque em **Jogar com amigos** e crie ou entre numa sala.
+  "Network" no terminal), toque em **Jogar com a gurizada** e crie ou entre numa sala.
 
 ## O que tem
 
@@ -58,7 +58,7 @@ cada jogador só a visão dele, então nenhuma carta escondida sai do servidor.
 | Comando | O que faz |
 |---|---|
 | `pnpm dev` | web (5173) + servidor (3001) em modo desenvolvimento |
-| `pnpm test` | testes do engine (inclui fuzz de 150 partidas), do servidor e da geometria da mesa |
+| `pnpm test` | testes do engine (inclui fuzz de 150 partidas), do servidor, da geometria da mesa e da reconexão online |
 | `pnpm e2e` | Playwright: partida local e online inteiras pela interface |
 | `pnpm lint` / `pnpm typecheck` | ESLint e TypeScript em todo o monorepo |
 | `pnpm build` | build do web (PWA) e do servidor |

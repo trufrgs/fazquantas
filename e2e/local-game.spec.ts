@@ -63,3 +63,45 @@ test('palpite proibido do pé fica desabilitado e explicado', async ({ page }) =
   }
   throw new Error('não chegou a ser o pé com restrição');
 });
+
+test('montar partida pergunta antes de apagar a partida salva', async ({ page }) => {
+  const errors = watchErrors(page);
+  await presetSettings(page, { speed: 'normal', rules: { startingLives: 5 } });
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Jogar agora' }).click();
+  await page.locator('section[aria-label="Teu palpite"] button:not([disabled])').first().click();
+  await page.waitForTimeout(800);
+  await page.reload();
+  await expect(page.getByRole('button', { name: /Continuar partida/ })).toBeVisible();
+
+  await page.getByRole('button', { name: 'Montar partida contra bots' }).click();
+  await page.getByRole('button', { name: 'Começar partida' }).click();
+  const confirm = page.getByRole('dialog', { name: 'Começar outra partida' });
+  await expect(confirm).toBeVisible();
+  await confirm.getByRole('button', { name: 'Deixa quieto' }).click();
+  await expect(confirm).toBeHidden();
+  await page.getByRole('button', { name: 'Voltar' }).click();
+  await expect(page.getByRole('button', { name: /Continuar partida/ })).toBeVisible();
+
+  await page.getByRole('button', { name: 'Montar partida contra bots' }).click();
+  await page.getByRole('button', { name: 'Começar partida' }).click();
+  await page.getByRole('dialog', { name: 'Começar outra partida' }).getByRole('button', { name: 'Começar outra' }).click();
+  await expect(page.getByText('Rodada 1')).toBeVisible();
+  expect(errors).toEqual([]);
+});
+
+test('o menu da partida reabre no começo, sem a confirmação da vez anterior', async ({ page }) => {
+  await presetSettings(page, { speed: 'normal' });
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Jogar agora' }).click();
+  const menu = page.getByRole('dialog', { name: 'Menu da partida' });
+  await page.getByRole('button', { name: 'Menu', exact: true }).click();
+  await menu.getByRole('button', { name: 'Sair', exact: true }).click();
+  await expect(menu.getByText('Sair pro início?', { exact: false })).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(menu).toBeHidden();
+
+  await page.getByRole('button', { name: 'Menu', exact: true }).click();
+  await expect(menu.getByRole('button', { name: 'Continuar' })).toBeVisible();
+  await expect(menu.getByText('Sair pro início?', { exact: false })).toBeHidden();
+});
