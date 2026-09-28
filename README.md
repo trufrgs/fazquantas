@@ -36,6 +36,12 @@ pnpm dev
   estoura o tempo duas vezes fica ausente e a mesa joga por ele até ele voltar; quem cai ou recarrega
   a página volta ao mesmo lugar. Aviso da vez pelo título da aba e por notificação (push, mesmo com o
   jogo fechado).
+- **Cada um no seu tempo:** com 1 h, 6 h, 12 h ou sem limite por jogada, a sala fica assíncrona:
+  quem fecha o jogo segue na mesa, a vez chega por notificação (com lembrete antes do prazo) e as
+  salas em andamento aparecem em "Tuas salas".
+- **Perfil:** 25 avatares da turma do Gaudério e apelido guardado com PIN (fica só teu e leva o
+  perfil para outro aparelho).
+- **Admin** em `/admin`: salas abertas, jogadores, acessos e números de uso.
 - **Séries e ranking:** melhor de 1, 3, 5 ou 7, com os palitos de cada partida escolhidos na sala. A
   sala marcada "Valendo ranking" conta no ranking da semana, do mês, do ano e de sempre (horário de
   Brasília), da tua turma ou de todo mundo. Cada partida dá um ponto por pessoa que terminou atrás.

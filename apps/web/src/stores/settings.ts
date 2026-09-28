@@ -32,6 +32,8 @@ export interface SettingsState {
   profileKey: string;
   /** Pediu para ser avisado da vez (notificação do sistema). */
   notify: boolean;
+  /** Apelido guardado com PIN (o nome fica fixo e vale em outros aparelhos), ou `null`. */
+  claimed: string | null;
   set: (patch: Partial<Omit<SettingsState, 'set'>>) => void;
 }
 
@@ -52,6 +54,7 @@ export const useSettings = create<SettingsState>()(
       seenTips: [],
       profileKey: randomToken(16),
       notify: false,
+      claimed: null,
       set: (patch) => set(patch),
     }),
     {

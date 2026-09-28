@@ -843,10 +843,29 @@ export class Sala {
     this.refreshIdle();
   }
 
-  private close(reason: string): void {
+  /** Como a sala está, em poucas linhas (painel do admin). */
+  summary(): { status: RoomStatus; humanos: string[]; bots: number; conectados: number; assincrona: boolean; ranqueada: boolean; senha: boolean } {
+    const humans = this.humans();
+    return {
+      status: this.currentStatus,
+      humanos: humans.map((seat) => seat.name),
+      bots: this.seats.length - humans.length,
+      conectados: humans.filter((seat) => seat.conexao !== null).length,
+      assincrona: this.isAsync,
+      ranqueada: this.ranked,
+      senha: this.password !== null,
+    };
+  }
+
+  /** A administração encerrou a sala (todo mundo sai, o código fica livre). */
+  closeByAdmin(): void {
+    this.close('admin', WS_CLOSE.closedByAdmin);
+  }
+
+  private close(reason: string, closeCode: number = WS_CLOSE.gone): void {
     if (this.disposed) return;
     this.deps.logger.info(`[${this.code}] sala encerrada: ${reason}`);
-    for (const seat of this.humans()) seat.conexao?.fechar(WS_CLOSE.gone, reason);
+    for (const seat of this.humans()) seat.conexao?.fechar(closeCode, reason);
     this.dispose();
     this.deps.aoEncerrar(reason);
   }

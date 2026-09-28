@@ -25,6 +25,7 @@ export const MESSAGES = {
   wrongPassword: 'Senha errada. Confere com quem te convidou.',
   tooManyAttempts: 'Muitas senhas erradas. Espera um minuto e tenta de novo.',
   rateLimited: 'Muitas ações seguidas. Espera um pouquinho.',
+  blocked: 'Esse perfil está bloqueado no jogo online.',
   internal: 'Deu um erro no servidor. Tenta de novo.',
   payload: 'Dados inválidos.',
   name: 'Apelido inválido: usa de 1 a 16 caracteres.',

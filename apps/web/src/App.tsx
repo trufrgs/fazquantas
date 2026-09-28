@@ -1,8 +1,9 @@
-import { useEffect, useState } from 'react';
+import { lazy, Suspense, useEffect, useState } from 'react';
 import { fullDeck } from '@fodinha/engine';
 import { preloadCards } from './components/cards/Card';
 import { CardSprite } from './components/cards/sprite';
 import { GameScreen } from './components/table/GameScreen';
+import { aoAbrir } from './lib/conta';
 import { isNative, multiplayer } from './lib/platform';
 import { preloadSounds, setSoundEnabled } from './lib/sound';
 import { useApp } from './stores/app';
@@ -17,6 +18,10 @@ import { Online } from './screens/Online';
 import { Ranking } from './screens/Ranking';
 import { Rules } from './screens/Rules';
 import { Settings } from './screens/Settings';
+
+const Admin = lazy(() => import('./screens/Admin').then((m) => ({ default: m.Admin })));
+/** `/admin`: o painel do dono do jogo (fora do app, carregado à parte). */
+const isAdminPath = multiplayer && window.location.pathname.replace(/\/+$/, '') === '/admin';
 
 /** Código de sala vindo de um link de convite (`?sala=ABCD`). */
 function inviteCode(): string | undefined {
@@ -49,11 +54,16 @@ export function App() {
     return () => window.removeEventListener('pointerdown', unlock);
   }, []);
 
+  // Abriu o jogo: conta a visita e confere o apelido guardado.
+  useEffect(() => {
+    if (multiplayer && !isAdminPath) void aoAbrir();
+  }, []);
+
   // Recarregou ou reabriu no meio de uma sala: volta sozinho para o assento (sair de propósito
   // apaga a sessão). Sala que sumiu só deixa a pessoa no início, sem erro.
   useEffect(() => {
     const session = multiplayer ? savedSession() : null;
-    if (!session || code) return;
+    if (!session || code || isAdminPath) return;
     void useOnline
       .getState()
       .join(session.code)
@@ -101,6 +111,14 @@ export function App() {
       });
     });
   }, []);
+
+  if (isAdminPath) {
+    return (
+      <Suspense fallback={null}>
+        <Admin />
+      </Suspense>
+    );
+  }
 
   if (import.meta.env.DEV && new URLSearchParams(window.location.search).has('galeria')) {
     return (

@@ -17,6 +17,8 @@ import {
   type PartidaRanqueada,
   type SalaSalva,
 } from '@fodinha/sala';
+import { contasStub } from './contas-do';
+import { painelStub, type ResumoSala } from './painel-do';
 import { rankingStub } from './ranking-do';
 import { horaBrasilia } from './hora';
 import { AlarmClock } from './relogio';
@@ -103,6 +105,8 @@ export class SalaDO extends DurableObject<Env> {
   private salvando = false;
   /** Há resultado de ranking esperando para ser enviado. */
   private rankingPendente = true;
+  /** Último resumo mandado para o painel (só manda quando muda). */
+  private ultimoResumo = '';
 
   constructor(ctx: DurableObjectState, env: Env) {
     super(ctx, env);
@@ -180,6 +184,7 @@ export class SalaDO extends DurableObject<Env> {
       aoEncerrar: (motivo) => this.encerrar(motivo),
       aoTerminarRanqueada: (p) => void this.registrarRanking(p),
       aoAvisar: (a) => this.avisar(a),
+      conferirPerfil: (profileId, nome) => contasStub(this.env).conferir(profileId, nome),
     });
     return this.servidor;
   }
@@ -215,11 +220,38 @@ export class SalaDO extends DurableObject<Env> {
       this.salvando = false;
       const salva = this.servidor?.serialize();
       if (salva) void this.ctx.storage.put('sala', salva).catch((e) => console.error('[salvar]', e));
+      this.informarPainel();
     });
+  }
+
+  /** O painel do admin fica sabendo quando a sala muda de situação (e conta as partidas). */
+  private informarPainel(): void {
+    const sala = this.servidor?.room;
+    if (!sala || sala.isDisposed) return;
+    const resumo: ResumoSala = { code: this.code, ...sala.summary() };
+    const json = JSON.stringify(resumo);
+    if (json === this.ultimoResumo) return;
+    const antes = this.ultimoResumo ? (JSON.parse(this.ultimoResumo) as ResumoSala).status : null;
+    this.ultimoResumo = json;
+    const painel = painelStub(this.env);
+    const tarefas: Promise<unknown>[] = [painel.sala(resumo)];
+    if (antes !== null && antes !== 'playing' && resumo.status === 'playing') tarefas.push(painel.contar('partidas'));
+    if (antes === 'playing' && resumo.status === 'finished') tarefas.push(painel.contar('partidas_fim'));
+    this.ctx.waitUntil(Promise.all(tarefas).catch((e: unknown) => console.error('[painel]', e)));
+  }
+
+  /** Admin: encerra a sala na hora (todo mundo sai). */
+  async encerrarPeloAdmin(): Promise<boolean> {
+    const sala = this.servidor?.room;
+    if (!sala || sala.isDisposed) return false;
+    sala.closeByAdmin();
+    return true;
   }
 
   private encerrar(motivo: string): void {
     console.log(`[${this.code}] sala encerrada: ${motivo}`);
+    this.ultimoResumo = '';
+    this.ctx.waitUntil(painelStub(this.env).salaEncerrada(this.code, motivo).catch((e: unknown) => console.error('[painel]', e)));
     this.relogio.clear();
     void this.ctx.storage.deleteAll().catch((e) => console.error('[encerrar]', e));
     for (const ws of this.ctx.getWebSockets()) {
@@ -236,6 +268,7 @@ export class SalaDO extends DurableObject<Env> {
     try {
       await this.ctx.storage.put(`ranking:${p.id}`, p);
       await this.enviarRanking(p);
+      this.ctx.waitUntil(painelStub(this.env).contar('ranqueadas').catch(() => {}));
     } catch (error) {
       this.rankingPendente = true;
       console.error('[ranking]', error);
@@ -274,8 +307,11 @@ export class SalaDO extends DurableObject<Env> {
         : aviso.kind === 'reminder'
           ? { title: 'Tua vez tá acabando', body: `Na sala ${this.code}, a mesa joga por ti às ${horaBrasilia(aviso.deadline ?? Date.now())}.`, tag: `vez-${this.code}` }
           : { title: 'Começou!', body: `A partida começou na sala ${this.code}.`, tag: `sala-${this.code}` };
-    void stub
-      .enviar(aviso.profileId, { ...msg, url: `${this.env.SITE}/?sala=${this.code}` })
-      .catch((error: unknown) => console.error('[aviso]', error));
+    this.ctx.waitUntil(
+      stub
+        .enviar(aviso.profileId, { ...msg, url: `${this.env.SITE}/?sala=${this.code}` })
+        .then((n) => (n > 0 ? painelStub(this.env).contar('avisos', n) : undefined))
+        .catch((error: unknown) => console.error('[aviso]', error)),
+    );
   }
 }

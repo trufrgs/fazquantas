@@ -18,6 +18,8 @@ Aegro, e só serviços gratuitos enquanto der.
 - Online: salas com convite por link, senha, ritmo calma/normal/ligeira, tempo por jogada, séries
   "melhor de X" e ranking por semana, mês e ano. Detalhes técnicos em [DEPLOY.md](DEPLOY.md).
 - Privacidade: <https://fazquantas.pages.dev/privacidade.html>, com link nos créditos do jogo.
+- Jogo assíncrono ("cada um no seu tempo": 1 h, 6 h, 12 h ou sem limite), apelido guardado com PIN,
+  25 avatares da turma do Gaudério e o admin em <https://fazquantas.pages.dev/admin>.
 
 ### Como chamar a gurizada
 

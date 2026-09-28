@@ -3,6 +3,7 @@ import { motion } from 'motion/react';
 import { useState } from 'react';
 import { Card } from '../components/cards/Card';
 import { ConfirmNewGame } from '../components/setup/ConfirmNewGame';
+import { ApelidoGuardado } from '../components/setup/ApelidoGuardado';
 import { ProfileEditor } from '../components/setup/ProfileEditor';
 import { Avatar } from '../components/ui/Avatar';
 import { Logo } from '../components/ui/Logo';
@@ -197,6 +198,11 @@ export function Home() {
 
       <Sheet open={ask !== null} onClose={() => setAsk(null)} label="Teu apelido">
         <ProfileEditor />
+        {multiplayer && (
+          <div className="mt-3">
+            <ApelidoGuardado compact />
+          </div>
+        )}
         <div className="mt-4 grid grid-cols-2 gap-2">
           <Button
             onClick={() => {

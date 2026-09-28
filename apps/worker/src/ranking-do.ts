@@ -104,6 +104,28 @@ export class RankingDO extends DurableObject<Env> {
     return novo;
   }
 
+  /** Admin: tira o perfil do ranking (as partidas dos outros continuam). */
+  async remover(profileId: string): Promise<number> {
+    const r = this.sql.exec('DELETE FROM resultados WHERE jogador = ?', profileId);
+    this.sql.exec('DELETE FROM jogadores WHERE id = ?', profileId);
+    return r.rowsWritten;
+  }
+
+  /** Admin: troca o nome que aparece no ranking. */
+  async renomear(profileId: string, nome: string): Promise<void> {
+    this.sql.exec('UPDATE jogadores SET nome = ? WHERE id = ?', nome, profileId);
+  }
+
+  /** Admin: pontos, vitórias e partidas de sempre por perfil. */
+  async totais(): Promise<{ profileId: string; nome: string; pontos: number; vitorias: number; partidas: number }[]> {
+    return this.sql
+      .exec<{ profileId: string; nome: string; pontos: number; vitorias: number; partidas: number }>(
+        `SELECT r.jogador AS profileId, j.nome AS nome, SUM(r.pontos) AS pontos, SUM(r.venceu) AS vitorias, COUNT(*) AS partidas
+           FROM resultados r JOIN jogadores j ON j.id = r.jogador GROUP BY r.jogador`,
+      )
+      .toArray();
+  }
+
   async consultar(q: RankingQuery): Promise<RankingResponse> {
     const range = periodRange(q.period, q.at, Date.now());
     const turma = q.scope === 'turma' && q.profileId !== null;

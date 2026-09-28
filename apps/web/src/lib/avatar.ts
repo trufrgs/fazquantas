@@ -1,8 +1,20 @@
+import { GAUCHO_AVATARS } from './avatares-gauchos';
+
 /**
- * Avatares "Notionists" (DiceBear, CC0) pré-gerados em `public/avatars` por
- * `scripts/make-avatars.mjs` — assim o gerador não entra no bundle.
+ * Duas turmas de avatar: a do Gaudério (`g-<slug>`, desenhada à mão, em `public/avatars/g`) e a
+ * antiga "Notionists" (DiceBear, CC0, `av-<n>`), que continua valendo para quem já escolheu.
  */
 export const AVATAR_COUNT = 40;
+const GAUCHO_IDS = new Set(GAUCHO_AVATARS.map((a) => a.id));
+
+export function isGauchoAvatar(seed: string): boolean {
+  return GAUCHO_IDS.has(seed);
+}
+
+/** Nome engraçado do avatar gaúcho (para leitores de tela e a galeria). */
+export function avatarLabel(seed: string): string | null {
+  return GAUCHO_AVATARS.find((a) => a.id === seed)?.label ?? null;
+}
 
 function hash(seed: string): number {
   let h = 0;
@@ -17,6 +29,7 @@ export function avatarIndex(seed: string): number {
 }
 
 export function avatarUri(seed: string): string {
+  if (isGauchoAvatar(seed)) return `${import.meta.env.BASE_URL}avatars/g/${seed.slice(2)}.svg`;
   return `${import.meta.env.BASE_URL}avatars/${String(avatarIndex(seed)).padStart(2, '0')}.svg`;
 }
 
@@ -27,19 +40,7 @@ export function avatarBackground(seed: string): string {
   return BACKGROUNDS[hash(seed) % BACKGROUNDS.length]!;
 }
 
+/** Avatar de quem chega: sempre da turma do Gaudério. */
 export function randomAvatarSeed(): string {
-  return `av-${Math.floor(Math.random() * AVATAR_COUNT)}`;
-}
-
-/** `count` avatares diferentes entre si e do atual, para escolher. */
-export function avatarChoices(current: string, count: number): string[] {
-  const taken = new Set([avatarIndex(current)]);
-  const out = [current];
-  while (out.length < count && taken.size < AVATAR_COUNT) {
-    const i = Math.floor(Math.random() * AVATAR_COUNT);
-    if (taken.has(i)) continue;
-    taken.add(i);
-    out.push(`av-${i}`);
-  }
-  return out;
+  return GAUCHO_AVATARS[Math.floor(Math.random() * GAUCHO_AVATARS.length)]!.id;
 }

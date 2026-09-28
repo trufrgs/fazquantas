@@ -199,6 +199,7 @@ const REASONS: Partial<Record<DisconnectReason, string>> = {
   replaced: 'Tu abriu essa sala em outro aparelho ou aba. Segue por lá.',
   kicked: 'O anfitrião te tirou da sala.',
   gone: 'A sala acabou: ficou um tempo sem ninguém.',
+  closedByAdmin: 'A sala foi encerrada pela administração do jogo.',
   tooManyAttempts: 'Muitas senhas erradas. Espera um minuto e tenta de novo.',
   refused: 'Esse endereço não pode abrir salas.',
 };

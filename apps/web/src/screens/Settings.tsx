@@ -1,6 +1,7 @@
-import { ProfileCode } from '../components/setup/ProfileCode';
+import { ApelidoGuardado } from '../components/setup/ApelidoGuardado';
 import { ProfileEditor } from '../components/setup/ProfileEditor';
 import { disableNotify, enableNotify, notifyState } from '../lib/avisos';
+import { sincronizarAvatar } from '../lib/conta';
 import { multiplayer } from '../lib/platform';
 import { Button } from '../components/ui/Button';
 import { Segmented, Toggle } from '../components/ui/Controls';
@@ -14,7 +15,7 @@ export function Settings() {
   return (
     <ScreenFrame title="Ajustes">
       <Panel title="Perfil">
-        <ProfileEditor />
+        <ProfileEditor onAvatar={sincronizarAvatar} />
       </Panel>
       <Panel title="Jogo">
         <div className="divide-y divide-tinta/10">
@@ -63,8 +64,8 @@ export function Settings() {
         </div>
       </Panel>
       {multiplayer && (
-        <Panel title="Código do jogador">
-          <ProfileCode />
+        <Panel title="Apelido guardado">
+          <ApelidoGuardado />
         </Panel>
       )}
       <div className="grid grid-cols-2 gap-2">

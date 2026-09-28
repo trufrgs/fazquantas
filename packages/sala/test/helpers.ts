@@ -31,6 +31,7 @@ export interface MundoOpts {
   graceMs?: number;
   ociosaMs?: number;
   ociosaAssincronaMs?: number;
+  conferirPerfil?: (profileId: string | null, name: string) => Promise<{ bloqueado: boolean; nome: string; avatar: string | null }>;
   timing?: Partial<HostTiming>;
   rateLimit?: RateLimitOptions;
   /** Tempo por jogada encolhido: 15 s viram 15 ms com 0,001. */
@@ -64,6 +65,7 @@ export class Mundo {
         graceMs: this.opts.graceMs ?? 60_000,
         ociosaMs: this.opts.ociosaMs ?? 10 * 60_000,
         ociosaAssincronaMs: this.opts.ociosaAssincronaMs,
+        conferirPerfil: this.opts.conferirPerfil,
         turnScale: this.opts.turnScale,
         logger: silentLogger,
         rateLimit: this.opts.rateLimit,

@@ -10,7 +10,11 @@ import {
 import { allowedOrigin, corsHeaders } from './origens';
 import type { PushSubscriptionJSON } from './push';
 
+import { rotasDeConta } from './rotas';
+
 export { AvisosDO } from './avisos-do';
+export { ContasDO } from './contas-do';
+export { PainelDO } from './painel-do';
 import { rankingStub } from './ranking-do';
 
 export { RankingDO } from './ranking-do';
@@ -105,6 +109,8 @@ export default {
     const path = url.pathname.replace(/\/+$/, '');
 
     if (path === '/api/saude') return json({ ok: true }, cors);
+    const conta = await rotasDeConta(request, env, path, cors);
+    if (conta) return conta;
     if (path === '/api/salas/nova') return room(request, env, newCode(), cors, false);
     const salas = /^\/api\/salas\/([A-Za-z0-9]{1,8})(\/info)?$/.exec(path);
     if (salas) {

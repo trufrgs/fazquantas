@@ -9,7 +9,7 @@ import {
 } from '@fodinha/engine';
 
 /** Por que a conexão caiu: só `network` tenta de novo sozinha. */
-export type DisconnectReason = 'network' | 'replaced' | 'kicked' | 'left' | 'gone' | 'tooManyAttempts' | 'refused' | 'closed';
+export type DisconnectReason = 'network' | 'replaced' | 'kicked' | 'left' | 'gone' | 'closedByAdmin' | 'tooManyAttempts' | 'refused' | 'closed';
 
 type ServerEvent = keyof ServerToClientEvents;
 type Payload<E extends ServerEvent> = Parameters<ServerToClientEvents[E]>[0];
@@ -41,6 +41,8 @@ function reasonFor(code: number): DisconnectReason {
       return 'left';
     case WS_CLOSE.gone:
       return 'gone';
+    case WS_CLOSE.closedByAdmin:
+      return 'closedByAdmin';
     case WS_CLOSE.tooManyAttempts:
       return 'tooManyAttempts';
     case WS_CLOSE.badOrigin:

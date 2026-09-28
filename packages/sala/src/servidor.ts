@@ -37,6 +37,11 @@ export const DEFAULT_RATE_LIMIT: Readonly<RateLimitOptions> = Object.freeze({ bu
 export interface ServidorDeps extends Omit<SalaDeps, 'aoEncerrar'> {
   /** A sala acabou: pode apagar o que foi salvo. */
   aoEncerrar(motivo: string): void;
+  /**
+   * Antes de sentar: perfil com apelido guardado senta com o apelido e o avatar dele; nome que é
+   * apelido guardado de outra pessoa muda; perfil bloqueado não senta.
+   */
+  conferirPerfil?(profileId: string | null, name: string): Promise<{ bloqueado: boolean; nome: string; avatar: string | null }>;
   rateLimit?: RateLimitOptions;
 }
 
@@ -175,10 +180,13 @@ export class SalaServidor {
   }
 
   private async perfil(p: { name: string; avatar: string; profileKey?: string | undefined }): Promise<Perfil> {
+    const profileId = p.profileKey ? await profileIdFromKey(p.profileKey) : null;
+    const conferido = this.deps.conferirPerfil ? await this.deps.conferirPerfil(profileId, p.name) : null;
+    if (conferido?.bloqueado) throw fail('BLOCKED', MESSAGES.blocked);
     return {
-      name: p.name,
-      avatar: p.avatar,
-      profileId: p.profileKey ? await profileIdFromKey(p.profileKey) : null,
+      name: conferido?.nome ?? p.name,
+      avatar: conferido?.avatar ?? p.avatar,
+      profileId,
     };
   }
 

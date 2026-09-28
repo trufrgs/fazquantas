@@ -128,6 +128,7 @@ export type ErrorCode =
   | 'TOO_MANY_ATTEMPTS'
   | 'INVALID_PAYLOAD'
   | 'RATE_LIMITED'
+  | 'BLOCKED'
   | 'GAME_ERROR';
 
 export interface ProtocolError {
@@ -224,6 +225,8 @@ export const WS_CLOSE = {
   left: 4003,
   /** A sala acabou (ociosa, sem ninguém). */
   gone: 4004,
+  /** A administração do jogo encerrou a sala. */
+  closedByAdmin: 4005,
   tooManyAttempts: 4029,
   badOrigin: 4403,
 } as const;

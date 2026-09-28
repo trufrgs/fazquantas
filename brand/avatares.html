@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <title>Faz quantas? — avatares gaúchos</title>
+    <!--
+      Folha de conferência dos avatares de brand/avatares.js: cada um a 128 px e a 48 px (o tamanho
+      do lugar na mesa) sobre as oito cores de fundo que o app sorteia, dentro do círculo.
+        avatares.html               folha inteira
+        avatares.html?so=capivara   só um (ou vários, separados por vírgula)
+      Os SVGs do app saem de `node scripts/make-avatares.mjs`.
+    -->
+    <style>
+      :root {
+        --tinta: #2b1d14;
+        --papel: #efe8dd;
+        --madeira: #6e4124;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        padding: 32px;
+        background: var(--papel);
+        color: var(--tinta);
+        font-family: system-ui, sans-serif;
+      }
+      h1 {
+        margin: 0 0 8px;
+        font-size: 26px;
+      }
+      h2 {
+        margin: 0 0 10px;
+        font-size: 17px;
+      }
+      h2 small {
+        font-weight: 400;
+        opacity: 0.6;
+      }
+      .mesa {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 14px;
+        padding: 20px;
+        border-radius: 16px;
+        background: var(--madeira);
+        margin-bottom: 28px;
+      }
+      .mesa figure {
+        margin: 0;
+        width: 64px;
+        text-align: center;
+        color: #fbf2df;
+        font-size: 10px;
+        line-height: 1.2;
+      }
+      .ficha {
+        padding: 16px 0;
+        border-top: 1px solid rgb(0 0 0 / 0.12);
+      }
+      .linha {
+        display: flex;
+        gap: 12px;
+        align-items: center;
+        flex-wrap: wrap;
+      }
+      .linha + .linha {
+        margin-top: 10px;
+      }
+      .av {
+        position: relative;
+        display: inline-block;
+        flex-shrink: 0;
+        overflow: hidden;
+        border-radius: 50%;
+        box-shadow:
+          inset 0 -3px 0 rgb(0 0 0 / 0.18),
+          0 2px 6px rgb(0 0 0 / 0.35);
+      }
+      .av svg {
+        display: block;
+        width: 100%;
+        height: 100%;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Avatares gaúchos</h1>
+    <p id="resumo"></p>
+    <div class="mesa" id="mesa"></div>
+    <div id="fichas"></div>
+    <script src="avatares.js"></script>
+    <script>
+      const CORES = [
+        '#e3a82b',
+        '#c4372d',
+        '#2e5c9c',
+        '#3d7a3a',
+        '#b86b3a',
+        '#7a5cae',
+        '#2f8a86',
+        '#d27a92',
+      ];
+      const so = new URLSearchParams(location.search).get('so');
+      const lista = so ? AVATARES.filter((a) => so.split(',').includes(a.slug)) : AVATARES;
+      const circulo = (slug, tam, cor) =>
+        `<span class="av" style="width:${tam}px;height:${tam}px;background:${cor}">${avatarSvg(slug)}</span>`;
+
+      document.getElementById('resumo').textContent = `${lista.length} avatares`;
+      document.getElementById('mesa').innerHTML = lista
+        .map(
+          (a, i) =>
+            `<figure>${circulo(a.slug, 48, CORES[i % CORES.length])}<figcaption>${a.label}</figcaption></figure>`,
+        )
+        .join('');
+      document.getElementById('fichas').innerHTML = lista
+        .map((a) => {
+          const kb = (new Blob([avatarSvg(a.slug)]).size / 1024).toFixed(1);
+          return `<section class="ficha" id="${a.slug}">
+            <h2>${a.label} <small>g-${a.slug} · ${kb} KB</small></h2>
+            <div class="linha">${CORES.map((c) => circulo(a.slug, 128, c)).join('')}</div>
+            <div class="linha">${CORES.map((c) => circulo(a.slug, 48, c)).join('')}</div>
+          </section>`;
+        })
+        .join('');
+      document.body.dataset.pronto = '';
+    </script>
+  </body>
+</html>

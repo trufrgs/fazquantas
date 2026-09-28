@@ -9,12 +9,15 @@
     "bindings": [
       { "name": "SALAS", "class_name": "SalaDO" },
       { "name": "RANKING", "class_name": "RankingDO" },
-      { "name": "AVISOS", "class_name": "AvisosDO" }
+      { "name": "AVISOS", "class_name": "AvisosDO" },
+      { "name": "CONTAS", "class_name": "ContasDO" },
+      { "name": "PAINEL", "class_name": "PainelDO" }
     ]
   },
   "migrations": [
     { "tag": "v1", "new_sqlite_classes": ["SalaDO", "RankingDO"] },
-    { "tag": "v2", "new_sqlite_classes": ["AvisosDO"] }
+    { "tag": "v2", "new_sqlite_classes": ["AvisosDO"] },
+    { "tag": "v3", "new_sqlite_classes": ["ContasDO", "PainelDO"] }
   ],
   "vars": {
     // Origens do web que podem abrir salas (além de localhost, rede local, prévias do Pages e o app).
@@ -23,6 +26,8 @@
     "RAPIDO": "0",
     // Endereço do site (links das notificações).
     "SITE": "https://fazquantas.pages.dev",
+    // Segredos (fora do repositório, no painel do Worker): VAPID_PRIVADO (push) e ADMIN_SENHA
+    // (entrada do /admin; sem ela o admin fica desligado).
     // Web Push: chave pública VAPID (a privada é o segredo VAPID_PRIVADO, fora do repositório).
     "VAPID_PUBLICO": "BIZT1wg09fx_bMxOdIGsShulUEtjS4u7FmVQ9BtNYLPLE6BRP0mkph05gFeLQhVOOrc98J7L80Anr78DWtQS4iQ",
     "VAPID_CONTATO": "https://fazquantas.pages.dev"

@@ -24,11 +24,17 @@ do [trufrgs/fazquantas](https://github.com/trufrgs/fazquantas).
 - **Servidor:** um Worker na frente (`apps/worker/src/index.ts`) e Durable Objects com SQLite:
   - `SalaDO`: uma sala por objeto (`idFromName(código)`). WebSockets hibernáveis, estado salvo a cada
     mudança, e o alarme do objeto como relógio (bots, tempo da vez, pausas). A sala some sozinha
-    depois de 15 min sem ninguém conectado.
+    depois de 15 min sem ninguém conectado; a assíncrona (1 h ou mais por jogada), depois de 7 dias
+    sem lance e sem ninguém conectado.
   - `RankingDO`: um objeto só com as partidas valendo ranking (tabelas `jogadores`, `partidas`,
     `resultados`). O nome do objeto está em `RANKING_NOME` (`apps/worker/src/ranking-do.ts`): trocar
     o nome começa um ranking zerado.
   - `AvisosDO`: assinaturas de Web Push por perfil (até 5 aparelhos por perfil).
+  - `ContasDO`: apelidos guardados com PIN (PBKDF2 com sal; 5 erros livres e depois espera que dobra
+    até 24 h) e bloqueios de perfil. A sala confere cada pessoa que senta: perfil guardado senta com
+    o apelido e o avatar dele, apelido de outro ganha número, bloqueado não senta.
+  - `PainelDO`: o painel do `/admin` — visitas por dia (IP truncado, cidade, aparelho), salas abertas
+    e encerradas, contadores (salas, partidas, ranqueadas, avisos). Guarda 90 dias.
 - O Worker publica pelo Workers Builds (Git): deploy com
   `pnpm --filter @fodinha/worker exec wrangler deploy`; branches que não são a `main` sobem uma versão
   de prévia (`wrangler versions upload`).
@@ -41,6 +47,7 @@ do [trufrgs/fazquantas](https://github.com/trufrgs/fazquantas).
 | `SITE` | variável | Link das notificações |
 | `VAPID_PUBLICO` / `VAPID_CONTATO` | variável | Web Push |
 | `VAPID_PRIVADO` | **segredo** (painel do Worker → Settings → Variables and secrets) | Assina o push. Cópia no Keychain: `pessoal/fazquantas/vapid-privado` |
+| `ADMIN_SENHA` | **segredo** (idem; pelo menos 8 caracteres) | Entrada do `/admin`. Sem ele, o admin fica desligado; trocar a senha derruba as sessões do admin |
 | `RAPIDO` | variável | `1` só nos testes E2E, com pausas curtas |
 
 Trocar o par VAPID: gerar um par P-256 novo, pôr a privada no segredo e a pública em `VAPID_PUBLICO`.
@@ -62,6 +69,8 @@ virada (00:00 UTC, 21:00 BRT); nada é cobrado.
 
 - **Logs:** painel do Worker → Observability (a sala loga `sala encerrada`, erros de ranking, push e
   alarme).
+- **Admin:** <https://fazquantas.pages.dev/admin> (senha = `ADMIN_SENHA`): salas abertas (encerrar),
+  jogadores (liberar apelido, tirar do ranking, bloquear), acessos e números de uso.
 - **Saúde:** `curl https://fazquantas-api.fancy-night-938c.workers.dev/api/saude`.
 - **Testes contra a produção:** `E2E_BASE=https://fazquantas.pages.dev pnpm exec playwright test
   e2e/amigos.spec.ts e2e/online-game.spec.ts` (três navegadores isolados, senha, série e ranking).

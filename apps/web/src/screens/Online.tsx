@@ -26,8 +26,14 @@ export function Online({ initialCode, onCodeUsed }: { initialCode?: string; onCo
   const rooms = useTuasSalas();
   const askPassword = passwordFor !== null && passwordFor === code;
 
-  // O erro fica visível até a pessoa sair desta tela.
-  useEffect(() => () => clearError(), [clearError]);
+  // O erro fica visível até a pessoa sair desta tela (a remontagem do StrictMode não conta).
+  useEffect(
+    () => () =>
+      queueMicrotask(() => {
+        if (useApp.getState().screen !== 'online') clearError();
+      }),
+    [clearError],
+  );
 
   const doJoin = async (c: string, pw?: string) => {
     if (await join(c, { password: pw })) reset('lobby');

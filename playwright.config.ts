@@ -31,7 +31,7 @@ export default defineConfig({
     },
     {
       // O servidor de verdade (Worker + Durable Objects) rodando local, com pausas curtas.
-      command: 'pnpm --filter @fodinha/worker exec wrangler dev --port 8787 --ip 0.0.0.0 --var RAPIDO:1',
+      command: 'pnpm --filter @fodinha/worker exec wrangler dev --port 8787 --ip 0.0.0.0 --var RAPIDO:1 --var ADMIN_SENHA:senha-do-teste-e2e',
       url: 'http://localhost:8787/api/saude',
       reuseExistingServer: true,
       timeout: 90_000,
