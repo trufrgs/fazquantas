@@ -96,7 +96,8 @@ function Table({ conn, update, seats, reactions }: { conn: GameConnection; updat
   const [score, setScore] = useState(false);
   const [forca, setForca] = useState(false);
   const [picker, setPicker] = useState(false);
-  const [pending, setPending] = useState(false);
+  // Trava a entrada entre mandar a jogada e a próxima visão chegar (derivado do `seq`).
+  const [pendingAt, setPendingAt] = useState<number | null>(null);
   const [toast, setToast] = useState<string | null>(null);
 
   const online = conn.kind === 'online';
@@ -113,29 +114,34 @@ function Table({ conn, update, seats, reactions }: { conn: GameConnection; updat
     return undefined;
   }, [menu, online, conn]);
 
-  useEffect(() => setPending(false), [view.seq]);
 
   // Botão voltar do Android (e Esc no desktop) abre o menu da partida.
   useEffect(() => {
-    const open = () => setMenu((m) => !m);
-    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && !score && !forca && open();
-    window.addEventListener('fodinha:voltar', open);
+    const toggle = () => setMenu((m) => !m);
+    // Esc só abre; quem fecha é a própria folha (senão as duas coisas brigam).
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && !menu && !score && !forca) setMenu(true);
+    };
+    window.addEventListener('fodinha:voltar', toggle);
     window.addEventListener('keydown', onKey);
     return () => {
-      window.removeEventListener('fodinha:voltar', open);
+      window.removeEventListener('fodinha:voltar', toggle);
       window.removeEventListener('keydown', onKey);
     };
-  }, [score, forca]);
+  }, [menu, score, forca]);
   useEffect(() => {
     if (!toast) return undefined;
     const t = window.setTimeout(() => setToast(null), 2600);
     return () => window.clearTimeout(t);
   }, [toast]);
 
-  // Aviso quando o tempo acabou e o servidor jogou por você.
+  // Aviso quando o tempo acabou e o servidor jogou por você (vem do store).
+  const notice = useGame((s) => s.notice);
   useEffect(() => {
-    if (online && update.auto && update.actorId === you && you) setToast('Tempo esgotado: jogamos por você.');
-  }, [update, online, you]);
+    if (!notice) return undefined;
+    const t = window.setTimeout(() => useGame.getState().clearNotice(notice.key), 2600);
+    return () => window.clearTimeout(t);
+  }, [notice]);
 
   const order = useMemo(() => view.players.map((p) => p.id), [view.players]);
   const vw = root.width || window.innerWidth;
@@ -160,6 +166,7 @@ function Table({ conn, update, seats, reactions }: { conn: GameConnection; updat
   }, [view.hand, ctx, settings.sortHand]);
   const starred = useMemo(() => new Set(hand.filter((id) => isManilha(card(id), ctx))), [hand, ctx]);
 
+  const pending = pendingAt === view.seq;
   const myTurn = !!you && view.actor?.playerId === you;
   const bidding = myTurn && view.actor?.kind === 'bid' && !pending;
   const canPlay = myTurn && view.actor?.kind === 'play' && !view.handHidden && !pending;
@@ -171,10 +178,10 @@ function Table({ conn, update, seats, reactions }: { conn: GameConnection; updat
   const remaining = view.cardsThisRound - view.completedTricks.length;
 
   const send = async (action: ClientAction) => {
-    setPending(true);
+    setPendingAt(view.seq);
     const err = await conn.act(action);
     if (err) {
-      setPending(false);
+      setPendingAt(null);
       setToast(err);
       play('pop');
       void haptic('error', settings.haptics);
@@ -265,7 +272,7 @@ function Table({ conn, update, seats, reactions }: { conn: GameConnection; updat
           onBid={(value) => void send({ type: 'bid', value })}
         />
         <AnimatePresence>
-          {toast && (
+          {(toast ?? notice?.text) && (
             <motion.div
               className="absolute left-1/2 top-3 z-50 max-w-[90%] -translate-x-1/2 rounded-2xl bg-tinta px-4 py-2 text-center text-sm font-semibold text-papel shadow-xl"
               initial={{ opacity: 0, y: -10 }}
@@ -273,7 +280,7 @@ function Table({ conn, update, seats, reactions }: { conn: GameConnection; updat
               exit={{ opacity: 0, y: -10 }}
               role="status"
             >
-              {toast}
+              {toast ?? notice?.text}
             </motion.div>
           )}
         </AnimatePresence>
@@ -376,13 +383,14 @@ function Table({ conn, update, seats, reactions }: { conn: GameConnection; updat
 
 /** Faixa no centro da mesa quando começa uma rodada ("Rodada 4 · 4 cartas"). */
 function RoundBanner({ view }: { view: PlayerView }) {
-  const [shown, setShown] = useState<number | null>(null);
+  const [hiddenRound, setHiddenRound] = useState<number | null>(null);
+  const fresh = view.phase === 'bidding' && view.players.every((p) => p.bid === null);
+  const shown = fresh && hiddenRound !== view.roundNumber ? view.roundNumber : null;
   useEffect(() => {
-    if (view.phase !== 'bidding' || view.bidsSum > 0 || view.players.some((p) => p.bid !== null)) return undefined;
-    setShown(view.roundNumber);
-    const t = window.setTimeout(() => setShown(null), 1500);
+    if (shown === null) return undefined;
+    const t = window.setTimeout(() => setHiddenRound(shown), 1500);
     return () => window.clearTimeout(t);
-  }, [view.roundNumber]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [shown]);
   return (
     <AnimatePresence>
       {shown === view.roundNumber && (

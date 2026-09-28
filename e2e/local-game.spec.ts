@@ -50,15 +50,15 @@ test('palpite proibido do pé fica desabilitado e explicado', async ({ page }) =
           return;
         }
       }
-      await panel.locator('button:not([disabled])').first().click();
+      await panel.locator('button:not([disabled])').first().click({ timeout: 2000 }).catch(() => undefined);
     }
     const card = page.locator('[aria-label="Sua mão"] button:not([disabled])').first();
     if (await card.isVisible().catch(() => false)) {
-      await card.click();
-      await card.click().catch(() => undefined);
+      await card.click({ timeout: 2000 }).catch(() => undefined);
+      await card.click({ timeout: 2000 }).catch(() => undefined);
     }
     const cont = page.getByRole('button', { name: 'Continuar' });
-    if (await cont.isVisible().catch(() => false)) await cont.click().catch(() => undefined);
+    if (await cont.isVisible().catch(() => false)) await cont.click({ timeout: 2000 }).catch(() => undefined);
     await page.waitForTimeout(300);
   }
   throw new Error('não chegou a ser o pé com restrição');

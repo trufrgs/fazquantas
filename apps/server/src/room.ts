@@ -3,6 +3,7 @@ import {
   DEFAULT_RULES,
   DEFAULT_TURN_TIMEOUT_SEC,
   GameHost,
+  NAME_MAX_LENGTH,
   ROOM_CAPACITY,
   createRng,
   normalizeRules,
@@ -201,7 +202,7 @@ export class Room {
     const seat: HumanSeat = {
       kind: 'human',
       playerId: this.newPlayerId(),
-      name: profile.name,
+      name: this.claimName(profile.name, null),
       avatar: profile.avatar || this.randomAvatar(),
       token: newToken(),
       socket: null,
@@ -228,7 +229,7 @@ export class Room {
     this.clearGrace(seat);
     // Durante a partida o nome já está no estado do jogo; só muda fora dela.
     if (this.currentStatus !== 'playing') {
-      seat.name = profile.name;
+      seat.name = this.claimName(profile.name, seat.playerId);
       if (profile.avatar) seat.avatar = profile.avatar;
     }
     this.bind(seat, socket);
@@ -267,6 +268,29 @@ export class Room {
     if (patch.rules) this.rules = normalizeRules({ ...this.rules, ...patch.rules });
     if (patch.turnTimeoutSec !== undefined) this.turnTimeoutSec = patch.turnTimeoutSec;
     this.touch();
+  }
+
+  /**
+   * Nome único na mesa para um humano: um bot homônimo ganha outro nome; outro humano homônimo
+   * faz este virar "Nome 2", "Nome 3"…
+   */
+  private claimName(wanted: string, playerId: string | null): string {
+    const same = (a: string, b: string) => a.toLocaleLowerCase('pt-BR') === b.toLocaleLowerCase('pt-BR');
+    const others = this.seats.filter((seat) => seat.playerId !== playerId);
+    for (const bot of others) {
+      if (bot.kind === 'bot' && same(bot.name, wanted)) {
+        const taken = [...this.seats.map((seat) => seat.name), wanted];
+        const [renamed] = pickBotNames(1, taken, createRng(randomSeed(this.deps.random)));
+        bot.name = renamed ?? 'Bot';
+      }
+    }
+    const humans = others.filter((seat) => seat.kind === 'human').map((seat) => seat.name);
+    if (!humans.some((n) => same(n, wanted))) return wanted;
+    for (let k = 2; ; k++) {
+      const suffix = ` ${k}`;
+      const candidate = `${[...wanted].slice(0, NAME_MAX_LENGTH - suffix.length).join('')}${suffix}`;
+      if (!humans.some((n) => same(n, candidate))) return candidate;
+    }
   }
 
   addBot(requesterId: string, difficulty: BotDifficulty): void {

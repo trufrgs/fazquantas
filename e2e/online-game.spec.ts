@@ -24,7 +24,7 @@ test('partida online: anfitriã + convidado pelo link + bot, até o fim e de vol
   // Beto entra pelo link de convite.
   await beto.goto(`/?sala=${code}`);
   await expect(beto.getByText(/Aguardando Ana começar/)).toBeVisible();
-  await expect(ana.getByText('Beto')).toBeVisible();
+  await expect(ana.getByText('Beto', { exact: true })).toBeVisible();
   await expect(ana.getByText(/Na mesa \(3\/8\)/)).toBeVisible();
 
   await ana.getByRole('button', { name: 'Começar partida' }).click();

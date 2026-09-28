@@ -60,7 +60,9 @@ function layoutFan(ids: Slot['id'][], width: number, cw: number): Slot[] {
 
 /** Sua mão em leque. Toque escolhe; segundo toque (ou arrastar para cima) joga. */
 export function Hand(p: HandProps) {
-  const [selected, setSelected] = useState<CardId | null>(null);
+  const [picked, setSelected] = useState<CardId | null>(null);
+  // Seleção só vale na sua vez e enquanto a carta está na mão (derivado, sem efeito).
+  const selected = p.canPlay && picked && p.cards.includes(picked) ? picked : null;
   const ids = useMemo<Slot['id'][]>(
     () => (p.hiddenCount > 0 ? Array.from({ length: p.hiddenCount }, (_, i) => `oculta-${i}` as const) : p.cards),
     [p.cards, p.hiddenCount],
@@ -69,13 +71,6 @@ export function Hand(p: HandProps) {
   const cw = p.cardWidth;
   const ch = cw * CARD_RATIO;
   const twoRows = slots.some((s) => s.row === 1);
-
-  useEffect(() => {
-    if (!p.canPlay) setSelected(null);
-  }, [p.canPlay]);
-  useEffect(() => {
-    if (selected && !p.cards.includes(selected)) setSelected(null);
-  }, [p.cards, selected]);
 
   // Teclado: ←/→ escolhem, Enter/Espaço jogam.
   useEffect(() => {

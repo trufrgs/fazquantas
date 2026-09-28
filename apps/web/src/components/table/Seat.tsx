@@ -1,6 +1,6 @@
 import { REACTIONS, type CardId, type Phase, type PublicPlayer } from '@fodinha/engine';
 import { AnimatePresence, motion } from 'motion/react';
-import { memo, useEffect, useState } from 'react';
+import { memo, useState } from 'react';
 import type { SeatInfo } from '../../lib/connection';
 import type { LiveReaction } from '../../stores/game';
 import { Card } from '../cards/Card';
@@ -162,8 +162,6 @@ export const Seat = memo(function Seat(p: SeatProps) {
   const avatarSize = p.compact ? 40 : 50;
   const showTricks = p.phase !== 'bidding';
   const out = player.eliminated;
-  const [bump, setBump] = useState(0);
-  useEffect(() => setBump((b) => b + 1), [player.tricks]);
 
   return (
     <div
@@ -196,7 +194,7 @@ export const Seat = memo(function Seat(p: SeatProps) {
         )}
         {!out && player.inRound && (
           <motion.span
-            key={bump}
+            key={player.tricks}
             className="absolute -bottom-1 -right-3"
             animate={player.tricks > 0 && showTricks ? { scale: [1, 1.35, 1] } : undefined}
             transition={{ duration: 0.35 }}

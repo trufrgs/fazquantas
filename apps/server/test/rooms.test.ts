@@ -121,6 +121,29 @@ describe('criar e entrar', () => {
   });
 });
 
+describe('nomes', () => {
+  it('humano homônimo de um bot faz o bot trocar de nome; homônimo de humano ganha número', async () => {
+    const server = await startServer({ random: () => 0 });
+    const ana = await connect(server);
+    const { code } = await createRoom(ana);
+    ok(await ana.call('room:addBot', { difficulty: 'medio' }));
+    const bot = (await ana.waitForState((s) => s.seats.length === 2)).seats[1]!;
+
+    const intruso = await connect(server);
+    await joinRoom(intruso, code, bot.name);
+    const state = await ana.waitForState((s) => s.seats.length === 3);
+    const names = state.seats.map((s) => s.name);
+    expect(names[2]).toBe(bot.name);
+    expect(names[1]).not.toBe(bot.name);
+    expect(new Set(names.map((n) => n.toLowerCase())).size).toBe(3);
+
+    const outraAna = await connect(server);
+    await joinRoom(outraAna, code, 'Ana');
+    const after = await ana.waitForState((s) => s.seats.length === 4);
+    expect(after.seats[3]!.name).toBe('Ana 2');
+  });
+});
+
 describe('anfitrião', () => {
   it('não-anfitrião recebe NOT_HOST em tudo que é do anfitrião', async () => {
     const server = await startServer();
