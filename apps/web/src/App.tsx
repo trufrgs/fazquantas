@@ -3,7 +3,7 @@ import { fullDeck } from '@fodinha/engine';
 import { preloadCards } from './components/cards/Card';
 import { CardSprite } from './components/cards/sprite';
 import { GameScreen } from './components/table/GameScreen';
-import { isNative } from './lib/platform';
+import { isNative, multiplayer } from './lib/platform';
 import { preloadSounds, setSoundEnabled } from './lib/sound';
 import { useApp } from './stores/app';
 import { useSettings } from './stores/settings';
@@ -19,7 +19,8 @@ import { Settings } from './screens/Settings';
 /** Código de sala vindo de um link de convite (`?sala=ABCD`). */
 function inviteCode(): string | undefined {
   const code = new URLSearchParams(window.location.search).get('sala');
-  return code ? code.toUpperCase() : undefined;
+  if (code && !multiplayer) window.history.replaceState(null, '', window.location.pathname);
+  return code && multiplayer ? code.toUpperCase() : undefined;
 }
 
 export function App() {

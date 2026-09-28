@@ -3,6 +3,12 @@ import { Capacitor } from '@capacitor/core';
 export const isNative = Capacitor.isNativePlatform();
 
 /**
+ * Jogo online ligado. Desligado (`VITE_MULTIPLAYER=off`) quando o web sobe sem servidor ao lado,
+ * como no Cloudflare Pages: some o "Jogar com a gurizada" e o link de convite abre o início.
+ */
+export const multiplayer = import.meta.env.VITE_MULTIPLAYER !== 'off';
+
+/**
  * URL do servidor multiplayer. Ordem: `VITE_SERVER_URL` → mesma origem em produção web →
  * porta 3001 no mesmo host em desenvolvimento (funciona de celulares na mesma rede).
  */
@@ -28,11 +34,11 @@ export async function shareInvite(code: string): Promise<'shared' | 'copied' | '
   try {
     if (isNative) {
       const { Share } = await import('@capacitor/share');
-      await Share.share({ title: 'Faz Quantas?', text, url });
+      await Share.share({ title: 'Faz quantas?', text, url });
       return 'shared';
     }
     if (navigator.share) {
-      await navigator.share({ title: 'Faz Quantas?', text, url });
+      await navigator.share({ title: 'Faz quantas?', text, url });
       return 'shared';
     }
   } catch (err) {

@@ -7,7 +7,7 @@ import type { CapacitorConfig } from '@capacitor/cli';
  */
 const config: CapacitorConfig = {
   appId: 'br.com.fazquantas',
-  appName: 'Faz Quantas?',
+  appName: 'Faz quantas?',
   webDir: 'dist',
   backgroundColor: '#1d120b',
   android: { backgroundColor: '#1d120b' },

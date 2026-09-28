@@ -11,6 +11,7 @@ import { Sheet } from '../components/ui/Sheet';
 import { resumeLocalGame, startLocalGame } from '../lib/game-actions';
 import { hasSavedGame, savedGameSummary } from '../lib/local-connection';
 import { useUiScale } from '../lib/ui-scale';
+import { multiplayer } from '../lib/platform';
 import { useApp } from '../stores/app';
 import { savedSession, useOnline } from '../stores/online';
 import { useSettings } from '../stores/settings';
@@ -24,7 +25,7 @@ export function Home() {
   const [ask, setAsk] = useState<null | (() => void)>(null);
   const [confirmNew, setConfirmNew] = useState(false);
   const saved = hasSavedGame();
-  const session = savedSession();
+  const session = multiplayer ? savedSession() : null;
   const joining = useOnline((s) => s.status === 'connecting');
 
   const withName = (then: () => void) => () => {
@@ -123,9 +124,11 @@ export function Home() {
             >
               Jogar agora
             </Button>
-            <Button variant="papel" size="lg" onClick={withName(() => go('online'))}>
-              Jogar com a gurizada
-            </Button>
+            {multiplayer && (
+              <Button variant="papel" size="lg" onClick={withName(() => go('online'))}>
+                Jogar com a gurizada
+              </Button>
+            )}
             <Button variant="vidro" onClick={withName(() => go('setup'))}>
               Montar partida contra bots
             </Button>

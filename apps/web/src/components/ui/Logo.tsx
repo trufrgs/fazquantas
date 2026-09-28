@@ -63,7 +63,7 @@ export function Logo({ size = 64, className }: { size?: number | string; classNa
       className={`inline-flex flex-col items-start ${className ?? ''}`}
       style={{ fontSize: typeof size === 'number' ? rem(size) : size }}
       role="img"
-      aria-label="Faz Quantas?"
+      aria-label="Faz quantas?"
     >
       <span
         className="font-hand font-bold leading-none text-luz"

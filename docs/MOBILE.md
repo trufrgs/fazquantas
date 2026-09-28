@@ -1,6 +1,6 @@
 ---
 name: mobile-fodinha
-description: Como gerar e publicar os apps Android e iOS do Faz Quantas? com Capacitor
+description: Como gerar e publicar os apps Android e iOS do Faz quantas? com Capacitor
 owner: "@trufrgs"
 last_updated: 2026-09-28
 status: active
@@ -57,7 +57,7 @@ Isso atualiza os ícones do PWA (`apps/web/public/icons`), os ícones e abertura
 
 - **appId:** `br.com.fazquantas` (em `apps/web/capacitor.config.ts`, no Android e no iOS). Depois do
   primeiro envio a uma loja ele não muda mais.
-- **Nome:** nas lojas o app se chama **Faz Quantas?**. "Fodinha" (o nome tradicional do jogo, que tem
+- **Nome:** nas lojas o app se chama **Faz quantas?**. "Fodinha" (o nome tradicional do jogo, que tem
   palavrão) fica fora do título e do ícone; a descrição pode citar "o jogo que o pessoal chama de
   Fodinha".
 - **Assinatura:** keystore no Android e certificados/perfil no iOS (feitos no Android Studio/Xcode).
