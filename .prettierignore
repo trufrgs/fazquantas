@@ -1,0 +1,6 @@
+pnpm-lock.yaml
+dist
+coverage
+apps/web/android
+apps/web/ios
+docs/superpowers

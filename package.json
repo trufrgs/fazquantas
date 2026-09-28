@@ -1,0 +1,31 @@
+{
+  "name": "fodinha",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@9.15.0",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev": "pnpm --parallel --filter @fodinha/web --filter @fodinha/server dev",
+    "test": "pnpm --filter @fodinha/engine --filter @fodinha/server test",
+    "e2e": "playwright test",
+    "build": "pnpm --filter @fodinha/web build && pnpm --filter @fodinha/server build",
+    "start": "node apps/server/dist/index.js",
+    "typecheck": "pnpm -r typecheck",
+    "lint": "eslint .",
+    "format": "prettier --write ."
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@playwright/test": "^1.63.0",
+    "@types/node": "^24.0.0",
+    "eslint": "^10.11.0",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "eslint-plugin-react-refresh": "^0.5.7",
+    "globals": "^17.12.0",
+    "prettier": "^3.9.9",
+    "typescript": "~6.0.3",
+    "typescript-eslint": "^8.70.1"
+  }
+}
