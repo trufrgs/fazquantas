@@ -90,7 +90,7 @@ describe('getPlayerView', () => {
     expect(getPlayerView(blind, 'p1').actor).toEqual({ playerId: 'p1', kind: 'play' });
   });
 
-  it('carries the vira and the manilha rank in the paulista mode', () => {
+  it('carries the vira and the manilha rank in the vira mode', () => {
     const s = setupRound(newGame(3, { hierarchy: 'vira' }, { firstDealer: 0 }), {
       cards: 2,
       hands: { p1: ['E1', 'C4'], p2: ['C3', 'O5'], p0: ['O3', 'P6'] },

@@ -8,8 +8,9 @@ status: active
 
 # Regras da Fodinha
 
-> Resumo das regras que o jogo implementa. A pesquisa que sustenta cada escolha está em
-> [Fontes](#fontes); onde as fontes divergem, a divergência virou configuração.
+> Resumo das regras que o jogo implementa. A regra padrão é a **gaúcha, com manilhas fixas**
+> (decisão de 2026-09-27). A pesquisa que sustenta as demais escolhas está em [Fontes](#fontes);
+> onde as fontes divergem, a divergência virou configuração.
 
 ## Objetivo
 
@@ -21,30 +22,40 @@ quem sobrar por último.
 Baralho espanhol de 40 cartas: 1 a 7, 10 (sota), 11 (cavalo) e 12 (rei), nos naipes ouros, copas,
 espadas e paus. Não é preciso seguir naipe: vence a carta mais forte.
 
-**Com vira (padrão).** Depois de dar as cartas, vira-se a carta do topo do monte. As quatro cartas do
-valor seguinte ao da vira são as **manilhas** (circular: 7 → 10, 12 → 1, 3 → 4) e vencem qualquer
-outra, nesta ordem:
+**Gaúcha (padrão do jogo — manilhas fixas, sem vira).** Da mais forte para a mais fraca:
 
-| Manilha | Naipe |
-|---|---|
-| Zap | paus |
-| Copas | copas |
-| Espadilha | espadas |
-| Pica-fumo | ouros |
+| # | Carta(s) | Apelido |
+|---|---|---|
+| 1 | 1 de espadas | Espadão |
+| 2 | 1 de paus | Bastião |
+| 3 | 7 de espadas | Sete de espadas |
+| 4 | 7 de ouros | Sete de ouros (sete belo) |
+| 5 | os quatro 3 | |
+| 6 | os quatro 2 | |
+| 7 | 1 de copas e 1 de ouros | ases falsos |
+| 8 | os quatro 12 | reis |
+| 9 | os quatro 11 | cavalos |
+| 10 | os quatro 10 | sotas |
+| 11 | 7 de copas e 7 de paus | setes falsos |
+| 12 | os quatro 6 | |
+| 13 | os quatro 5 | |
+| 14 | os quatro 4 | |
 
-As demais, da mais fraca para a mais forte: **4, 5, 6, 7, 10, 11, 12, 1, 2, 3** (naipe não desempata).
+Fora as quatro manilhas, cartas do mesmo nível empatam (o naipe não desempata).
 
-**Variantes com manilhas fixas (sem vira):**
+**Variante "Com vira" (manilha variável).** É a versão das fontes escritas de Fodinha. Depois de dar
+as cartas, vira-se a carta do topo do monte. As quatro cartas do valor seguinte ao da vira são as
+manilhas (circular: 7 → 10, 12 → 1, 3 → 4) e vencem qualquer outra, na ordem zap (paus) > copas >
+espadilha (espadas) > pica-fumo (ouros). As demais, da mais fraca para a mais forte: 4, 5, 6, 7, 10,
+11, 12, 1, 2, 3.
 
-- **Gaúcha** (truco gaudério): espadão (1 de espadas) > bastião (1 de paus) > 7 de espadas > 7 de ouros
-  > 3 > 2 > 1 de copas e de ouros > 12 > 11 > 10 > 7 de copas e de paus > 6 > 5 > 4.
-- **Mineira** (truco mineiro): zap (4 de paus) > 7 de copas > espadilha (1 de espadas) > pica-fumo
-  (7 de ouros) > 3 > 2 > 1 > 12 > 11 > 10 > 7 > 6 > 5 > 4.
+**Variante mineira (manilhas fixas, sem vira):** zap (4 de paus) > 7 de copas > espadilha (1 de
+espadas) > pica-fumo (7 de ouros) > 3 > 2 > 1 > 12 > 11 > 10 > 7 > 6 > 5 > 4.
 
 ## A rodada
 
-1. **Cartas:** a 1ª rodada dá 1 carta a cada um; a 2ª, 2; e assim até o máximo (⌊39 ÷ vivos⌋ com vira,
-   ⌊40 ÷ vivos⌋ sem vira). Depois volta a 1 ("serrote") — ou desce de volta ("pirâmide"). Quando
+1. **Cartas:** a 1ª rodada dá 1 carta a cada um; a 2ª, 2; e assim até o máximo (⌊40 ÷ vivos⌋ na
+   gaúcha; ⌊39 ÷ vivos⌋ com vira, que reserva uma carta). Depois volta a 1 ("serrote") — ou desce de volta ("pirâmide"). Quando
    alguém é eliminado, a rodada seguinte recomeça em 1.
 2. **Palpites:** começando pelo jogador à direita do carteador, cada um diz quantas vazas vai fazer.
    O carteador palpita por último — é o **pé** — e não pode escolher o número que faria a soma dos
@@ -67,7 +78,7 @@ ainda empatar, é empate.
 
 ## Configurações disponíveis
 
-Hierarquia (com vira, gaúcha, mineira) · vidas (1–12) · penalidade (diferença ou 1 por erro) ·
+Hierarquia (gaúcha, com vira, mineira) · vidas (1–12) · penalidade (diferença ou 1 por erro) ·
 empate (melar, ninguém leva, naipe desempata) · rodada às cegas (toda de 1 carta, só a primeira,
 nunca) · regra do pé (e se vale na rodada às cegas) · progressão (serrote ou pirâmide) · recomeçar
 em 1 quando alguém sai · teto de cartas · tempo por jogada no online.

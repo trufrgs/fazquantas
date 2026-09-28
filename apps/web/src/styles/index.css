@@ -1,0 +1,207 @@
+@import 'tailwindcss';
+@import '@fontsource-variable/fraunces/full.css';
+@import '@fontsource-variable/figtree';
+@import '@fontsource-variable/caveat';
+
+/*
+ * Tema "carteado na mesa da cozinha": madeira sob luz de luminária, papel das cartas,
+ * e as quatro cores dos naipes espanhóis como sistema de cor.
+ */
+@theme {
+  --font-display: 'Fraunces Variable', ui-serif, Georgia, serif;
+  --font-sans: 'Figtree Variable', ui-sans-serif, system-ui, sans-serif;
+  --font-hand: 'Caveat Variable', 'Segoe Print', cursive;
+
+  --color-noite: #1d120b;
+  --color-mesa: #6e4124;
+  --color-mesa-clara: #8a5733;
+  --color-mesa-escura: #3a2213;
+  --color-luz: #ffd9a0;
+  --color-papel: #f7efde;
+  --color-papel-2: #ebdfc4;
+  --color-tinta: #2b1d14;
+  --color-tinta-2: #5b4535;
+
+  --color-ouros: #e3a82b;
+  --color-ouros-escuro: #a8741a;
+  --color-copas: #c4372d;
+  --color-copas-escuro: #8e231c;
+  --color-espadas: #2e5c9c;
+  --color-espadas-escuro: #1f3f6e;
+  --color-paus: #3d7a3a;
+  --color-paus-escuro: #285426;
+
+  --color-cabeca: #c0392b;
+  --color-palito: #e8c78d;
+
+  --ease-mola: cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@layer base {
+  :root {
+    color-scheme: dark;
+    --safe-top: env(safe-area-inset-top, 0px);
+    --safe-bottom: env(safe-area-inset-bottom, 0px);
+    --safe-left: env(safe-area-inset-left, 0px);
+    --safe-right: env(safe-area-inset-right, 0px);
+  }
+
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+
+  html {
+    background: var(--color-noite);
+    -webkit-text-size-adjust: 100%;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  body {
+    margin: 0;
+    font-family: var(--font-sans);
+    color: var(--color-papel);
+    background: var(--color-noite);
+    overscroll-behavior: none;
+    -webkit-font-smoothing: antialiased;
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-touch-callout: none;
+  }
+
+  button {
+    cursor: pointer;
+    touch-action: manipulation;
+  }
+
+  button:disabled {
+    cursor: default;
+  }
+
+  :focus-visible {
+    outline: 3px solid var(--color-luz);
+    outline-offset: 2px;
+    border-radius: 10px;
+  }
+
+  input,
+  textarea {
+    user-select: text;
+    -webkit-user-select: text;
+  }
+}
+
+/* Tampo de madeira: veios (ruído esticado), tábuas, luz da luminária e vinheta. */
+.mesa {
+  background-color: var(--color-mesa);
+  background-image:
+    radial-gradient(ellipse 70% 55% at 50% 38%, rgb(255 205 140 / 0.2), transparent 70%),
+    radial-gradient(ellipse 120% 100% at 50% 45%, transparent 45%, rgb(18 8 3 / 0.72) 100%),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='640' height='640'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.0035 0.11' numOctaves='3' seed='11'/%3E%3CfeColorMatrix values='0 0 0 0 0.16 0 0 0 0 0.08 0 0 0 0 0.03 0 0 0 1.1 -0.28'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23g)'/%3E%3C/svg%3E"),
+    repeating-linear-gradient(
+      180deg,
+      rgb(0 0 0 / 0) 0,
+      rgb(0 0 0 / 0) 148px,
+      rgb(30 14 5 / 0.45) 149px,
+      rgb(255 220 170 / 0.06) 151px,
+      rgb(0 0 0 / 0) 152px
+    ),
+    linear-gradient(180deg, var(--color-mesa-clara), var(--color-mesa) 45%, var(--color-mesa-escura));
+  background-size:
+    100% 100%,
+    100% 100%,
+    640px 640px,
+    100% 152px,
+    100% 100%;
+  background-attachment: fixed;
+}
+
+/* Papel levemente texturizado (caderneta, painéis). */
+.papel {
+  background-color: var(--color-papel);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='p'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' seed='3'/%3E%3CfeColorMatrix values='0 0 0 0 0.4 0 0 0 0 0.3 0 0 0 0 0.2 0 0 0 0.09 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23p)'/%3E%3C/svg%3E");
+  color: var(--color-tinta);
+}
+
+/* Botões como fichas: sombra de borda embaixo, afundam ao tocar. */
+.ficha {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  border-radius: 1.1rem;
+  font-weight: 700;
+  line-height: 1.1;
+  transition:
+    transform 120ms ease,
+    box-shadow 120ms ease,
+    filter 120ms ease;
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.35),
+    0 4px 0 var(--ficha-borda, rgb(0 0 0 / 0.35)),
+    0 8px 18px rgb(0 0 0 / 0.35);
+}
+
+.ficha:active:not(:disabled) {
+  transform: translateY(3px);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.25),
+    0 1px 0 var(--ficha-borda, rgb(0 0 0 / 0.35)),
+    0 3px 8px rgb(0 0 0 / 0.3);
+}
+
+.ficha:disabled {
+  filter: grayscale(0.6) brightness(0.8);
+  opacity: 0.6;
+}
+
+.ficha-ouro {
+  background: linear-gradient(180deg, #f4c552, var(--color-ouros));
+  color: var(--color-tinta);
+  --ficha-borda: var(--color-ouros-escuro);
+}
+
+.ficha-papel {
+  background: linear-gradient(180deg, #fffaf0, var(--color-papel-2));
+  color: var(--color-tinta);
+  --ficha-borda: #b9a47f;
+}
+
+.ficha-copas {
+  background: linear-gradient(180deg, #d9493e, var(--color-copas));
+  color: var(--color-papel);
+  --ficha-borda: var(--color-copas-escuro);
+}
+
+.ficha-vidro {
+  background: rgb(29 18 11 / 0.55);
+  color: var(--color-papel);
+  --ficha-borda: rgb(0 0 0 / 0.45);
+  border: 1px solid rgb(247 239 222 / 0.16);
+  backdrop-filter: blur(6px);
+}
+
+.texto-gravado {
+  text-shadow:
+    0 1px 0 rgb(0 0 0 / 0.45),
+    0 0 18px rgb(0 0 0 / 0.25);
+}
+
+.sem-barra::-webkit-scrollbar {
+  display: none;
+}
+.sem-barra {
+  scrollbar-width: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 1ms !important;
+  }
+}

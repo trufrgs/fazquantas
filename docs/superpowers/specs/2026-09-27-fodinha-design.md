@@ -40,20 +40,19 @@ num servidor com multiplayer; reaproveitar o que já existe pronto.
 
 ## 2. Regras
 
-> Fechada com a pesquisa de 2026-09-27 (fontes em `docs/REGRAS.md`). Todas as fontes de Fodinha que
-> dizem a força das cartas — inclusive as de baralho espanhol — usam **vira com manilha variável**;
-> manilhas fixas (gaúcha, mineira) ficam como variante.
+> **Decisão do dono (2026-09-27): a regra padrão é a gaúcha, com manilhas fixas.** A pesquisa
+> (fontes em `docs/REGRAS.md`) mostrou que as fontes escritas de Fodinha usam vira com manilha
+> variável; essa versão fica disponível como variante ("Com vira").
 
-### 2.1 Regra padrão ("Tradicional")
+### 2.1 Regra padrão ("Gaúcha")
 
 - **Baralho:** espanhol de 40 cartas — 1 a 7, 10 (sota), 11 (cavalo), 12 (rei); ouros, copas,
-  espadas e paus.
+  espadas e paus. Sem vira.
 - **Jogadores:** 2 a 8 (3 a 8 recomendado).
 - **Vidas:** 5 para cada um.
-- **Força:** 4 < 5 < 6 < 7 < 10 < 11 < 12 < 1 < 2 < 3; naipe não conta. Depois de dar as cartas,
-  vira-se a carta do topo (**vira**, visível e fora do jogo). As 4 cartas do valor seguinte (circular:
-  7 → 10, 12 → 1, 3 → 4) são **manilhas** e vencem tudo, na ordem paus (zap) > copas > espadas >
-  ouros (pica-fumo).
+- **Força (fixa), da maior para a menor:** 1 de espadas (espadão) > 1 de paus (bastião) > 7 de
+  espadas > 7 de ouros > 3 > 2 > 1 de copas e 1 de ouros (ases falsos) > 12 > 11 > 10 > 7 de copas e
+  7 de paus (setes falsos) > 6 > 5 > 4. Fora as quatro manilhas, naipe não conta.
 - **Sem obrigação de seguir naipe.**
 - **Carteador** sorteado na 1ª rodada e passa para a direita; tudo gira para a direita
   (anti-horário).
@@ -64,18 +63,18 @@ num servidor com multiplayer; reaproveitar o que já existe pronto.
 - **Empate ("melar"):** cartas de mesma força se anulam e vence a maior restante; se todas se
   anulam, ninguém leva e quem puxou puxa de novo.
 - **Pontuação:** cada um perde `|palpite − vazas feitas|` vidas; quem chega a 0 sai.
-- **Progressão ("serrote"):** 1, 2, 3… até o máximo (⌊39 ÷ vivos⌋ com vira) e volta a 1; também
-  recomeça em 1 quando alguém é eliminado.
-- **Rodadas de 1 carta:** às cegas ("carta na testa") — cada um vê a carta dos outros e a vira, não
-  a própria. Nessas rodadas a regra do pé é dispensada.
+- **Progressão ("serrote"):** 1, 2, 3… até o máximo (⌊40 ÷ vivos⌋) e volta a 1; também recomeça em
+  1 quando alguém é eliminado.
+- **Rodadas de 1 carta:** às cegas ("carta na testa") — cada um vê a carta dos outros, não a
+  própria. Nessas rodadas a regra do pé é dispensada.
 - **Fim:** vence o último com vidas. Se os últimos zeram juntos, vence quem ficou menos negativo;
-  persistindo, empate (as fontes tradicionais não tratam o caso).
+  persistindo, empate.
 
 ### 2.2 Variantes (configurações da partida)
 
 | Configuração | Opções | Padrão |
 |---|---|---|
-| Hierarquia | Com vira (manilha variável) · Manilhas fixas gaúchas (espadão, bastião, 7 de espadas, 7 de ouros; sem vira) · Manilhas fixas mineiras (4 de paus, 7 de copas, ás de espadas, 7 de ouros; sem vira) | Com vira |
+| Hierarquia | Manilhas fixas gaúchas (espadão, bastião, 7 de espadas, 7 de ouros; sem vira) · Com vira (manilha variável: a carta seguinte à vira; paus > copas > espadas > ouros) · Manilhas fixas mineiras (4 de paus, 7 de copas, ás de espadas, 7 de ouros; sem vira) | Gaúcha |
 | Vidas iniciais | 1–12 | 5 |
 | Penalidade | Diferença · 1 vida por erro | Diferença |
 | Empate | Melar (anulam, vence a próxima) · Ninguém leva · Naipe desempata | Melar |
@@ -87,8 +86,8 @@ num servidor com multiplayer; reaproveitar o que já existe pronto.
 | Máximo de cartas | Automático · 3 · 5 · 7 · 9 | Automático |
 | Tempo por jogada (online) | Sem limite · 15 s · 30 s · 60 s | 30 s |
 
-Presets: **Tradicional** (acima), **Gaúcha** (manilhas fixas do truco gaudério), **Rápida**
-(3 vidas, máximo 5 cartas).
+Presets: **Gaúcha** (padrão, acima), **Com vira** (manilha variável), **Rápida** (gaúcha com
+3 vidas e máximo 5 cartas).
 
 ### 2.3 Detalhes de implementação
 

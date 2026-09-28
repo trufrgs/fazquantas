@@ -39,7 +39,7 @@ export const MAX_LIVES = 12;
 export const MAX_CARDS_OPTIONS = [3, 5, 7, 9] as const;
 
 export const DEFAULT_RULES: Readonly<Rules> = Object.freeze({
-  hierarchy: 'vira',
+  hierarchy: 'gaucha',
   startingLives: 5,
   penalty: 'difference',
   tieRule: 'cancel',
@@ -51,7 +51,7 @@ export const DEFAULT_RULES: Readonly<Rules> = Object.freeze({
   maxCards: null,
 });
 
-export type PresetId = 'tradicional' | 'gaucha' | 'rapida';
+export type PresetId = 'gaucha' | 'vira' | 'rapida';
 
 export interface Preset {
   id: PresetId;
@@ -62,21 +62,21 @@ export interface Preset {
 
 export const PRESETS: readonly Preset[] = [
   {
-    id: 'tradicional',
-    name: 'Tradicional',
-    description: 'Com vira, 5 vidas, cartas iguais melam.',
+    id: 'gaucha',
+    name: 'Gaúcha',
+    description: 'Manilhas fixas: espadão, bastião, 7 de espadas e 7 de ouros. 5 vidas.',
     rules: DEFAULT_RULES,
   },
   {
-    id: 'gaucha',
-    name: 'Gaúcha',
-    description: 'Manilhas fixas do truco gaudério: espadão, bastião, 7 de espadas e 7 de ouros.',
-    rules: Object.freeze({ ...DEFAULT_RULES, hierarchy: 'gaucha' }),
+    id: 'vira',
+    name: 'Com vira',
+    description: 'A carta seguinte à vira é manilha: paus, copas, espadas, ouros.',
+    rules: Object.freeze({ ...DEFAULT_RULES, hierarchy: 'vira' }),
   },
   {
     id: 'rapida',
     name: 'Rápida',
-    description: '3 vidas e no máximo 5 cartas por rodada.',
+    description: 'Gaúcha com 3 vidas e no máximo 5 cartas por rodada.',
     rules: Object.freeze({ ...DEFAULT_RULES, startingLives: 3, maxCards: 5 }),
   },
 ];

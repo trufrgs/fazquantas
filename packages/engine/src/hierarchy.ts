@@ -2,9 +2,10 @@ import { card, fullDeck, type Card, type CardId, type Rank, type Suit } from './
 import type { TieRule } from './rules';
 
 /**
+ * - `gaucha` (padrão): manilhas fixas do truco gaudério — espadão, bastião, 7 de espadas,
+ *   7 de ouros — e depois 3 > 2 > ases falsos > 12 > 11 > 10 > setes falsos > 6 > 5 > 4.
  * - `vira`: manilha variável — as 4 cartas do valor seguinte ao da vira; paus > copas > espadas >
- *   ouros. É a regra de todas as fontes de Fodinha (padrão).
- * - `gaucha`: manilhas fixas do truco gaudério (espadão, bastião, 7 de espadas, 7 de ouros).
+ *   ouros.
  * - `mineira`: manilhas fixas do truco mineiro (4 de paus, 7 de copas, ás de espadas, 7 de ouros).
  */
 export type HierarchyMode = 'vira' | 'gaucha' | 'mineira';

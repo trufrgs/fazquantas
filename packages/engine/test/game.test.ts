@@ -27,14 +27,15 @@ describe('createGame', () => {
     expect(Object.values(s.round.hands).every((h) => h.length === 1)).toBe(true);
     expect(s.players.every((p) => p.lives === DEFAULT_RULES.startingLives)).toBe(true);
     expect(s.round.blind).toBe(true);
-    expect(s.round.vira).not.toBeNull();
+    expect(s.round.vira).toBeNull();
+    expect(s.rules.hierarchy).toBe('gaucha');
     expect(currentActor(s)).toEqual({ playerId: 'p3', kind: 'bid' });
   });
 
   it('turns a vira that is not in any hand, and none with fixed manilhas', () => {
     expect(newGame(4, { hierarchy: 'gaucha' }).round.vira).toBeNull();
     expect(newGame(4, { hierarchy: 'mineira' }).round.vira).toBeNull();
-    const s = newGame(8);
+    const s = newGame(8, { hierarchy: 'vira' });
     expect(s.round.vira).not.toBeNull();
     const dealt = Object.values(s.round.hands).flat();
     expect(dealt).not.toContain(s.round.vira);
@@ -278,11 +279,13 @@ describe('vazas e fim de rodada', () => {
 
 describe('progressão e máximo de cartas', () => {
   it('computes the max from the deck, reserving the vira', () => {
-    expect(maxCardsFor(4, normalizeRules({}))).toBe(9);
-    expect(maxCardsFor(4, normalizeRules({ hierarchy: 'gaucha' }))).toBe(10);
-    expect(maxCardsFor(8, normalizeRules({}))).toBe(4);
+    expect(maxCardsFor(4, normalizeRules({}))).toBe(10);
+    expect(maxCardsFor(4, normalizeRules({ hierarchy: 'vira' }))).toBe(9);
+    expect(maxCardsFor(8, normalizeRules({}))).toBe(5);
+    expect(maxCardsFor(8, normalizeRules({ hierarchy: 'vira' }))).toBe(4);
     expect(maxCardsFor(8, normalizeRules({ hierarchy: 'mineira' }))).toBe(5);
-    expect(maxCardsFor(2, normalizeRules({}))).toBe(19);
+    expect(maxCardsFor(2, normalizeRules({}))).toBe(20);
+    expect(maxCardsFor(2, normalizeRules({ hierarchy: 'vira' }))).toBe(19);
     expect(maxCardsFor(2, normalizeRules({ maxCards: 7 }))).toBe(7);
   });
 
