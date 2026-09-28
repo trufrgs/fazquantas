@@ -16,6 +16,7 @@ import {
   type PartidaRanqueada,
   type SalaSalva,
 } from '@fodinha/sala';
+import { rankingStub } from './ranking-do';
 import { AlarmClock } from './relogio';
 
 /** No lobby, quem caiu tem esse tempo para voltar ao assento (dá para ir ao WhatsApp chamar gente). */
@@ -228,7 +229,7 @@ export class SalaDO extends DurableObject<Env> {
   }
 
   private async enviarRanking(p: PartidaRanqueada): Promise<void> {
-    const stub = this.env.RANKING.get(this.env.RANKING.idFromName('geral'));
+    const stub = rankingStub(this.env);
     await stub.registrar(p);
     await this.ctx.storage.delete(`ranking:${p.id}`);
   }

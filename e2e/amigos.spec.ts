@@ -7,8 +7,14 @@ import { playUntilGameOver, presetSettings, watchErrors } from './helpers';
  * ranking da turma mostra os três.
  */
 
-/** Perfil de ranking diferente para cada navegador (chaves válidas de 22 caracteres). */
-const KEYS = ['anaAnaAnaAnaAnaAnaAna0', 'betoBetoBetoBetoBeto01', 'cidaCidaCidaCidaCida01'];
+/**
+ * Perfil de ranking novo para cada navegador a cada execução (chave válida de 22 caracteres):
+ * o ranking guarda os jogos de execuções anteriores, e a contagem tem que ser só desta.
+ */
+function freshKey(): string {
+  return Buffer.from(crypto.getRandomValues(new Uint8Array(16))).toString('base64url');
+}
+const KEYS = [freshKey(), freshKey(), freshKey()];
 
 async function person(browser: Browser, name: string, key: string) {
   const ctx = await browser.newContext();

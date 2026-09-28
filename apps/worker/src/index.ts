@@ -11,6 +11,8 @@ import { allowedOrigin, corsHeaders } from './origens';
 import type { PushSubscriptionJSON } from './push';
 
 export { AvisosDO } from './avisos-do';
+import { rankingStub } from './ranking-do';
+
 export { RankingDO } from './ranking-do';
 export { SalaDO } from './sala-do';
 
@@ -62,7 +64,7 @@ async function ranking(url: URL, env: Env, cors: Record<string, string>): Promis
     at = Date.parse(`${day}T15:00:00Z`);
     if (Number.isNaN(at)) return json({ error: 'data' }, cors, 400);
   }
-  const stub = env.RANKING.get(env.RANKING.idFromName('geral'));
+  const stub = rankingStub(env);
   return json(await stub.consultar({ period: period as RankingPeriod, at, scope, profileId }), cors);
 }
 

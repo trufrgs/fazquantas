@@ -3,7 +3,10 @@ import { defineConfig, devices } from '@playwright/test';
 /**
  * E2E: sobe o web (Vite) e o servidor (Worker no wrangler dev). Rodar com `pnpm e2e`.
  * O servidor sobe com tempos curtos (RAPIDO=1) para as partidas online terminarem rápido.
+ * `E2E_BASE=https://fazquantas.pages.dev` roda os mesmos testes contra a produção, sem subir nada.
  */
+const base = process.env.E2E_BASE;
+
 export default defineConfig({
   testDir: './e2e',
   timeout: 240_000,
@@ -12,14 +15,14 @@ export default defineConfig({
   workers: 2,
   reporter: [['list']],
   use: {
-    baseURL: 'http://localhost:5173',
+    baseURL: base ?? 'http://localhost:5173',
     trace: 'retain-on-failure',
     screenshot: 'only-on-failure',
   },
   projects: [
     { name: 'celular', use: { ...devices['Pixel 7'] } },
   ],
-  webServer: [
+  webServer: base ? [] : [
     {
       command: 'pnpm --filter @fodinha/web dev',
       url: 'http://localhost:5173',

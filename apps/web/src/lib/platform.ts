@@ -8,9 +8,12 @@ export const isNative = Capacitor.isNativePlatform();
  */
 export const multiplayer = import.meta.env.VITE_MULTIPLAYER !== 'off';
 
+/** O Worker de produção (o site e os apps nativos falam com ele). */
+const PRODUCTION_SERVER = 'https://fazquantas-api.fancy-night-938c.workers.dev';
+
 /**
  * URL do servidor (o Worker do Cloudflare). Ordem: `VITE_SERVER_URL` → no desenvolvimento, o
- * `wrangler dev` na porta 8787 do mesmo host (funciona de celulares na mesma rede) → mesma origem.
+ * `wrangler dev` na porta 8787 do mesmo host (funciona de celulares na mesma rede) → produção.
  */
 export function serverUrl(): string {
   const fromEnv = import.meta.env.VITE_SERVER_URL;
@@ -18,7 +21,7 @@ export function serverUrl(): string {
   if (import.meta.env.DEV) {
     return `${window.location.protocol === 'https:' ? 'https' : 'http'}://${window.location.hostname || 'localhost'}:8787`;
   }
-  return window.location.origin;
+  return PRODUCTION_SERVER;
 }
 
 /** Link de convite para uma sala. */
