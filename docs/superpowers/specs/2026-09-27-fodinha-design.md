@@ -2,7 +2,7 @@
 name: fodinha-design
 description: Spec do jogo Fodinha (baralho espanhol) — regras, UX, visual, arquitetura, bots, multiplayer e testes
 owner: "@trufrgs"
-last_updated: 2026-09-27
+last_updated: 2026-09-28
 status: active
 ---
 
@@ -137,14 +137,23 @@ Presets: **Gaúcha** (padrão, acima), **Com vira** (manilha variável), **Rápi
 
 ## 4. Direção visual
 
-Tema **"Galpão"**: rústico-moderno, quente, gaúcho sem caricatura. Feltro verde erva-mate com textura
-sutil, borda de madeira escura com filete de latão, dourado como cor de destaque, terracota para
-alerta. Cartas próprias em SVG (leves e nítidas em qualquer tamanho): face creme, cores tradicionais
-dos naipes (ouros dourado, copas vermelho, espadas azul, paus verde), a "pinta" do baralho espanhol
-(filete da moldura contínuo em ouros, com 1, 2 e 3 interrupções em copas, espadas e paus), figuras
-estilizadas com emblema e nome (SOTA/CAVALO/REI). Verso bordô com treliça de latão e medalhão.
-Tipografia com personagem para títulos e uma sans legível para interface, ambas embutidas (funciona
-offline e no app). Movimento com física de mola; respeita `prefers-reduced-motion`.
+Cena: **noite de carteado numa mesa de madeira** sob a luz quente de uma luminária (vinheta), em vez
+do feltro verde de cassino.
+
+- **Cartas:** o baralho espanhol de Heraclio Fournier (1878), em domínio público — decisão do dono em
+  2026-09-28, depois de achar "infantil" a primeira versão desenhada em SVG. Papel limpo, recorte
+  uniforme (420×672, WebP) e índice ampliado no canto para ler no celular. Verso bordô clássico.
+- **Elemento-assinatura:** vidas como **palitos de fósforo**; ao perder uma vida, o palito acende e
+  queima.
+- **Cores:** as quatro dos naipes (ouros dourado, copas vermelho, espadas azul, paus verde) como
+  sistema; creme só no papel.
+- **Tipos:** Fraunces (logo, títulos, numerais), Figtree (interface), Caveat só na caderneta e nos
+  carimbos ("melou").
+- **Mesa responsiva:** assentos com espaçamento igual num "U" (lado direito → topo → lado esquerdo);
+  a vaza fica no meio da faixa livre. Funciona em pé, deitado e no desktop (largura máxima).
+- **Linguagem:** falas do jogo no jeito gaúcho ("quantas tu faz?", "tua vez"), com termos validados
+  por pesquisa — decisão do dono em 2026-09-28.
+- Movimento com mola, sons CC0 (bandoneón na vitória) e vibração; respeita `prefers-reduced-motion`.
 
 ## 5. Arquitetura
 
