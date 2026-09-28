@@ -8,7 +8,7 @@
   },
   "scripts": {
     "dev": "pnpm --parallel --filter @fodinha/web --filter @fodinha/server dev",
-    "test": "pnpm --filter @fodinha/engine --filter @fodinha/server test",
+    "test": "pnpm --filter @fodinha/engine --filter @fodinha/server --filter @fodinha/web test",
     "e2e": "playwright test",
     "build": "pnpm --filter @fodinha/web build && pnpm --filter @fodinha/server build",
     "start": "node apps/server/dist/index.js",

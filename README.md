@@ -58,7 +58,7 @@ cada jogador só a visão dele, então nenhuma carta escondida sai do servidor.
 | Comando | O que faz |
 |---|---|
 | `pnpm dev` | web (5173) + servidor (3001) em modo desenvolvimento |
-| `pnpm test` | testes do engine (inclui fuzz de 150 partidas) e do servidor |
+| `pnpm test` | testes do engine (inclui fuzz de 150 partidas), do servidor e da geometria da mesa |
 | `pnpm e2e` | Playwright: partida local e online inteiras pela interface |
 | `pnpm lint` / `pnpm typecheck` | ESLint e TypeScript em todo o monorepo |
 | `pnpm build` | build do web (PWA) e do servidor |
