@@ -24,6 +24,7 @@ import { SPEED_MULTIPLIER, useSettings } from '../../stores/settings';
 import { Button } from '../ui/Button';
 import { Sheet } from '../ui/Sheet';
 import { BidPanel } from './BidPanel';
+import { CoachTip, type TipId } from './CoachTip';
 import { ForcaChip, Hierarchy } from './ForcaChip';
 import { GameOver } from './GameOver';
 import { Hand } from './Hand';
@@ -176,6 +177,15 @@ function Table({ conn, update, seats, reactions }: { conn: GameConnection; updat
     [view.seq, settings.hints, myTurn],
   );
   const remaining = view.cardsThisRound - view.completedTricks.length;
+  const tip: TipId | null = bidding
+    ? view.blind
+      ? 'cega'
+      : view.forbiddenBid !== null
+        ? 'pe'
+        : 'palpite'
+    : canPlay
+      ? 'jogar'
+      : null;
 
   const send = async (action: ClientAction) => {
     setPendingAt(view.seq);
@@ -260,6 +270,7 @@ function Table({ conn, update, seats, reactions }: { conn: GameConnection; updat
           />
         )}
         <RoundBanner view={view} />
+        <CoachTip tip={bidding ? null : tip} />
         <BidPanel
           open={bidding}
           cards={view.cardsThisRound}
@@ -270,6 +281,7 @@ function Table({ conn, update, seats, reactions }: { conn: GameConnection; updat
           blind={view.blind}
           isDealer={view.dealerId === you}
           onBid={(value) => void send({ type: 'bid', value })}
+          tip={bidding ? tip : null}
         />
         <AnimatePresence>
           {(toast ?? notice?.text) && (

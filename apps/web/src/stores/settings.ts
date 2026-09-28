@@ -19,6 +19,8 @@ export interface SettingsState {
   difficulty: BotDifficulty;
   rules: Rules;
   seenTutorial: boolean;
+  /** Dicas de primeira partida já vistas (ids). */
+  seenTips: string[];
   set: (patch: Partial<Omit<SettingsState, 'set'>>) => void;
 }
 
@@ -36,6 +38,7 @@ export const useSettings = create<SettingsState>()(
       difficulty: 'medio',
       rules: { ...DEFAULT_RULES },
       seenTutorial: false,
+      seenTips: [],
       set: (patch) => set(patch),
     }),
     {

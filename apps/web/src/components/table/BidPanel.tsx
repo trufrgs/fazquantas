@@ -1,6 +1,7 @@
 import { AnimatePresence, motion } from 'motion/react';
 import { useEffect } from 'react';
 import { Lightbulb } from 'lucide-react';
+import { CoachTip, type TipId } from './CoachTip';
 
 export interface BidPanelProps {
   open: boolean;
@@ -12,6 +13,8 @@ export interface BidPanelProps {
   blind: boolean;
   isDealer: boolean;
   onBid: (value: number) => void;
+  /** Dica de primeira partida mostrada no topo do painel. */
+  tip?: TipId | null;
 }
 
 /** Painel "Quantas você faz?" — toque no número confirma o palpite. */
@@ -45,6 +48,7 @@ export function BidPanel(p: BidPanelProps) {
           exit={{ y: 30, opacity: 0, scale: 0.97, transition: { duration: 0.15 } }}
           transition={{ type: 'spring', stiffness: 420, damping: 32 }}
         >
+          <CoachTip tip={p.tip ?? null} inline />
           <header className="mb-2.5 flex items-baseline justify-between gap-3">
             <h2 className="font-display text-[1.35rem] font-bold leading-tight" style={{ fontVariationSettings: '"SOFT" 100, "WONK" 1' }}>
               Quantas você faz?
