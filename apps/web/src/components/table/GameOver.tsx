@@ -11,6 +11,8 @@ export interface GameOverProps {
   onAgain?: () => void;
   againLabel?: string;
   onExit: () => void;
+  /** Online, anfitrião: volta a sala para o lobby. */
+  onLobby?: () => void;
   waitingText?: string;
 }
 
@@ -22,7 +24,7 @@ async function celebrate() {
   window.setTimeout(() => confetti({ particleCount: 90, angle: 120, spread: 60, origin: { x: 1, y: 0.6 }, colors, disableForReducedMotion: true }), 400);
 }
 
-export function GameOver({ view, seats, onAgain, againLabel = 'Jogar de novo', onExit, waitingText }: GameOverProps) {
+export function GameOver({ view, seats, onAgain, againLabel = 'Jogar de novo', onExit, onLobby, waitingText }: GameOverProps) {
   const result = view.result;
   const youWon = !!result && !!view.you && result.winners.includes(view.you);
   const draw = (result?.winners.length ?? 0) > 1;
@@ -104,8 +106,13 @@ export function GameOver({ view, seats, onAgain, againLabel = 'Jogar de novo', o
             ) : (
               waitingText && <p className="text-center text-sm text-tinta-2">{waitingText}</p>
             )}
+            {onLobby && (
+              <Button variant="papel" onClick={onLobby}>
+                Voltar para a sala
+              </Button>
+            )}
             <Button variant="papel" onClick={onExit}>
-              Voltar ao início
+              {onLobby || waitingText ? 'Sair da sala' : 'Voltar ao início'}
             </Button>
           </div>
         </motion.div>

@@ -110,6 +110,8 @@ export interface ClientToServerEvents {
   'room:removeSeat': (p: { playerId: string }, ack?: (r: Ack) => void) => void;
   'room:start': (ack?: (r: Ack) => void) => void;
   'room:rematch': (ack?: (r: Ack) => void) => void;
+  /** Anfitrião, depois do fim de jogo: volta a sala para o lobby (trocar assentos, regras). */
+  'room:lobby': (ack?: (r: Ack) => void) => void;
   'game:action': (p: { action: ClientAction }, ack?: (r: Ack) => void) => void;
   'game:react': (p: { reaction: ReactionId }) => void;
 }

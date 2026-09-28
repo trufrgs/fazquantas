@@ -319,6 +319,7 @@ function Table({ conn, update, seats, reactions }: { conn: GameConnection; updat
           seats={seats}
           onAgain={online ? (isHost() ? () => useOnline.getState().rematch() : undefined) : startLocalGame}
           againLabel={online ? 'Revanche' : 'Jogar de novo'}
+          onLobby={online && isHost() ? () => useOnline.getState().backToLobby() : undefined}
           waitingText={online ? `Aguardando ${room?.seats.find((s) => s.playerId === room.hostId)?.name ?? 'o anfitrião'} chamar a revanche…` : undefined}
           onExit={exit}
         />

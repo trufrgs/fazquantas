@@ -115,6 +115,7 @@ interface OnlineState {
   removeSeat: (playerId: string) => void;
   start: () => Promise<string | null>;
   rematch: () => void;
+  backToLobby: () => void;
   clearError: () => void;
 }
 
@@ -147,7 +148,14 @@ function ensureSocket(): FodinhaSocket {
       useOnline.setState({ status: 'online' });
     }
   });
-  s.on('disconnect', () => {
+  s.on('disconnect', (reason) => {
+    if (reason === 'io server disconnect') {
+      // O servidor derrubou este socket: o mesmo jogador entrou por outro aparelho ou aba.
+      resetOnline();
+      useOnline.setState({ error: 'Você abriu esta sala em outro aparelho ou aba. Continue por lá.' });
+      if (useApp.getState().screen !== 'home') useApp.getState().reset('online');
+      return;
+    }
     if (useOnline.getState().room) useOnline.setState({ status: 'reconnecting' });
   });
   s.on('connect_error', () => {
@@ -252,6 +260,7 @@ export const useOnline = create<OnlineState>((set, get) => ({
     return r.ok ? null : r.error.message;
   },
   rematch: () => socket?.emit('room:rematch'),
+  backToLobby: () => socket?.emit('room:lobby'),
   clearError: () => set({ error: null, kicked: false }),
 }));
 
