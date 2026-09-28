@@ -120,7 +120,7 @@ describe('partida online', () => {
   it('ação fora da vez e ação duplicada dão erro sem mudar o estado', async () => {
     const mundo = startWorld();
     const { ana, beto, a, code } = await twoHumans(mundo);
-    ok(await ana.call('room:update', { rules: { blindRound: 'off' }, turnTimeoutSec: null }));
+    ok(await ana.call('room:update', { rules: { blindRound: 'off' }, turnTimeoutSec: 120 }));
     ok(await ana.call('room:start'));
     const first = await ana.waitForView(() => true);
     await beto.waitForView(() => true);
@@ -164,7 +164,7 @@ describe('partida online', () => {
   it('reconexão com token no meio da partida devolve o assento e a mão', async () => {
     const mundo = startWorld();
     const { ana, beto, b, code } = await twoHumans(mundo);
-    ok(await ana.call('room:update', { rules: { blindRound: 'off' }, turnTimeoutSec: null }));
+    ok(await ana.call('room:update', { rules: { blindRound: 'off' }, turnTimeoutSec: 120 }));
     ok(await ana.call('room:start'));
     await beto.waitForView(() => true);
 
@@ -227,7 +227,7 @@ describe('partida online', () => {
   it('humano que cai tem a vez jogada automaticamente', async () => {
     const mundo = startWorld();
     const { ana, beto, b } = await twoHumans(mundo);
-    ok(await ana.call('room:update', { turnTimeoutSec: null }));
+    ok(await ana.call('room:update', { turnTimeoutSec: 120 }));
     const player = autoPlay(ana);
     ok(await ana.call('room:start'));
     await beto.waitForView(() => true);
@@ -246,7 +246,7 @@ describe('partida online', () => {
     const mundo = startWorld();
     const { ana, beto, a, b, code } = await twoHumans(mundo);
     ok(await ana.call('room:addBot', { difficulty: 'facil' }));
-    ok(await ana.call('room:update', { turnTimeoutSec: null }));
+    ok(await ana.call('room:update', { turnTimeoutSec: 120 }));
     ok(await ana.call('room:start'));
     await beto.waitForView(() => true);
 

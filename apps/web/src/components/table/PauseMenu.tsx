@@ -1,4 +1,4 @@
-import { BookOpen, DoorOpen, Layers, Play, RotateCcw } from 'lucide-react';
+import { BookOpen, Clock, DoorOpen, Layers, Play, RotateCcw } from 'lucide-react';
 import { useState } from 'react';
 import { PACES, type Pace } from '@fodinha/engine';
 import { SPEED_MULTIPLIER, useSettings, type Speed } from '../../stores/settings';
@@ -14,6 +14,8 @@ export interface PauseMenuProps {
   onHierarchy: () => void;
   onRestart?: () => void;
   onExit: () => void;
+  /** Sala assíncrona: larga a mesa sem sair (o lugar fica, o aviso chama na vez). */
+  onPark?: () => void;
   onSpeed?: (multiplier: number) => void;
   /** Online, anfitrião: ritmo da mesa (vale para todos). */
   pace?: Pace;
@@ -40,7 +42,9 @@ export function PauseMenu(p: PauseMenuProps) {
           <p className="text-base">
             {confirm === 'exit'
               ? p.online
-                ? 'Sair da sala? Um bot assume teu lugar até o fim da partida.'
+                ? p.onPark
+                  ? 'Sair de vez? Um bot assume teu lugar até o fim da partida. Pra só largar a mesa, usa "Voltar depois".'
+                  : 'Sair da sala? Um bot assume teu lugar até o fim da partida.'
                 : 'Sair pro início? A partida fica salva e tu continua depois.'
               : 'Começar outra partida com as mesmas regras? Essa aqui se perde.'}
           </p>
@@ -98,14 +102,19 @@ export function PauseMenu(p: PauseMenuProps) {
               </div>
             )}
           </div>
-          <div className={`mt-2 grid gap-2 ${p.onRestart ? 'grid-cols-2' : 'grid-cols-1'}`}>
+          <div className={`mt-2 grid gap-2 ${p.onRestart || p.onPark ? 'grid-cols-2' : 'grid-cols-1'}`}>
             {p.onRestart && (
               <Button icon={<RotateCcw size={18} />} onClick={() => setConfirm('restart')}>
                 Recomeçar
               </Button>
             )}
+            {p.onPark && (
+              <Button variant="ouro" icon={<Clock size={18} />} onClick={p.onPark}>
+                Voltar depois
+              </Button>
+            )}
             <Button icon={<DoorOpen size={18} />} onClick={() => setConfirm('exit')}>
-              {p.online ? 'Sair da sala' : 'Sair'}
+              {p.online ? (p.onPark ? 'Sair de vez' : 'Sair da sala') : 'Sair'}
             </Button>
           </div>
         </div>

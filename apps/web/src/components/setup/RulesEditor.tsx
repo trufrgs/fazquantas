@@ -18,6 +18,11 @@ import { Segmented, Stepper, Toggle } from '../ui/Controls';
 
 const HIERARCHY_LABEL: Record<HierarchyMode, string> = { gaucha: 'Gaúcha', vira: 'Com vira', mineira: 'Mineira' };
 const TIE_LABEL: Record<TieRule, string> = { cancel: 'empardam', nobody: 'ninguém leva', suit: 'naipe desempata' };
+const TIE_HINT: Record<TieRule, string> = {
+  nobody: 'Se as maiores empardam, ninguém leva a mão e quem começou começa de novo.',
+  cancel: 'As iguais se anulam e leva a maior que sobrou.',
+  suit: 'O naipe decide: ouros < espadas < copas < paus.',
+};
 
 /** Resumo em uma linha, para quem só lê as regras (convidados da sala). */
 export function rulesSummary(r: Rules): string {
@@ -111,15 +116,15 @@ export function RulesEditor({ value, onChange, dark }: RulesEditorProps) {
               ]}
             />
           </Field>
-          <Field label="Cartas iguais na mão" hint="Empardam: as iguais se anulam e leva a maior que sobrou.">
+          <Field label="Cartas iguais na mão" hint={TIE_HINT[value.tieRule]}>
             <Segmented<TieRule>
               label="Empate"
               dark={dark}
               value={value.tieRule}
               onChange={(v) => set('tieRule', v)}
               options={[
-                { value: 'cancel', label: 'Empardam' },
                 { value: 'nobody', label: 'Ninguém leva' },
+                { value: 'cancel', label: 'Empardam' },
                 { value: 'suit', label: 'Naipe desempata' },
               ]}
             />

@@ -2,6 +2,7 @@ import {
   DEFAULT_PACE,
   DEFAULT_RULES,
   DEFAULT_TURN_TIMEOUT_SEC,
+  isAsyncTurn,
   GameHost,
   NAME_MAX_LENGTH,
   RANKED_MIN_HUMANS,
@@ -43,6 +44,8 @@ import { randomToken, sameSecret } from './perfil';
 
 /** No máximo uma reação por jogador a cada 1,5 s. */
 export const REACTION_INTERVAL_MS = 1500;
+/** Sala assíncrona parada (sem lance e sem ninguém conectado) por uma semana acaba. */
+export const ASYNC_IDLE_MS = 7 * 24 * 60 * 60_000;
 const AVATAR_ALPHABET = 'abcdefghijklmnopqrstuvwxyz0123456789';
 
 /**
@@ -95,7 +98,10 @@ export interface PartidaRanqueada {
 export interface Aviso {
   playerId: string;
   profileId: string | null;
-  kind: 'turn' | 'start';
+  /** `reminder`: numa sala assíncrona, o prazo da vez está acabando. */
+  kind: 'turn' | 'start' | 'reminder';
+  /** Até quando a vez vale (`Date.now()` do servidor), se tem prazo. */
+  deadline?: number | null;
 }
 
 export interface SalaDeps {
@@ -106,6 +112,11 @@ export interface SalaDeps {
   graceMs: number;
   /** Sem nenhum humano conectado por esse tempo, a sala acaba. */
   ociosaMs: number;
+  /**
+   * Numa sala assíncrona (1 h ou mais por jogada, ou sem limite), o que conta é o tempo sem nenhum
+   * lance e sem ninguém conectado: passou disso, a sala acaba. No lobby, é também o prazo de quem caiu.
+   */
+  ociosaAssincronaMs?: number;
   /** Encolhe o tempo por jogada (só nos testes, para não esperar 15 s de verdade). */
   turnScale?: number;
   logger: Logger;
@@ -198,6 +209,10 @@ export class Sala {
   private idleTimer: unknown = null;
   private lastAway = '';
   private lastActorKey = '';
+  /** Lembrete de prazo da vez atual (sala assíncrona). */
+  private reminderTimer: unknown = null;
+  /** A vez que já virou aviso (`seq:jogador`): não avisa duas vezes a mesma. */
+  private avisadoKey = '';
   private readonly lastReactionAt = new Map<string, number>();
   private stateDirty = false;
   private outbox: { playerId: string; message: ViewMessage }[] = [];
@@ -235,6 +250,19 @@ export class Sala {
 
   get seatCount(): number {
     return this.seats.length;
+  }
+
+  /** De quem é a vez agora (id e nome), com o prazo, para a lista de salas de quem está fora. */
+  get turn(): { playerId: string; name: string; deadline: number | null } | null {
+    const game = this.currentStatus === 'playing' ? this.gameHost : null;
+    const actor = game ? currentActor(game.state) : null;
+    if (!game || !actor) return null;
+    const seat = this.seats.find((s) => s.playerId === actor.playerId);
+    return { playerId: actor.playerId, name: seat?.name ?? '', deadline: game.view(actor.playerId).turnDeadline };
+  }
+
+  get turnTimeout(): number | null {
+    return this.turnTimeoutSec;
   }
 
   get hasPassword(): boolean {
@@ -366,6 +394,11 @@ export class Sala {
     return { code: this.code, playerId: seat.playerId, token: seat.token };
   }
 
+  /** Sala assíncrona: a vez espera quem fechou o jogo, até o prazo (ou para sempre). */
+  get isAsync(): boolean {
+    return isAsyncTurn(this.turnTimeoutSec);
+  }
+
   /** A conexão caiu (não é saída explícita). */
   handleDisconnect(conexao: Conexao): void {
     const playerId = conexao.jogadorId;
@@ -373,8 +406,11 @@ export class Sala {
     if (!seat || seat.conexao !== conexao) return;
     seat.conexao = null;
     seat.desconectadoEm = this.deps.relogio.now();
-    if (this.currentStatus === 'playing') this.gameHost?.setAway(seat.playerId, true);
-    else this.startGrace(seat);
+    // Na partida ao vivo, a mesa joga por quem caiu; na assíncrona, a vez espera por ele.
+    if (this.currentStatus === 'playing') {
+      if (!this.isAsync) this.gameHost?.setAway(seat.playerId, true);
+      else this.warnIfTurnOf(seat);
+    } else this.startGrace(seat);
     this.touch();
   }
 
@@ -403,6 +439,7 @@ export class Sala {
     const seat = this.human(playerId);
     if (!seat || seat.visivel === visible) return;
     seat.visivel = visible;
+    if (!visible) this.warnIfTurnOf(seat);
     this.deps.aoMudar();
   }
 
@@ -643,8 +680,13 @@ export class Sala {
       sala.partida = meta;
       sala.attachGame(game);
       if (saved.status === 'playing') {
-        for (const seat of sala.humans()) if (!seat.conexao) game.setAway(seat.playerId, true);
+        if (!sala.isAsync) for (const seat of sala.humans()) if (!seat.conexao) game.setAway(seat.playerId, true);
         game.start();
+        // A vez atual já foi avisada antes de hibernar: não repete o push ao acordar.
+        const actor = currentActor(game.state);
+        sala.lastActorKey = actor ? `${game.state.seq}:${actor.playerId}` : '';
+        sala.avisadoKey = sala.lastActorKey;
+        sala.scheduleReminder(game);
       }
     } else if (saved.status === 'playing') {
       // Partida perdida (não deveria acontecer): volta para o lobby em vez de travar.
@@ -723,7 +765,8 @@ export class Sala {
   /** Prazo para voltar ao assento no lobby, contado desde a queda. */
   private startGrace(seat: HumanSeat, since = this.deps.relogio.now()): void {
     this.clearGrace(seat);
-    const left = Math.max(0, since + this.deps.graceMs - this.deps.relogio.now());
+    const grace = this.isAsync ? this.asyncIdleMs : this.deps.graceMs;
+    const left = Math.max(0, since + grace - this.deps.relogio.now());
     seat.graceTimer = this.deps.relogio.setTimeout(() => {
       seat.graceTimer = null;
       this.onGraceExpired(seat.playerId);
@@ -838,7 +881,7 @@ export class Sala {
     this.disposeGame();
     for (const seat of this.humans()) {
       this.clearGrace(seat); // na partida, quem caiu fica com o assento (o host joga por ele)
-      if (!seat.conexao) game.setAway(seat.playerId, true);
+      if (!seat.conexao && !this.isAsync) game.setAway(seat.playerId, true);
     }
     this.series = series;
     this.partida = {
@@ -852,7 +895,8 @@ export class Sala {
     game.start();
     this.touch();
     for (const seat of this.humans()) {
-      if (seat.conexao && !seat.visivel) this.deps.aoAvisar?.({ playerId: seat.playerId, profileId: seat.profileId, kind: 'start' });
+      const away = seat.conexao ? !seat.visivel : this.isAsync;
+      if (away) this.deps.aoAvisar?.({ playerId: seat.playerId, profileId: seat.profileId, kind: 'start' });
     }
   }
 
@@ -890,6 +934,11 @@ export class Sala {
         this.refreshIdle();
       }
       this.warnTurn(game);
+      // Assíncrona sem ninguém olhando: cada lance recomeça a contagem da sala parada.
+      if (this.isAsync && this.idleTimer !== null) {
+        this.idleSinceMs = this.deps.relogio.now();
+        this.armIdleTimer();
+      }
       if (event.state.phase === 'gameOver' && this.currentStatus === 'playing') this.finishGame(game);
       this.queueFlush();
     } catch (error) {
@@ -905,11 +954,55 @@ export class Sala {
     const previous = this.lastActorKey.split(':')[1];
     this.lastActorKey = key;
     if (previous === actor.playerId) return; // várias cartas seguidas do mesmo jogador: avisa uma vez
+    this.scheduleReminder(game);
     const seat = this.human(actor.playerId);
-    if (!seat || game.isAway(seat.playerId)) return;
-    if (!seat.conexao || !seat.visivel) {
-      this.deps.aoAvisar?.({ playerId: seat.playerId, profileId: seat.profileId, kind: 'turn' });
-    }
+    if (seat && (!seat.conexao || !seat.visivel)) this.warnIfTurnOf(seat);
+  }
+
+  /**
+   * É a vez desta pessoa e ela não está olhando (fechou o jogo ou foi para outro app): um aviso
+   * por vez. Jogada forçada (a última carta) e quem está ausente não contam: a mesa joga sozinha.
+   */
+  private warnIfTurnOf(seat: HumanSeat): void {
+    const game = this.currentStatus === 'playing' ? this.gameHost : null;
+    const actor = game ? currentActor(game.state) : null;
+    if (!game || !actor || actor.playerId !== seat.playerId || game.isAway(seat.playerId)) return;
+    if (actor.kind === 'play' && (game.state.round.hands[seat.playerId]?.length ?? 0) <= 1) return;
+    const key = `${game.state.seq}:${seat.playerId}`;
+    if (key === this.avisadoKey) return;
+    this.avisadoKey = key;
+    const deadline = game.view(seat.playerId).turnDeadline;
+    this.deps.aoAvisar?.({ playerId: seat.playerId, profileId: seat.profileId, kind: 'turn', deadline });
+  }
+
+  /**
+   * Sala assíncrona com prazo: avisa de novo quando falta um quarto do tempo (1 h → 15 min antes,
+   * 12 h → 3 h antes), se a pessoa ainda não jogou nem está olhando.
+   */
+  private scheduleReminder(game: GameHost): void {
+    this.clearReminder();
+    if (!this.isAsync || this.turnTimeoutSec === null) return;
+    const actor = currentActor(game.state);
+    const seat = actor ? this.human(actor.playerId) : undefined;
+    if (!actor || !seat) return;
+    const deadline = game.view(seat.playerId).turnDeadline;
+    if (deadline === null) return;
+    const at = deadline - (this.turnTimeoutSec * 1000 * (this.deps.turnScale ?? 1)) / 4;
+    const wait = at - this.deps.relogio.now();
+    if (wait <= 0) return;
+    const seq = game.state.seq;
+    this.reminderTimer = this.deps.relogio.setTimeout(() => {
+      this.reminderTimer = null;
+      if (this.disposed || game !== this.gameHost || game.state.seq !== seq || game.isAway(seat.playerId)) return;
+      if (seat.conexao && seat.visivel) return;
+      this.deps.aoAvisar?.({ playerId: seat.playerId, profileId: seat.profileId, kind: 'reminder', deadline });
+    }, wait);
+  }
+
+  private clearReminder(): void {
+    if (this.reminderTimer === null) return;
+    this.deps.relogio.clearTimeout(this.reminderTimer);
+    this.reminderTimer = null;
   }
 
   private finishGame(game: GameHost): void {
@@ -962,6 +1055,7 @@ export class Sala {
   }
 
   private disposeGame(): void {
+    this.clearReminder();
     this.unsubscribeGame?.();
     this.unsubscribeGame = null;
     this.gameHost?.dispose();
@@ -985,7 +1079,9 @@ export class Sala {
       this.armIdleTimer();
     }
     if (!game) return;
-    const present = connected.some((seat) => !game.isAway(seat.playerId));
+    // Na assíncrona, quem fechou o jogo segue na mesa: só pausa se todo mundo ficou ausente.
+    const counted = this.isAsync ? this.humans() : connected;
+    const present = counted.some((seat) => !game.isAway(seat.playerId));
     if (present && game.isPaused) game.resume();
     else if (!present && !game.isPaused) game.pause();
   }
@@ -993,11 +1089,16 @@ export class Sala {
   private armIdleTimer(): void {
     this.clearIdleTimer();
     const since = this.idleSinceMs ?? this.deps.relogio.now();
-    const left = Math.max(0, since + this.deps.ociosaMs - this.deps.relogio.now());
+    const limit = this.isAsync ? this.asyncIdleMs : this.deps.ociosaMs;
+    const left = Math.max(0, since + limit - this.deps.relogio.now());
     this.idleTimer = this.deps.relogio.setTimeout(() => {
       this.idleTimer = null;
       if (this.humans().every((seat) => seat.conexao === null)) this.close('ociosa');
     }, left);
+  }
+
+  private get asyncIdleMs(): number {
+    return this.deps.ociosaAssincronaMs ?? ASYNC_IDLE_MS;
   }
 
   private clearIdleTimer(): void {

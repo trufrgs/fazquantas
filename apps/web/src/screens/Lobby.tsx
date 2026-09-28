@@ -1,4 +1,4 @@
-import { BOT_DIFFICULTIES, type BotDifficulty } from '@fodinha/engine';
+import { BOT_DIFFICULTIES, isAsyncTurn, type BotDifficulty } from '@fodinha/engine';
 import { Bell, Crown, KeyRound, Share2, Trophy, UserPlus, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { RoomSettings, roomSummary } from '../components/setup/RoomSettings';
@@ -48,6 +48,11 @@ export function Lobby() {
   const full = room.seats.length >= room.capacity;
   const leave = () => {
     online.leave();
+    reset('home');
+  };
+  const asyncRoom = isAsyncTurn(room.turnTimeoutSec);
+  const park = () => {
+    online.park();
     reset('home');
   };
 
@@ -216,7 +221,9 @@ export function Lobby() {
                     : 'Esse navegador não mostra notificações; o título da aba avisa.'
                   : notify === 'denied'
                     ? 'As notificações estão bloqueadas neste navegador. Libera nas permissões do site.'
-                    : 'Se tu for pra outro app enquanto espera, o celular avisa.'}
+                    : asyncRoom
+                      ? 'Nessa sala cada um joga no seu tempo: é o aviso que te chama quando chega a tua vez.'
+                      : 'Se tu for pra outro app enquanto espera, o celular avisa.'}
               </p>
               {notify === 'default' || (notify === 'granted' && !settings.notify) ? (
                 <Button
@@ -236,16 +243,35 @@ export function Lobby() {
       ) : null}
 
       <Sheet open={confirmLeave} onClose={() => setConfirmLeave(false)} label="Sair da sala">
-        <p className="text-lg font-semibold">Sair da sala {room.code}?</p>
-        {host && room.seats.some((s) => s.kind === 'human' && s.playerId !== room.youId) && (
-          <p className="mt-1 text-tinta-2">Outra pessoa vira anfitriã.</p>
+        {asyncRoom ? (
+          <>
+            <p className="text-lg font-semibold">Largar a sala {room.code} por agora?</p>
+            <p className="mt-1 text-tinta-2">
+              Teu lugar fica guardado: a sala aparece em "Tuas salas" e o aviso te chama quando for a tua vez.
+            </p>
+            <div className="mt-4 flex flex-col gap-2">
+              <Button variant="ouro" onClick={park}>
+                Voltar depois
+              </Button>
+              <Button variant="copas" onClick={leave}>
+                Sair de vez
+              </Button>
+            </div>
+          </>
+        ) : (
+          <>
+            <p className="text-lg font-semibold">Sair da sala {room.code}?</p>
+            {host && room.seats.some((s) => s.kind === 'human' && s.playerId !== room.youId) && (
+              <p className="mt-1 text-tinta-2">Outra pessoa vira anfitriã.</p>
+            )}
+            <div className="mt-4 grid grid-cols-2 gap-2">
+              <Button onClick={() => setConfirmLeave(false)}>Ficar</Button>
+              <Button variant="copas" onClick={leave}>
+                Sair
+              </Button>
+            </div>
+          </>
         )}
-        <div className="mt-4 grid grid-cols-2 gap-2">
-          <Button onClick={() => setConfirmLeave(false)}>Ficar</Button>
-          <Button variant="copas" onClick={leave}>
-            Sair
-          </Button>
-        </div>
       </Sheet>
     </ScreenFrame>
   );

@@ -6,6 +6,7 @@ import {
   PASSWORD_MAX_LENGTH,
   RANKED_MIN_HUMANS,
   TURN_TIMEOUT_OPTIONS,
+  isAsyncTurn,
   seriesTarget,
   type BestOf,
   type Pace,
@@ -18,7 +19,19 @@ import { Button } from '../ui/Button';
 import { Segmented, Stepper, Toggle } from '../ui/Controls';
 
 const BEST_OF_LABEL: Record<BestOf, string> = { 1: 'Avulsa', 3: 'Melhor de 3', 5: 'de 5', 7: 'de 7' };
-const TIMEOUT_LABEL = (t: number | null) => (t === null ? 'Livre' : t >= 60 ? `${t / 60} min` : `${t} s`);
+const TIMEOUT_LABEL = (t: number | null) =>
+  t === null ? 'Sem limite' : t >= 3600 ? `${t / 3600} h` : t >= 60 ? `${t / 60} min` : `${t} s`;
+const LIVE_TIMEOUTS = TURN_TIMEOUT_OPTIONS.filter((t) => !isAsyncTurn(t));
+const ASYNC_TIMEOUTS = TURN_TIMEOUT_OPTIONS.filter((t) => isAsyncTurn(t));
+/** Ao trocar de jeito de jogar, o tempo que cada um começa. */
+const DEFAULT_LIVE_TIMEOUT = 30;
+const DEFAULT_ASYNC_TIMEOUT = 43200;
+
+function timeoutHint(t: number | null): string {
+  if (!isAsyncTurn(t)) return 'Quem estoura o tempo duas vezes seguidas fica ausente: a mesa joga por ele até ele voltar.';
+  if (t === null) return 'Cada um joga quando puder: quem fecha o jogo segue na mesa e a vez chega por notificação. A vez espera o tempo que for.';
+  return 'Cada um joga quando puder: quem fecha o jogo segue na mesa e a vez chega por notificação, com lembrete antes do fim. Estourou o prazo, a mesa joga aquela vez.';
+}
 
 export function paceLabel(pace: Pace): string {
   return PACES.find((p) => p.id === pace)?.label ?? 'Normal';
@@ -31,6 +44,7 @@ export function roomSummary(room: RoomState): string {
     `${room.rules.startingLives} ${room.rules.startingLives === 1 ? 'palito' : 'palitos'}`,
     `ritmo ${paceLabel(room.pace).toLowerCase()}`,
     room.turnTimeoutSec === null ? 'sem limite de tempo' : `${TIMEOUT_LABEL(room.turnTimeoutSec)} por jogada`,
+    ...(isAsyncTurn(room.turnTimeoutSec) ? ['cada um no seu tempo'] : []),
   ];
   if (room.ranked) parts.push('valendo ranking');
   return parts.join(' · ');
@@ -103,13 +117,29 @@ export function RoomSettings({ room, onChange }: RoomSettingsProps) {
           options={PACES.map((p) => ({ value: p.id, label: p.label }))}
         />
       </Field>
-      <Field label="Tempo por jogada" hint="Quem estoura o tempo duas vezes seguidas fica ausente: a mesa joga por ele até ele voltar.">
-        <Segmented<number | null>
-          label="Tempo por jogada"
-          value={room.turnTimeoutSec}
-          onChange={(turnTimeoutSec) => void change({ turnTimeoutSec })}
-          options={TURN_TIMEOUT_OPTIONS.map((t) => ({ value: t, label: TIMEOUT_LABEL(t) }))}
-        />
+      <Field label="Tempo por jogada" hint={timeoutHint(room.turnTimeoutSec)}>
+        <div className="flex flex-col gap-2">
+          <Segmented<'live' | 'async'>
+            label="Jeito de jogar"
+            value={isAsyncTurn(room.turnTimeoutSec) ? 'async' : 'live'}
+            onChange={(mode) =>
+              void change({ turnTimeoutSec: mode === 'async' ? DEFAULT_ASYNC_TIMEOUT : DEFAULT_LIVE_TIMEOUT })
+            }
+            options={[
+              { value: 'live', label: 'Todo mundo junto' },
+              { value: 'async', label: 'Cada um no seu tempo' },
+            ]}
+          />
+          <Segmented<number | null>
+            label="Tempo por jogada"
+            value={room.turnTimeoutSec}
+            onChange={(turnTimeoutSec) => void change({ turnTimeoutSec })}
+            options={(isAsyncTurn(room.turnTimeoutSec) ? ASYNC_TIMEOUTS : LIVE_TIMEOUTS).map((t) => ({
+              value: t,
+              label: TIMEOUT_LABEL(t),
+            }))}
+          />
+        </div>
       </Field>
       <Toggle
         checked={room.ranked}

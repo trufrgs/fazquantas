@@ -30,6 +30,7 @@ export const FAST_TIMING: Partial<HostTiming> = {
 export interface MundoOpts {
   graceMs?: number;
   ociosaMs?: number;
+  ociosaAssincronaMs?: number;
   timing?: Partial<HostTiming>;
   rateLimit?: RateLimitOptions;
   /** Tempo por jogada encolhido: 15 s viram 15 ms com 0,001. */
@@ -62,6 +63,7 @@ export class Mundo {
         timing: this.opts.timing ?? FAST_TIMING,
         graceMs: this.opts.graceMs ?? 60_000,
         ociosaMs: this.opts.ociosaMs ?? 10 * 60_000,
+        ociosaAssincronaMs: this.opts.ociosaAssincronaMs,
         turnScale: this.opts.turnScale,
         logger: silentLogger,
         rateLimit: this.opts.rateLimit,

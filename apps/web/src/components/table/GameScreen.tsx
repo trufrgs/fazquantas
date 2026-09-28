@@ -2,6 +2,7 @@ import {
   card,
   createRng,
   DEFAULT_TIMING,
+  isAsyncTurn,
   isManilha,
   paceMultiplier,
   sortByStrength,
@@ -16,6 +17,7 @@ import { AnimatePresence, motion } from 'motion/react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { GameConnection, SeatInfo, ViewUpdate } from '../../lib/connection';
 import { leaveTable, startLocalGame } from '../../lib/game-actions';
+import { untilLabel } from '../setup/TuasSalas';
 import { haptic } from '../../lib/haptics';
 import { play } from '../../lib/sound';
 import { useApp } from '../../stores/app';
@@ -371,6 +373,16 @@ function Table({
     if (online) useOnline.getState().leave();
     leaveTable();
   };
+  const asyncRoom = online && !!room && isAsyncTurn(room.turnTimeoutSec);
+  const park = () => {
+    useOnline.getState().park();
+    leaveTable();
+  };
+  const actorName = view.actor ? view.players.find((x) => x.id === view.actor!.playerId)?.name : undefined;
+  const asyncNote =
+    asyncRoom && view.actor && actorName
+      ? `${view.actor.playerId === view.you ? 'Tua vez' : `Vez de ${actorName}`} · ${view.turnDeadline ? untilLabel(view.turnDeadline) : 'sem pressa'}`
+      : null;
 
   return (
     <div ref={rootRef} className="mesa relative flex h-full flex-col overflow-hidden">
@@ -382,6 +394,7 @@ function Table({
         onMenu={() => setMenu(true)}
         onScore={() => setScore(true)}
         onReact={() => setPicker((v) => !v)}
+        note={asyncNote}
       />
 
       <div className="mx-auto flex min-h-0 w-full max-w-[73.75rem] flex-1 flex-col">
@@ -592,6 +605,7 @@ function Table({
               }
         }
         onExit={exit}
+        onPark={asyncRoom ? park : undefined}
         onSpeed={(m) => conn.setSpeed?.(m)}
         pace={online && isHost() ? room?.pace : undefined}
         onPace={online && isHost() ? (pace) => void useOnline.getState().update({ pace }) : undefined}

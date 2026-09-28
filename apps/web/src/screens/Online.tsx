@@ -1,5 +1,6 @@
 import { PASSWORD_MAX_LENGTH, ROOM_CODE_ALPHABET, ROOM_CODE_LENGTH } from '@fodinha/engine';
 import { useEffect, useState } from 'react';
+import { TuasSalas, useTuasSalas } from '../components/setup/TuasSalas';
 import { Button } from '../components/ui/Button';
 import { Panel, ScreenFrame } from '../components/ui/ScreenFrame';
 import { serverUrl } from '../lib/platform';
@@ -22,6 +23,7 @@ export function Online({ initialCode, onCodeUsed }: { initialCode?: string; onCo
   const [password, setPassword] = useState('');
   const busy = status === 'connecting';
   const session = savedSession();
+  const rooms = useTuasSalas();
   const askPassword = passwordFor !== null && passwordFor === code;
 
   // O erro fica visível até a pessoa sair desta tela.
@@ -41,6 +43,11 @@ export function Online({ initialCode, onCodeUsed }: { initialCode?: string; onCo
 
   return (
     <ScreenFrame title="Jogar com a gurizada">
+      {rooms && rooms.length > 0 && (
+        <Panel title="Tuas salas">
+          <TuasSalas rooms={rooms} busy={busy} onOpen={(c) => void doJoin(c)} />
+        </Panel>
+      )}
       <Panel title="Criar uma sala">
         <p className="mb-3 text-tinta-2">Tu recebe um código de 4 letras pra chamar a gurizada. Lugar vazio dá pra completar com bot.</p>
         <Button
@@ -101,7 +108,7 @@ export function Online({ initialCode, onCodeUsed }: { initialCode?: string; onCo
             Entrar
           </Button>
         </form>
-        {session && session.code !== code && (
+        {session && session.code !== code && !rooms?.some((r) => r.code === session.code) && (
           <button type="button" className="mt-3 text-sm font-bold text-espadas" onClick={() => void doJoin(session.code)}>
             Voltar pra sala {session.code}
           </button>

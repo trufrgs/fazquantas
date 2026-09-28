@@ -1,18 +1,20 @@
-import type {
-  Ack,
-  BotDifficulty,
-  ClientAction,
-  JoinResult,
-  ReactionId,
-  RoomState,
-  RoomUpdatePayload,
-  ViewMessage,
+import {
+  isAsyncTurn,
+  type Ack,
+  type BotDifficulty,
+  type ClientAction,
+  type JoinResult,
+  type ReactionId,
+  type RoomState,
+  type RoomUpdatePayload,
+  type ViewMessage,
 } from '@fodinha/engine';
 import { create } from 'zustand';
 import type { GameConnection, ReactionEvent, SeatInfo, ViewUpdate } from '../lib/connection';
 import { syncPush, warnRoom } from '../lib/avisos';
 import { serverUrl } from '../lib/platform';
 import { SalaSocket, type DisconnectReason } from '../lib/sala-socket';
+import { forgetRoom, knownRoom, rememberRoom } from '../lib/minhas-salas';
 import { storage } from '../lib/storage';
 import { useApp } from './app';
 import { useGame } from './game';
@@ -30,6 +32,19 @@ interface Session {
 
 export function savedSession(): Session | null {
   return storage.get<Session>(SESSION_KEY);
+}
+
+/** Token para voltar ao lugar numa sala: o da sala aberta agora ou o de uma das "tuas salas". */
+function tokenFor(code: string): string | undefined {
+  const session = savedSession();
+  if (session?.code === code) return session.token;
+  return knownRoom(code)?.token;
+}
+
+/** Esquece a sala aberta: não volta sozinho nem aparece nas "tuas salas". */
+function forgetCurrent(code = savedSession()?.code ?? useOnline.getState().room?.code) {
+  storage.remove(SESSION_KEY);
+  if (code) forgetRoom(code);
 }
 
 /** Endereço do WebSocket de uma sala (`nova` para criar). */
@@ -126,6 +141,8 @@ interface OnlineState {
   create: (settings?: RoomUpdatePayload) => Promise<boolean>;
   join: (code: string, opts?: { useToken?: boolean; password?: string }) => Promise<boolean>;
   leave: () => void;
+  /** Larga a mesa sem sair da sala (assíncrona): o lugar fica, e a sala segue nas "tuas salas". */
+  park: () => void;
   update: (patch: RoomUpdatePayload) => Promise<string | null>;
   addBot: (difficulty: BotDifficulty) => void;
   setBot: (playerId: string, difficulty: BotDifficulty) => void;
@@ -152,7 +169,7 @@ const TRANSIENT = new Set(['TIMEOUT', 'OFFLINE', 'RATE_LIMITED', 'INTERNAL_ERROR
  * o token salvo: ele é compartilhado entre abas e pode ser o de outra aba que assumiu o lugar.
  */
 function dropToOnlineScreen(error: string, { keepSession = false } = {}) {
-  if (!keepSession) storage.remove(SESSION_KEY);
+  if (!keepSession) forgetCurrent();
   resetOnline();
   useOnline.setState({ error });
   if (useApp.getState().screen !== 'home') useApp.getState().reset('online');
@@ -166,6 +183,7 @@ function profile() {
 
 function saveSession(r: JoinResult) {
   storage.set(SESSION_KEY, { code: r.code, token: r.token, playerId: r.playerId });
+  rememberRoom({ code: r.code, token: r.token, playerId: r.playerId });
 }
 
 /** A página ficou à vista ou escondida: o servidor decide se a vez vira notificação. */
@@ -261,8 +279,7 @@ async function rejoin(): Promise<void> {
   const s = socket;
   if (!room || status !== 'reconnecting' || !s) return;
   const attempt = ++rejoinAttempt;
-  const session = savedSession();
-  const token = session?.code === room.code ? session.token : undefined;
+  const token = tokenFor(room.code);
   const r = await s.request<JoinResult>('room:join', { code: room.code, ...profile(), token });
   if (attempt !== rejoinAttempt || socket !== s) return;
   if (r.ok) {
@@ -304,9 +321,14 @@ export const useOnline = create<OnlineState>((set) => ({
 
   create: async (settings) => {
     // Estava numa sala: sai dela antes (uma conexão por sala).
-    if (useOnline.getState().room) {
-      socket?.emit('room:leave');
-      storage.remove(SESSION_KEY);
+    // Numa sala assíncrona, a gente só larga a mesa (o lugar continua lá); na ao vivo, sai.
+    const current = useOnline.getState().room;
+    if (current) {
+      if (isAsyncTurn(current.turnTimeoutSec)) storage.remove(SESSION_KEY);
+      else {
+        socket?.emit('room:leave');
+        forgetCurrent(current.code);
+      }
       resetOnline();
     }
     set({ status: 'connecting', error: null, kicked: false, passwordFor: null });
@@ -337,12 +359,15 @@ export const useOnline = create<OnlineState>((set) => ({
     // Estava em outra sala: sai dela antes (uma conexão por sala).
     const current = useOnline.getState().room;
     if (current && current.code !== code) {
-      socket?.emit('room:leave');
+      if (isAsyncTurn(current.turnTimeoutSec)) storage.remove(SESSION_KEY);
+      else {
+        socket?.emit('room:leave');
+        forgetCurrent(current.code);
+      }
       resetOnline();
       set({ status: 'connecting' });
     }
-    const session = savedSession();
-    const token = useToken && session?.code === code ? session.token : undefined;
+    const token = useToken ? tokenFor(code) : undefined;
     // Mesma sala (outra senha, ou já dentro): aproveita a conexão; o servidor conta as tentativas.
     const s = socket && socket.url === roomUrl(code) ? socket : openSocket(code);
     const r = await s.request<JoinResult>('room:join', { code, ...profile(), token, password: opts.password });
@@ -350,7 +375,7 @@ export const useOnline = create<OnlineState>((set) => ({
     if (!r.ok) {
       const needsPassword = r.error.code === 'PASSWORD_REQUIRED' || r.error.code === 'WRONG_PASSWORD';
       // Só esquece a sala quando ela não serve mais; falha de rede deixa o "Voltar pra sala".
-      if (!TRANSIENT.has(r.error.code) && !needsPassword && session?.code === code) storage.remove(SESSION_KEY);
+      if (!TRANSIENT.has(r.error.code) && !needsPassword && token) forgetCurrent(code);
       // Pediu senha: a conexão fica aberta para a próxima tentativa.
       if (!needsPassword) closeSocket();
       set({
@@ -369,6 +394,11 @@ export const useOnline = create<OnlineState>((set) => ({
 
   leave: () => {
     socket?.emit('room:leave');
+    forgetCurrent();
+    resetOnline();
+  },
+
+  park: () => {
     storage.remove(SESSION_KEY);
     resetOnline();
   },

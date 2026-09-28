@@ -1,5 +1,6 @@
 import { DurableObject } from 'cloudflare:workers';
 import {
+  isAsyncTurn,
   ROOM_CAPACITY,
   WS_CLOSE,
   WS_PING,
@@ -17,6 +18,7 @@ import {
   type SalaSalva,
 } from '@fodinha/sala';
 import { rankingStub } from './ranking-do';
+import { horaBrasilia } from './hora';
 import { AlarmClock } from './relogio';
 
 /** No lobby, quem caiu tem esse tempo para voltar ao assento (dá para ir ao WhatsApp chamar gente). */
@@ -83,6 +85,10 @@ export interface SalaInfo {
   hasPassword?: boolean;
   seats?: number;
   capacity?: number;
+  /** Cada um joga no seu tempo (1 h ou mais por jogada, ou sem limite). */
+  async?: boolean;
+  /** De quem é a vez (na partida), para a lista "Tuas salas". */
+  turn?: { playerId: string; name: string; deadline: number | null } | null;
 }
 
 /**
@@ -190,7 +196,15 @@ export class SalaDO extends DurableObject<Env> {
   private info(): SalaInfo {
     const sala = this.servidor?.room;
     if (!sala || sala.isDisposed) return { exists: false };
-    return { exists: true, status: sala.status, hasPassword: sala.hasPassword, seats: sala.seatCount, capacity: ROOM_CAPACITY };
+    return {
+      exists: true,
+      status: sala.status,
+      hasPassword: sala.hasPassword,
+      seats: sala.seatCount,
+      capacity: ROOM_CAPACITY,
+      async: isAsyncTurn(sala.turnTimeout),
+      turn: sala.turn,
+    };
   }
 
   /** Salva uma vez por rodada de mudanças (várias no mesmo tique viram uma gravação). */
@@ -251,10 +265,15 @@ export class SalaDO extends DurableObject<Env> {
   private avisar(aviso: Aviso): void {
     if (!aviso.profileId) return;
     const stub = this.env.AVISOS.get(this.env.AVISOS.idFromName('geral'));
+    // Prazo só vale ser dito na sala assíncrona (horas); na ao vivo são segundos.
+    const longo = aviso.deadline != null && aviso.deadline - Date.now() > 10 * 60_000;
+    const ate = longo ? ` Tens até ${horaBrasilia(aviso.deadline!)}.` : '';
     const msg =
       aviso.kind === 'turn'
-        ? { title: 'Tua vez!', body: `É tua vez na sala ${this.code}.`, tag: `vez-${this.code}` }
-        : { title: 'Começou!', body: `A partida começou na sala ${this.code}.`, tag: `sala-${this.code}` };
+        ? { title: 'Tua vez!', body: `É tua vez na sala ${this.code}.${ate}`, tag: `vez-${this.code}` }
+        : aviso.kind === 'reminder'
+          ? { title: 'Tua vez tá acabando', body: `Na sala ${this.code}, a mesa joga por ti às ${horaBrasilia(aviso.deadline ?? Date.now())}.`, tag: `vez-${this.code}` }
+          : { title: 'Começou!', body: `A partida começou na sala ${this.code}.`, tag: `sala-${this.code}` };
     void stub
       .enviar(aviso.profileId, { ...msg, url: `${this.env.SITE}/?sala=${this.code}` })
       .catch((error: unknown) => console.error('[aviso]', error));

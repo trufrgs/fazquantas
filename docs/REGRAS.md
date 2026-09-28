@@ -64,8 +64,9 @@ espadas) > pica-fumo (7 de ouros) > 3 > 2 > 1 > 12 > 11 > 10 > 7 > 6 > 5 > 4.
    palpites bater com o número de cartas. Assim, alguém sempre erra.
 3. **Mãos:** quem palpitou primeiro começa a primeira mão. Cada um joga uma carta, sempre para a
    direita. A mais forte leva a mão, e quem leva começa a próxima.
-4. **Empate:** cartas de mesma força **empardam** (se anulam) e leva a maior que sobrou. Se todas
-   empardam, ninguém leva e quem começou a mão começa de novo.
+4. **Empate:** se as cartas mais fortes da mão **empardam** (mesma força), ninguém leva a mão e quem
+   começou começa de novo. Variantes: as iguais se anulam e leva a maior que sobrou, ou o naipe
+   desempata.
 5. **Vidas:** cada um perde a diferença entre o palpite e as mãos que fez. Chegou a 0, está fora
    ("deu pra ti").
 

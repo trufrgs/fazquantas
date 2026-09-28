@@ -42,7 +42,7 @@ export const DEFAULT_RULES: Readonly<Rules> = Object.freeze({
   hierarchy: 'gaucha',
   startingLives: 5,
   penalty: 'difference',
-  tieRule: 'cancel',
+  tieRule: 'nobody',
   blindRound: 'all',
   dealerRestriction: true,
   dealerRestrictionInBlind: false,

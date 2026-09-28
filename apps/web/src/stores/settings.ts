@@ -56,8 +56,14 @@ export const useSettings = create<SettingsState>()(
     }),
     {
       name: 'fodinha:ajustes',
-      version: 1,
+      version: 2,
       storage: createJSONStorage(() => safeStateStorage),
+      // v2: o padrão das cartas iguais virou "ninguém leva"; quem estava no padrão antigo acompanha.
+      migrate: (persisted, version) => {
+        const p = (persisted ?? {}) as Partial<SettingsState>;
+        if (version < 2 && p.rules?.tieRule === 'cancel') p.rules = { ...p.rules, tieRule: 'nobody' };
+        return p as SettingsState;
+      },
       merge: (persisted, current) => {
         const p = (persisted ?? {}) as Partial<SettingsState>;
         const key = typeof p.profileKey === 'string' && PROFILE_KEY_PATTERN.test(p.profileKey) ? p.profileKey : current.profileKey;

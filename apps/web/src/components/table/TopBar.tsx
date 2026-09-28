@@ -2,6 +2,8 @@ import { Menu, NotebookPen, SmilePlus } from 'lucide-react';
 import { IconButton } from '../ui/Button';
 
 export interface TopBarProps {
+  /** Linha extra (sala assíncrona: de quem é a vez e até quando). */
+  note?: string | null;
   round: number;
   cards: number;
   direction: 'up' | 'down';
@@ -28,6 +30,7 @@ export function TopBar(p: TopBarProps) {
           {p.cards} {p.cards === 1 ? 'carta' : 'cartas'}
           {p.pyramid && (p.direction === 'up' ? ' · subindo' : ' · descendo')}
         </span>
+        {p.note && <span className="text-xs font-bold text-ouros">{p.note}</span>}
       </div>
       <div className="flex gap-2">
         <IconButton label="Reagir" onClick={p.onReact}>

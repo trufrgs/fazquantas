@@ -13,6 +13,7 @@ import { hasSavedGame, savedGameSummary } from '../lib/local-connection';
 import { useUiScale } from '../lib/ui-scale';
 import { multiplayer } from '../lib/platform';
 import { useApp } from '../stores/app';
+import { untilLabel, useTuasSalas } from '../components/setup/TuasSalas';
 import { savedSession, useOnline } from '../stores/online';
 import { useSettings } from '../stores/settings';
 
@@ -27,6 +28,13 @@ export function Home() {
   const saved = hasSavedGame();
   const session = multiplayer ? savedSession() : null;
   const joining = useOnline((s) => s.status === 'connecting');
+  // Numa sala assíncrona, a tua vez pode estar esperando: o início mostra primeiro.
+  const rooms = useTuasSalas();
+  const myTurn = multiplayer ? rooms?.find((r) => r.yourTurn) : undefined;
+  const openRoom = async (code: string) => {
+    if (await useOnline.getState().join(code)) useApp.getState().reset('lobby');
+    else go('online');
+  };
 
   const withName = (then: () => void) => () => {
     if (name.trim()) then();
@@ -106,6 +114,14 @@ export function Home() {
           </div>
 
           <nav className="flex w-full max-w-xs flex-col gap-3" aria-label="Menu principal">
+            {myTurn && (
+              <Button variant="ouro" size="lg" disabled={joining} onClick={() => void openRoom(myTurn.code)} className="flex-col !gap-0">
+                <span>Tua vez na sala {myTurn.code}</span>
+                {myTurn.info.turn?.deadline && myTurn.info.async ? (
+                  <span className="text-xs font-semibold opacity-75">{untilLabel(myTurn.info.turn.deadline)}</span>
+                ) : null}
+              </Button>
+            )}
             {saved && (
               <Button
                 variant="ouro"
@@ -132,16 +148,8 @@ export function Home() {
             <Button variant="vidro" onClick={withName(() => go('setup'))}>
               Montar partida contra bots
             </Button>
-            {session && (
-              <Button
-                variant="vidro"
-                disabled={joining}
-                onClick={async () => {
-                  if (await useOnline.getState().join(session.code))
-                    useApp.getState().reset('lobby');
-                  else go('online');
-                }}
-              >
+            {session && session.code !== myTurn?.code && (
+              <Button variant="vidro" disabled={joining} onClick={() => void openRoom(session.code)}>
                 Voltar pra sala {session.code}
               </Button>
             )}
