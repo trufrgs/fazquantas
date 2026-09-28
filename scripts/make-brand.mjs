@@ -7,6 +7,7 @@ import { mkdirSync, readdirSync, existsSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { chromium } from '@playwright/test';
+import { writeIco } from './lib/ico.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const WEB = join(ROOT, 'apps/web');
@@ -36,6 +37,8 @@ await sq('icone', 192, join(ICONS, 'icon-192.png'));
 await sq('icone', 180, join(ICONS, 'apple-touch-icon.png'));
 await sq('icone', 64, join(ICONS, 'favicon-64.png'));
 await sq('icone', 32, join(ICONS, 'favicon-32.png'));
+// O navegador ainda pede /favicon.ico por conta própria (aba, favoritos, leitores de feed).
+writeIco(join(WEB, 'public/favicon.ico'), [join(ICONS, 'favicon-32.png'), join(ICONS, 'favicon-64.png')]);
 // Maskable: o sistema recorta um círculo de 80%; o personagem encolhe para caber.
 await shot({ peca: 'maskable', tam: '512' }, 512, 512, join(ICONS, 'icon-maskable-512.png'));
 
