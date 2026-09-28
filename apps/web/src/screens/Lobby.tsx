@@ -1,12 +1,14 @@
-import { BOT_DIFFICULTIES, TURN_TIMEOUT_OPTIONS, type BotDifficulty } from '@fodinha/engine';
-import { Crown, Share2, UserPlus, X } from 'lucide-react';
+import { BOT_DIFFICULTIES, type BotDifficulty } from '@fodinha/engine';
+import { Bell, Crown, KeyRound, Share2, Trophy, UserPlus, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
+import { RoomSettings, roomSummary } from '../components/setup/RoomSettings';
 import { RulesEditor, rulesSummary } from '../components/setup/RulesEditor';
 import { Avatar } from '../components/ui/Avatar';
 import { Button } from '../components/ui/Button';
 import { Segmented } from '../components/ui/Controls';
 import { Panel, ScreenFrame } from '../components/ui/ScreenFrame';
 import { Sheet } from '../components/ui/Sheet';
+import { enableNotify, isIos, notifyState } from '../lib/avisos';
 import { shareInvite } from '../lib/platform';
 import { useApp } from '../stores/app';
 import { useOnline } from '../stores/online';
@@ -28,6 +30,7 @@ export function Lobby() {
   }, []);
   const [shareMsg, setShareMsg] = useState<string | null>(null);
   const [startError, setStartError] = useState<string | null>(null);
+  const [notify, setNotify] = useState(notifyState());
   const room = online.room;
 
   if (!room) {
@@ -77,7 +80,7 @@ export function Lobby() {
               disabled={room.seats.length < 2}
               onClick={async () => setStartError(await online.start())}
             >
-              {room.seats.length < 2 ? 'Chama alguém ou bota um bot' : 'Começar partida'}
+              {room.seats.length < 2 ? 'Chama alguém ou bota um bot' : room.bestOf > 1 ? `Começar a série (melhor de ${room.bestOf})` : 'Começar partida'}
             </Button>
           </div>
         ) : (
@@ -119,7 +122,7 @@ export function Lobby() {
                       ? `bot ${DIFF_NAME[s.difficulty]}`
                       : s.connected
                         ? 'na mesa'
-                        : 'reconectando…'}
+                        : 'saiu da tela, esperando voltar…'}
                 </span>
               </span>
               {host && s.kind === 'bot' && (
@@ -164,33 +167,73 @@ export function Lobby() {
         )}
       </Panel>
 
-      <Panel title="Regras">
+      <Panel title="Partida">
         {host ? (
-          <>
-            <RulesEditor
-              value={room.rules}
-              onChange={(rules) => {
-                online.update({ rules });
-                settings.set({ rules });
-              }}
-            />
-            <div className="mt-4">
-              <span className="mb-2 block font-semibold">Tempo por jogada</span>
-              <Segmented<number | null>
-                label="Tempo por jogada"
-                value={room.turnTimeoutSec}
-                onChange={(turnTimeoutSec) => online.update({ turnTimeoutSec })}
-                options={TURN_TIMEOUT_OPTIONS.map((t) => ({ value: t, label: t === null ? 'Sem limite' : `${t} s` }))}
-              />
-            </div>
-          </>
+          <RoomSettings room={room} onChange={online.update} />
         ) : (
-          <p className="text-tinta-2">
-            {rulesSummary(room.rules)}
-            {room.turnTimeoutSec ? `, ${room.turnTimeoutSec} s por jogada` : ', sem limite de tempo'}.
-          </p>
+          <div className="flex flex-col gap-2 text-tinta-2">
+            <p>{roomSummary(room)}.</p>
+            <p className="flex flex-wrap gap-2 text-sm font-semibold text-tinta">
+              {room.ranked && (
+                <span className="inline-flex items-center gap-1 rounded-full bg-ouros/30 px-2.5 py-1">
+                  <Trophy size="0.9rem" aria-hidden="true" /> Valendo ranking
+                </span>
+              )}
+              {room.hasPassword && (
+                <span className="inline-flex items-center gap-1 rounded-full bg-tinta/8 px-2.5 py-1">
+                  <KeyRound size="0.9rem" aria-hidden="true" /> Com senha
+                </span>
+              )}
+            </p>
+          </div>
         )}
       </Panel>
+
+      <Panel title="Regras">
+        {host ? (
+          <RulesEditor
+            value={room.rules}
+            onChange={(rules) => {
+              void online.update({ rules });
+              settings.set({ rules });
+            }}
+          />
+        ) : (
+          <p className="text-tinta-2">{rulesSummary(room.rules)}.</p>
+        )}
+      </Panel>
+
+      {notify !== 'granted' || !settings.notify ? (
+        <Panel>
+          <div className="flex items-start gap-3">
+            <Bell size="1.4rem" className="mt-0.5 shrink-0 text-ouros-escuro" aria-hidden="true" />
+            <div className="flex-1">
+              <p className="font-semibold">Avisar quando for tua vez</p>
+              <p className="text-sm text-tinta-2">
+                {notify === 'unsupported'
+                  ? isIos()
+                    ? 'No iPhone, instala o jogo na tela inicial (Compartilhar → Adicionar à Tela de Início) pra receber avisos.'
+                    : 'Esse navegador não mostra notificações; o título da aba avisa.'
+                  : notify === 'denied'
+                    ? 'As notificações estão bloqueadas neste navegador. Libera nas permissões do site.'
+                    : 'Se tu for pra outro app enquanto espera, o celular avisa.'}
+              </p>
+              {notify === 'default' || (notify === 'granted' && !settings.notify) ? (
+                <Button
+                  size="sm"
+                  className="mt-2"
+                  onClick={async () => {
+                    await enableNotify();
+                    setNotify(notifyState());
+                  }}
+                >
+                  Ligar avisos
+                </Button>
+              ) : null}
+            </div>
+          </div>
+        </Panel>
+      ) : null}
 
       <Sheet open={confirmLeave} onClose={() => setConfirmLeave(false)} label="Sair da sala">
         <p className="text-lg font-semibold">Sair da sala {room.code}?</p>

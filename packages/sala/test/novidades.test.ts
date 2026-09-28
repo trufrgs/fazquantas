@@ -131,8 +131,10 @@ describe('série melhor de X', () => {
     const wins = Object.values(series.wins).reduce((n, w) => n + w, 0);
     expect(wins).toBeGreaterThanOrEqual(series.games.length); // empate no topo dá vitória a mais de um
     if (series.games.length < 3) expect(champion.every((id) => series.wins[id] === 2)).toBe(true);
-    // Pontos por colocação: com 3 na mesa, o vencedor de cada partida leva 2.
-    for (const game of series.games) for (const id of game.winners) expect(game.points[id]).toBe(2);
+    // Pontos por colocação: com 3 na mesa, vencedor sozinho leva 2; dois empatados no topo, 1 cada.
+    for (const game of series.games) {
+      for (const id of game.winners) expect(game.points[id]).toBe(game.winners.length === 1 ? 2 : 1);
+    }
 
     // Série decidida: a próxima partida abre outra série.
     ok(await ana.call('room:rematch'));

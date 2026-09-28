@@ -43,7 +43,9 @@ export default defineConfig(({ mode }) => ({
           // Só o subconjunto latino das fontes vai para o cache offline.
           globIgnores: ['**/*-cyrillic*', '**/*-vietnamese*', '**/*-greek*', '**/*-latin-ext*'],
           maximumFileSizeToCacheInBytes: 3 * 1024 * 1024,
-          navigateFallbackDenylist: [/^\/socket\.io/, /^\/health/],
+          navigateFallbackDenylist: [/^\/api\//],
+          // Tocar na notificação traz o jogo para a frente; push do servidor vira notificação.
+          importScripts: ['sw-avisos.js'],
         },
       }),
   ],

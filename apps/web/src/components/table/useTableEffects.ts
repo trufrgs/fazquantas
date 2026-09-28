@@ -1,6 +1,7 @@
 import type { PlayerView } from '@fodinha/engine';
 import { useEffect, useRef } from 'react';
 import type { ViewUpdate } from '../../lib/connection';
+import { warnTurn } from '../../lib/avisos';
 import { haptic } from '../../lib/haptics';
 import { play } from '../../lib/sound';
 import { useSettings } from '../../stores/settings';
@@ -9,7 +10,7 @@ const played = (v: PlayerView) => v.completedTricks.reduce((n, t) => n + t.plays
 const bids = (v: PlayerView) => v.players.filter((p) => p.bid !== null).length;
 
 /** Sons e vibração a partir da diferença entre a visão anterior e a atual. */
-export function useTableEffects(update: ViewUpdate | null) {
+export function useTableEffects(update: ViewUpdate | null, online = false) {
   const prev = useRef<PlayerView | null>(null);
   const hapticsOn = useSettings((s) => s.haptics);
 
@@ -39,6 +40,10 @@ export function useTableEffects(update: ViewUpdate | null) {
     if (myTurnNow && !myTurnBefore && !(v.phase === 'playing' && v.handHidden)) {
       play('turn');
       void haptic('turn', hapticsOn);
+      if (online && v.actor) {
+        const left = v.turnDeadline ? Math.max(0, Math.round((v.turnDeadline - Date.now()) / 1000)) : null;
+        warnTurn(v.actor.kind, left);
+      }
     }
 
     if (v.phase === 'roundEnd' && p.phase !== 'roundEnd' && you) {
@@ -61,7 +66,7 @@ export function useTableEffects(update: ViewUpdate | null) {
       play('win', { delayMs: 200 });
       void haptic('success', hapticsOn);
     }
-  }, [update, hapticsOn]);
+  }, [update, hapticsOn, online]);
 
   // Tique-taque nos últimos 5 segundos da sua vez.
   const deadline = update?.view.actor?.playerId === update?.view.you ? (update?.view.turnDeadline ?? null) : null;

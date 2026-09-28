@@ -226,9 +226,12 @@ export const Seat = memo(function Seat(p: SeatProps) {
             <BidBadge bid={player.bid} tricks={player.tricks} remaining={p.remaining} showTricks={showTricks} size="sm" />
           </motion.span>
         )}
-        {info && info.kind === 'human' && !info.connected && !out && (
-          <span className="absolute -right-2 -top-1 rounded-full bg-noite px-1.5 text-[0.625rem] font-bold text-papel ring-1 ring-papel/30">
-            caiu
+        {info && info.kind === 'human' && (!info.connected || info.away) && !out && (
+          <span
+            className="absolute -right-2 -top-1 rounded-full bg-noite px-1.5 text-[0.625rem] font-bold text-papel ring-1 ring-papel/30"
+            title={info.connected ? 'Estourou o tempo: a mesa está jogando por ele' : 'Saiu da tela: a mesa joga por ele até voltar'}
+          >
+            {info.connected ? 'ausente' : 'caiu'}
           </span>
         )}
         <ReactionBubble reaction={p.reaction} placement={p.y < 90 ? 'below' : 'above'} />

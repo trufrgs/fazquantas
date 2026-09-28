@@ -1,11 +1,18 @@
-import { DEFAULT_RULES, normalizeRules, type BotDifficulty, type Rules } from '@fodinha/engine';
+import {
+  DEFAULT_RULES,
+  PROFILE_KEY_PATTERN,
+  normalizeRules,
+  randomToken,
+  type BotDifficulty,
+  type Rules,
+} from '@fodinha/engine';
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 import { randomAvatarSeed } from '../lib/avatar';
 import { safeStateStorage } from '../lib/storage';
 
-export type Speed = 'normal' | 'rapida' | 'turbo';
-export const SPEED_MULTIPLIER: Record<Speed, number> = { normal: 1, rapida: 1.7, turbo: 4 };
+export type Speed = 'calma' | 'normal' | 'rapida' | 'turbo';
+export const SPEED_MULTIPLIER: Record<Speed, number> = { calma: 0.7, normal: 1, rapida: 1.7, turbo: 4 };
 
 export interface SettingsState {
   name: string;
@@ -21,6 +28,10 @@ export interface SettingsState {
   seenTutorial: boolean;
   /** Dicas de primeira partida já vistas (ids). */
   seenTips: string[];
+  /** Chave secreta do perfil de ranking (fica só neste aparelho; leva o perfil para outro). */
+  profileKey: string;
+  /** Pediu para ser avisado da vez (notificação do sistema). */
+  notify: boolean;
   set: (patch: Partial<Omit<SettingsState, 'set'>>) => void;
 }
 
@@ -39,6 +50,8 @@ export const useSettings = create<SettingsState>()(
       rules: { ...DEFAULT_RULES },
       seenTutorial: false,
       seenTips: [],
+      profileKey: randomToken(16),
+      notify: false,
       set: (patch) => set(patch),
     }),
     {
@@ -47,7 +60,9 @@ export const useSettings = create<SettingsState>()(
       storage: createJSONStorage(() => safeStateStorage),
       merge: (persisted, current) => {
         const p = (persisted ?? {}) as Partial<SettingsState>;
-        return { ...current, ...p, rules: normalizeRules(p.rules ?? current.rules) };
+        const key = typeof p.profileKey === 'string' && PROFILE_KEY_PATTERN.test(p.profileKey) ? p.profileKey : current.profileKey;
+        const speed = p.speed && p.speed in SPEED_MULTIPLIER ? p.speed : current.speed;
+        return { ...current, ...p, speed, profileKey: key, rules: normalizeRules(p.rules ?? current.rules) };
       },
     },
   ),

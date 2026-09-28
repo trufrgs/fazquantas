@@ -3,27 +3,28 @@ import { Capacitor } from '@capacitor/core';
 export const isNative = Capacitor.isNativePlatform();
 
 /**
- * Jogo online ligado. Desligado (`VITE_MULTIPLAYER=off`) quando o web sobe sem servidor ao lado,
- * como no Cloudflare Pages: some o "Jogar com a gurizada" e o link de convite abre o início.
+ * Jogo online ligado. Desligado (`VITE_MULTIPLAYER=off`) quando o web sobe sem servidor: some o
+ * "Jogar com a gurizada" e o link de convite abre o início.
  */
 export const multiplayer = import.meta.env.VITE_MULTIPLAYER !== 'off';
 
 /**
- * URL do servidor multiplayer. Ordem: `VITE_SERVER_URL` → mesma origem em produção web →
- * porta 3001 no mesmo host em desenvolvimento (funciona de celulares na mesma rede).
+ * URL do servidor (o Worker do Cloudflare). Ordem: `VITE_SERVER_URL` → no desenvolvimento, o
+ * `wrangler dev` na porta 8787 do mesmo host (funciona de celulares na mesma rede) → mesma origem.
  */
 export function serverUrl(): string {
   const fromEnv = import.meta.env.VITE_SERVER_URL;
   if (fromEnv) return fromEnv.replace(/\/$/, '');
-  if (import.meta.env.DEV || isNative) {
-    return `${window.location.protocol === 'https:' ? 'https' : 'http'}://${window.location.hostname || 'localhost'}:3001`;
+  if (import.meta.env.DEV) {
+    return `${window.location.protocol === 'https:' ? 'https' : 'http'}://${window.location.hostname || 'localhost'}:8787`;
   }
   return window.location.origin;
 }
 
 /** Link de convite para uma sala. */
 export function inviteLink(code: string): string {
-  const base = import.meta.env.VITE_SERVER_URL && isNative ? import.meta.env.VITE_SERVER_URL : window.location.origin;
+  // No app nativo a origem é "localhost": o convite aponta para o site.
+  const base = isNative ? (import.meta.env.VITE_SITE_URL ?? 'https://fazquantas.pages.dev') : window.location.origin;
   return `${base}/?sala=${code}`;
 }
 

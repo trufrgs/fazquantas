@@ -7,6 +7,8 @@ export interface SeatInfo {
   kind: 'human' | 'bot';
   difficulty?: BotDifficulty;
   connected: boolean;
+  /** A mesa está jogando por ele (caiu ou estourou o tempo seguidas vezes). */
+  away?: boolean;
 }
 
 export interface ViewUpdate {

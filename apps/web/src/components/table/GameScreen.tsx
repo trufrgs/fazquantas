@@ -3,6 +3,7 @@ import {
   createRng,
   DEFAULT_TIMING,
   isManilha,
+  paceMultiplier,
   sortByStrength,
   strength,
   suggest,
@@ -87,6 +88,30 @@ function statusLine(
   return { text: `Tua vez: fez ${-need} a mais`, tone: 'turn' };
 }
 
+/** A mesa está jogando por mim: um toque em qualquer lugar (ou no botão) me traz de volta. */
+function AwayBanner() {
+  useEffect(() => {
+    const back = () => useOnline.getState().present();
+    window.addEventListener('pointerdown', back);
+    return () => window.removeEventListener('pointerdown', back);
+  }, []);
+  return (
+    <div
+      role="alert"
+      className="papel fixed left-1/2 top-3 z-[60] flex w-[min(92vw,26rem)] -translate-x-1/2 items-center gap-3 rounded-2xl px-4 py-3 shadow-2xl ring-2 ring-ouros"
+      style={{ top: 'calc(0.75rem + var(--safe-top))' }}
+    >
+      <span className="flex-1 text-sm">
+        <strong className="block text-base">A mesa tá jogando por ti</strong>
+        Tu estourou o tempo duas vezes seguidas.
+      </span>
+      <Button variant="ouro" onClick={() => useOnline.getState().present()}>
+        Voltei
+      </Button>
+    </div>
+  );
+}
+
 export function GameScreen() {
   const conn = useGame((s) => s.conn);
   const update = useGame((s) => s.update);
@@ -94,7 +119,7 @@ export function GameScreen() {
   const reactions = useGame((s) => s.reactions);
   const gameKey = useGame((s) => s.gameKey);
   const inRoom = useOnline((s) => s.room !== null);
-  useTableEffects(update);
+  useTableEffects(update, inRoom);
   if (!conn || !update) {
     // Mesa vazia: numa sala online, o caminho é a sala (sair do início deixaria o assento preso).
     return (
@@ -333,7 +358,12 @@ function Table({
   const status = statusLine(view, nameOf);
   const handWidth = Math.min(vw, 640 * s);
   const dealFrom = { x: 0, y: -(table.height - geometry.deck.y) - handCardW * 0.9 };
-  const autoMs = DEFAULT_TIMING.roundPauseMs / (online ? 1 : SPEED_MULTIPLIER[settings.speed]);
+  const autoMs = DEFAULT_TIMING.roundPauseMs / (online ? paceMultiplier(room?.pace ?? 'normal') : SPEED_MULTIPLIER[settings.speed]);
+  const mySeat = online ? room?.seats.find((x) => x.playerId === room.youId) : undefined;
+  const meAway = mySeat?.kind === 'human' && mySeat.away && view.phase !== 'gameOver';
+  const series = online ? (room?.series ?? null) : null;
+  const seriesOn = !!series && series.bestOf > 1;
+  const hostName = room?.seats.find((x) => x.playerId === room.hostId)?.name ?? 'o anfitrião';
   const reactionFor = (id: string) => [...reactions].reverse().find((r) => r.playerId === id);
   const spectating = !!me?.eliminated && view.phase !== 'gameOver';
 
@@ -510,14 +540,19 @@ function Table({
         <GameOver
           view={view}
           seats={seats}
+          series={seriesOn ? series : null}
           onAgain={
-            online ? (isHost() ? () => useOnline.getState().rematch() : undefined) : startLocalGame
+            online ? (isHost() ? () => void useOnline.getState().rematch() : undefined) : startLocalGame
           }
-          againLabel={online ? 'Revanche' : 'Mais uma?'}
+          againLabel={
+            !online ? 'Mais uma?' : seriesOn && !series!.champion ? `Próxima partida (${series!.games.length + 1}ª)` : seriesOn ? 'Nova série' : 'Revanche'
+          }
           onLobby={online && isHost() ? () => useOnline.getState().backToLobby() : undefined}
           waitingText={
             online
-              ? `Esperando ${room?.seats.find((s) => s.playerId === room.hostId)?.name ?? 'o anfitrião'} chamar a revanche…`
+              ? seriesOn && !series!.champion
+                ? `Esperando ${hostName} puxar a próxima partida…`
+                : `Esperando ${hostName} chamar a revanche…`
               : undefined
           }
           onExit={exit}
@@ -558,7 +593,10 @@ function Table({
         }
         onExit={exit}
         onSpeed={(m) => conn.setSpeed?.(m)}
+        pace={online && isHost() ? room?.pace : undefined}
+        onPace={online && isHost() ? (pace) => void useOnline.getState().update({ pace }) : undefined}
       />
+      {meAway && <AwayBanner />}
       <ReactionPicker
         open={picker}
         onClose={closePicker}

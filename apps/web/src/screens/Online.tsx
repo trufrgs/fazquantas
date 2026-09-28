@@ -1,4 +1,4 @@
-import { ROOM_CODE_ALPHABET, ROOM_CODE_LENGTH } from '@fodinha/engine';
+import { PASSWORD_MAX_LENGTH, ROOM_CODE_ALPHABET, ROOM_CODE_LENGTH } from '@fodinha/engine';
 import { useEffect, useState } from 'react';
 import { Button } from '../components/ui/Button';
 import { Panel, ScreenFrame } from '../components/ui/ScreenFrame';
@@ -16,17 +16,19 @@ function cleanCode(raw: string): string {
 }
 
 export function Online({ initialCode, onCodeUsed }: { initialCode?: string; onCodeUsed?: () => void }) {
-  const { status, error, create, join, clearError } = useOnline();
+  const { status, error, create, join, clearError, passwordFor } = useOnline();
   const reset = useApp((s) => s.reset);
   const [code, setCode] = useState(cleanCode(initialCode ?? ''));
+  const [password, setPassword] = useState('');
   const busy = status === 'connecting';
   const session = savedSession();
+  const askPassword = passwordFor !== null && passwordFor === code;
 
   // O erro fica visível até a pessoa sair desta tela.
   useEffect(() => () => clearError(), [clearError]);
 
-  const doJoin = async (c: string) => {
-    if (await join(c)) reset('lobby');
+  const doJoin = async (c: string, pw?: string) => {
+    if (await join(c, { password: pw })) reset('lobby');
   };
 
   useEffect(() => {
@@ -58,7 +60,7 @@ export function Online({ initialCode, onCodeUsed }: { initialCode?: string; onCo
           className="flex flex-col gap-3"
           onSubmit={(e) => {
             e.preventDefault();
-            if (code.length === ROOM_CODE_LENGTH) void doJoin(code);
+            if (code.length === ROOM_CODE_LENGTH) void doJoin(code, askPassword ? password : undefined);
           }}
         >
           <label className="flex flex-col gap-1">
@@ -75,7 +77,27 @@ export function Online({ initialCode, onCodeUsed }: { initialCode?: string; onCo
               className="h-16 rounded-2xl border-0 bg-white/70 text-center font-display text-4xl font-bold tracking-[0.4em] text-tinta shadow-inner ring-1 ring-tinta/15 outline-none placeholder:text-tinta/20 focus:ring-2 focus:ring-espadas"
             />
           </label>
-          <Button type="submit" variant="papel" size="lg" disabled={busy || code.length !== ROOM_CODE_LENGTH}>
+          {askPassword && (
+            <label className="flex flex-col gap-1">
+              <span className="font-semibold">Essa sala tem senha</span>
+              <input
+                value={password}
+                onChange={(e) => setPassword(e.target.value.slice(0, PASSWORD_MAX_LENGTH))}
+                autoFocus
+                autoComplete="off"
+                spellCheck={false}
+                placeholder="Senha que te passaram"
+                aria-label="Senha da sala"
+                className="h-12 rounded-2xl border-0 bg-white/70 px-4 text-lg font-semibold text-tinta shadow-inner ring-1 ring-tinta/15 outline-none placeholder:text-tinta/30 focus:ring-2 focus:ring-espadas"
+              />
+            </label>
+          )}
+          <Button
+            type="submit"
+            variant="papel"
+            size="lg"
+            disabled={busy || code.length !== ROOM_CODE_LENGTH || (askPassword && !password.trim())}
+          >
             Entrar
           </Button>
         </form>

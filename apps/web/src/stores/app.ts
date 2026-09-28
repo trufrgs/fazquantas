@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 
-export type ScreenName = 'home' | 'setup' | 'online' | 'lobby' | 'game' | 'rules' | 'settings' | 'credits';
+export type ScreenName = 'home' | 'setup' | 'online' | 'lobby' | 'game' | 'rules' | 'settings' | 'credits' | 'ranking';
 
 interface AppState {
   screen: ScreenName;

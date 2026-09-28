@@ -160,6 +160,15 @@ export function Home() {
         >
           Como jogar
         </button>
+        {multiplayer && (
+          <button
+            type="button"
+            onClick={() => go('ranking')}
+            className="underline-offset-4 hover:underline"
+          >
+            Ranking
+          </button>
+        )}
         <button
           type="button"
           onClick={() => go('credits')}

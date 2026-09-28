@@ -7,7 +7,6 @@ import {
 } from '@fodinha/engine';
 import { fail, MESSAGES, ProtocolFailure } from './erros';
 import { TokenBucket } from './limite';
-import type { Logger } from './logger';
 import { profileIdFromKey } from './perfil';
 import { Sala, type Conexao, type Perfil, type SalaDeps, type SalaSalva } from './sala';
 import {

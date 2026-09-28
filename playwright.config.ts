@@ -1,8 +1,8 @@
 import { defineConfig, devices } from '@playwright/test';
 
 /**
- * E2E: sobe o web (Vite) e o servidor multiplayer. Rodar com `pnpm e2e`.
- * O servidor sobe com tempos curtos (FODINHA_FAST=1) para as partidas online terminarem rápido.
+ * E2E: sobe o web (Vite) e o servidor (Worker no wrangler dev). Rodar com `pnpm e2e`.
+ * O servidor sobe com tempos curtos (RAPIDO=1) para as partidas online terminarem rápido.
  */
 export default defineConfig({
   testDir: './e2e',
@@ -27,11 +27,11 @@ export default defineConfig({
       timeout: 60_000,
     },
     {
-      command: 'pnpm --filter @fodinha/server dev',
-      url: 'http://localhost:3001/health',
+      // O servidor de verdade (Worker + Durable Objects) rodando local, com pausas curtas.
+      command: 'pnpm --filter @fodinha/worker exec wrangler dev --port 8787 --ip 0.0.0.0 --var RAPIDO:1',
+      url: 'http://localhost:8787/api/saude',
       reuseExistingServer: true,
-      timeout: 60_000,
-      env: { FODINHA_FAST: '1' },
+      timeout: 90_000,
     },
   ],
 });

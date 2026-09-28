@@ -15,6 +15,8 @@ export default tseslint.config(
       'playwright-report/**',
       'test-results/**',
       'coverage/**',
+      'apps/worker/worker-configuration.d.ts',
+      'apps/worker/.wrangler/**',
     ],
   },
   js.configs.recommended,

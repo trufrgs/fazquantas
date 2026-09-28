@@ -1,0 +1,22 @@
+{
+  "name": "@fodinha/worker",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev --port 8787 --ip 0.0.0.0",
+    "deploy": "wrangler deploy",
+    "test": "vitest run --maxWorkers=3",
+    "typecheck": "tsc -p tsconfig.json",
+    "types": "wrangler types"
+  },
+  "dependencies": {
+    "@fodinha/engine": "workspace:*",
+    "@fodinha/sala": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "~6.0.3",
+    "vitest": "^5.0.2",
+    "wrangler": "^4.143.0"
+  }
+}

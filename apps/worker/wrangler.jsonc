@@ -1,0 +1,31 @@
+// Servidor do jogo online: um Worker na frente e um Durable Object por sala, mais um para o
+// ranking. Plano gratuito do Cloudflare (ver docs/DEPLOY.md).
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "fazquantas-api",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-09-01",
+  "durable_objects": {
+    "bindings": [
+      { "name": "SALAS", "class_name": "SalaDO" },
+      { "name": "RANKING", "class_name": "RankingDO" },
+      { "name": "AVISOS", "class_name": "AvisosDO" }
+    ]
+  },
+  "migrations": [
+    { "tag": "v1", "new_sqlite_classes": ["SalaDO", "RankingDO"] },
+    { "tag": "v2", "new_sqlite_classes": ["AvisosDO"] }
+  ],
+  "vars": {
+    // Origens do web que podem abrir salas (além de localhost, rede local, prévias do Pages e o app).
+    "ORIGENS": "https://fazquantas.pages.dev",
+    // "1" só nos testes E2E (wrangler dev --var RAPIDO:1): pausas curtas.
+    "RAPIDO": "0",
+    // Endereço do site (links das notificações).
+    "SITE": "https://fazquantas.pages.dev",
+    // Web Push: chave pública VAPID (a privada é o segredo VAPID_PRIVADO, fora do repositório).
+    "VAPID_PUBLICO": "BIZT1wg09fx_bMxOdIGsShulUEtjS4u7FmVQ9BtNYLPLE6BRP0mkph05gFeLQhVOOrc98J7L80Anr78DWtQS4iQ",
+    "VAPID_CONTATO": "https://fazquantas.pages.dev"
+  },
+  "observability": { "enabled": true }
+}

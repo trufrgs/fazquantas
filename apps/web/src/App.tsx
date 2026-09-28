@@ -6,6 +6,7 @@ import { GameScreen } from './components/table/GameScreen';
 import { isNative, multiplayer } from './lib/platform';
 import { preloadSounds, setSoundEnabled } from './lib/sound';
 import { useApp } from './stores/app';
+import { savedSession, useOnline } from './stores/online';
 import { useSettings } from './stores/settings';
 import { Credits } from './screens/Credits';
 import { Gallery } from './screens/Gallery';
@@ -13,6 +14,7 @@ import { Home } from './screens/Home';
 import { Lobby } from './screens/Lobby';
 import { NewGame } from './screens/NewGame';
 import { Online } from './screens/Online';
+import { Ranking } from './screens/Ranking';
 import { Rules } from './screens/Rules';
 import { Settings } from './screens/Settings';
 
@@ -46,6 +48,20 @@ export function App() {
     window.addEventListener('pointerdown', unlock);
     return () => window.removeEventListener('pointerdown', unlock);
   }, []);
+
+  // Recarregou ou reabriu no meio de uma sala: volta sozinho para o assento (sair de propósito
+  // apaga a sessão). Sala que sumiu só deixa a pessoa no início, sem erro.
+  useEffect(() => {
+    const session = multiplayer ? savedSession() : null;
+    if (!session || code) return;
+    void useOnline
+      .getState()
+      .join(session.code)
+      .then((ok) => {
+        if (ok && useApp.getState().screen === 'home') useApp.getState().reset('lobby');
+        else if (!ok) useOnline.getState().clearError();
+      });
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Link de convite: vai direto para a tela online com o código.
   useEffect(() => {
@@ -106,6 +122,7 @@ export function App() {
       {screen === 'rules' && <Rules />}
       {screen === 'settings' && <Settings />}
       {screen === 'credits' && <Credits />}
+      {screen === 'ranking' && <Ranking />}
     </>
   );
 }

@@ -1,45 +1,47 @@
 import type { Ack, JoinResult, PlayerView, RoomState, ViewMessage } from '@fodinha/engine';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-// O store roda no navegador: aqui ganha um `window` mínimo e um socket falso que o teste controla.
+// O store roda no navegador: aqui ganha um `window` mínimo e uma conexão de sala falsa que o
+// teste controla.
 const h = vi.hoisted(() => {
-  type Handler = (...args: unknown[]) => void;
+  type Handler = (data?: unknown) => void;
   class FakeSocket {
     connected = true;
+    closed = false;
     readonly handlers = new Map<string, Set<Handler>>();
-    readonly sent: { event: string; args: unknown[] }[] = [];
+    readonly sent: { event: string; payload: unknown; reply?: (r: unknown) => void }[] = [];
+    constructor(readonly url: string) {}
     on(event: string, fn: Handler) {
       if (!this.handlers.has(event)) this.handlers.set(event, new Set());
       this.handlers.get(event)!.add(fn);
-      return this;
     }
     off(event: string, fn: Handler) {
       this.handlers.get(event)?.delete(fn);
-      return this;
     }
-    emit(event: string, ...args: unknown[]) {
-      this.sent.push({ event, args });
-      return this;
+    emit(event: string, payload?: unknown) {
+      this.sent.push({ event, payload });
+    }
+    request(event: string, payload?: unknown) {
+      return new Promise((resolve) => this.sent.push({ event, payload, reply: resolve }));
     }
     removeAllListeners() {
       this.handlers.clear();
-      return this;
     }
-    disconnect() {
+    close() {
+      this.closed = true;
       this.connected = false;
-      return this;
     }
-    /** Evento vindo do servidor ou do próprio socket.io (`connect`, `disconnect`). */
-    fire(event: string, ...args: unknown[]) {
-      for (const fn of [...(this.handlers.get(event) ?? [])]) fn(...args);
+    /** Evento vindo do servidor ou da própria conexão (`connect`, `disconnect`). */
+    fire(event: string, data?: unknown) {
+      for (const fn of [...(this.handlers.get(event) ?? [])]) fn(data);
     }
     count(event: string) {
       return this.sent.filter((s) => s.event === event).length;
     }
-    /** Responde ao último envio de `event` que esperava confirmação. */
+    /** Responde ao último pedido de `event` que esperava resposta. */
     ackLast(event: string, reply: unknown) {
-      const sent = [...this.sent].reverse().find((s) => s.event === event);
-      (sent?.args.at(-1) as (r: unknown) => void)(reply);
+      const sent = [...this.sent].reverse().find((s) => s.event === event && s.reply);
+      sent?.reply?.(reply);
     }
   }
   const store = new Map<string, string>();
@@ -56,11 +58,13 @@ const h = vi.hoisted(() => {
   return { FakeSocket, sockets: [] as InstanceType<typeof FakeSocket>[], store };
 });
 
-vi.mock('socket.io-client', () => ({
-  io: () => {
-    const s = new h.FakeSocket();
-    h.sockets.push(s);
-    return s;
+vi.mock('../lib/sala-socket', () => ({
+  SalaSocket: class {
+    constructor(url: string) {
+      const s = new h.FakeSocket(url);
+      h.sockets.push(s);
+      return s;
+    }
   },
 }));
 vi.mock('../lib/platform', () => ({ serverUrl: () => 'http://servidor' }));
@@ -103,10 +107,10 @@ async function enterRoom() {
   socket().fire('game:view', viewMessage({}));
 }
 
-/** A conexão cai e volta; devolve o socket. */
+/** A conexão cai e volta (o mesmo `SalaSocket` reconecta sozinho); devolve o socket. */
 async function dropAndReconnect() {
   const s = socket();
-  s.fire('disconnect', 'transport close');
+  s.fire('disconnect', 'network');
   s.fire('connect');
   await flush();
   return s;
@@ -137,7 +141,7 @@ describe('online store', () => {
     h.store.set(SESSION_KEY, JSON.stringify({ code: 'ABCD', token: 'tok-2', playerId: 'p1' }));
     const s = socket();
     s.connected = false;
-    s.fire('disconnect', 'io server disconnect');
+    s.fire('disconnect', 'replaced');
     expect(savedSession()?.token).toBe('tok-2');
     expect(useOnline.getState().room).toBeNull();
     expect(useOnline.getState().error).toMatch(/outro aparelho ou aba/);
@@ -248,5 +252,56 @@ describe('online store', () => {
     delete (old as Partial<ViewMessage>).serverNow;
     socket().fire('game:view', old);
     expect(useGame.getState().update?.view.turnDeadline).toBe(now + 20_000);
+  });
+
+  it('a room with a password asks for it and retries on the same connection', async () => {
+    const first = useOnline.getState().join('ABCD');
+    await flush();
+    const s = socket();
+    expect(s.url).toBe('ws://servidor/api/salas/ABCD');
+    s.ackLast('room:join', { ok: false, error: { code: 'PASSWORD_REQUIRED', message: 'Essa sala tem senha.' } });
+    expect(await first).toBe(false);
+    expect(useOnline.getState().passwordFor).toBe('ABCD');
+    expect(useOnline.getState().error).toBeNull();
+    expect(s.closed).toBe(false);
+
+    const wrong = useOnline.getState().join('ABCD', { password: 'errada' });
+    await flush();
+    expect(socket()).toBe(s); // mesma conexão: o servidor conta as tentativas
+    s.ackLast('room:join', { ok: false, error: { code: 'WRONG_PASSWORD', message: 'Senha errada.' } });
+    expect(await wrong).toBe(false);
+    expect(useOnline.getState().error).toBe('Senha errada.');
+
+    const right = useOnline.getState().join('ABCD', { password: 'galpão' });
+    await flush();
+    expect((s.sent.at(-1)?.payload as { password?: string }).password).toBe('galpão');
+    s.ackLast('room:join', joined('tok-1'));
+    expect(await right).toBe(true);
+    expect(useOnline.getState().passwordFor).toBeNull();
+  });
+
+  it('creating retries with another code when the drawn one is taken', async () => {
+    const creating = useOnline.getState().create({ bestOf: 3 });
+    await flush();
+    const first = socket();
+    expect(first.url).toBe('ws://servidor/api/salas/nova');
+    first.ackLast('room:create', { ok: false, error: { code: 'ROOM_TAKEN', message: 'Esse código acabou de ser usado.' } });
+    await flush();
+    const second = socket();
+    expect(second).not.toBe(first);
+    expect(first.closed).toBe(true);
+    expect((second.sent.at(-1)?.payload as { settings: { bestOf: number } }).settings.bestOf).toBe(3);
+    second.ackLast('room:create', joined('tok-1'));
+    expect(await creating).toBe(true);
+    expect(savedSession()?.token).toBe('tok-1');
+  });
+
+  it('being kicked drops to the online screen with the reason', async () => {
+    await enterRoom();
+    socket().fire('disconnect', 'kicked');
+    expect(useOnline.getState().room).toBeNull();
+    expect(useOnline.getState().kicked).toBe(true);
+    expect(useOnline.getState().error).toMatch(/anfitrião te tirou/);
+    expect(savedSession()).toBeNull();
   });
 });

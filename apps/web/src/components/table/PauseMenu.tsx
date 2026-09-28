@@ -1,5 +1,6 @@
 import { BookOpen, DoorOpen, Layers, Play, RotateCcw } from 'lucide-react';
 import { useState } from 'react';
+import { PACES, type Pace } from '@fodinha/engine';
 import { SPEED_MULTIPLIER, useSettings, type Speed } from '../../stores/settings';
 import { Button } from '../ui/Button';
 import { Segmented, Toggle } from '../ui/Controls';
@@ -14,6 +15,9 @@ export interface PauseMenuProps {
   onRestart?: () => void;
   onExit: () => void;
   onSpeed?: (multiplier: number) => void;
+  /** Online, anfitrião: ritmo da mesa (vale para todos). */
+  pace?: Pace;
+  onPace?: (pace: Pace) => void;
 }
 
 export function PauseMenu(p: PauseMenuProps) {
@@ -65,7 +69,7 @@ export function PauseMenu(p: PauseMenuProps) {
             <Toggle checked={s.hints} onChange={(hints) => s.set({ hints })} label="Dicas" description="Sugere palpite e carta na tua vez." />
             {!p.online && (
               <div className="py-3">
-                <span className="mb-2 block font-semibold">Velocidade dos bots</span>
+                <span className="mb-2 block font-semibold">Ritmo do jogo</span>
                 <Segmented<Speed>
                   label="Velocidade"
                   value={s.speed}
@@ -74,10 +78,22 @@ export function PauseMenu(p: PauseMenuProps) {
                     p.onSpeed?.(SPEED_MULTIPLIER[speed]);
                   }}
                   options={[
+                    { value: 'calma', label: 'Calma' },
                     { value: 'normal', label: 'Normal' },
                     { value: 'rapida', label: 'Rápida' },
                     { value: 'turbo', label: 'Turbo' },
                   ]}
+                />
+              </div>
+            )}
+            {p.online && p.pace && p.onPace && (
+              <div className="py-3">
+                <span className="mb-2 block font-semibold">Ritmo da mesa</span>
+                <Segmented<Pace>
+                  label="Ritmo da mesa"
+                  value={p.pace}
+                  onChange={p.onPace}
+                  options={PACES.map((x) => ({ value: x.id, label: x.label }))}
                 />
               </div>
             )}

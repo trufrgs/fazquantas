@@ -20,4 +20,4 @@ redução para 420×672 px em WebP. O verso, a mesa, os palitos e a interface fo
 jogo.
 
 Bibliotecas de código aberto (MIT/ISC/Apache): React, Motion, Tailwind CSS, zustand, howler.js,
-socket.io, zod, Capacitor, canvas-confetti, lucide-react, Vite, Vitest e Playwright.
+zod, Cloudflare Workers (wrangler), Capacitor, canvas-confetti, lucide-react, Vite, Vitest e Playwright.

@@ -41,7 +41,7 @@ export function Credits() {
       </Panel>
       <Panel title="Código aberto">
         <p className="text-sm text-tinta-2">
-          React, Motion, Tailwind CSS, zustand, howler.js, socket.io, Capacitor, DiceBear e canvas-confetti, sob licença MIT/ISC.
+          React, Motion, Tailwind CSS, zustand, howler.js, zod, Cloudflare Workers (wrangler), Capacitor, DiceBear e canvas-confetti, sob licença MIT/ISC.
         </p>
       </Panel>
     </ScreenFrame>
