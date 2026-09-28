@@ -1,5 +1,5 @@
 import { card, fullDeck, type CardId } from '../cards';
-import { strength, type StrengthCtx } from '../hierarchy';
+import { trickStrength, type StrengthCtx } from '../hierarchy';
 import { shuffle, type Rng } from '../rng';
 import type { PlayerView } from '../view';
 import { LEVELS, type Rollout, type SeatPlay } from './sim';
@@ -48,7 +48,7 @@ export function buildCtx(view: PlayerView): BotCtx {
   const s = (id: CardId) => {
     let v = cache.get(id);
     if (v === undefined) {
-      v = strength(card(id), ctx);
+      v = trickStrength(card(id), ctx, view.rules.tieRule);
       cache.set(id, v);
     }
     return v;

@@ -4,26 +4,44 @@
  */
 import type { PenaltyMode, TieRule } from '../rules';
 
-export const LEVELS = 16;
+/** Níveis de força possíveis (com desempate por naipe chegam a 14 × 4 + 3). */
+export const LEVELS = 60;
 
 export interface SeatPlay {
   seat: number;
   s: number;
 }
 
-/** Assento vencedor da vaza (ou `null` se tudo se anulou). */
+/** Assento vencedor da vaza (ou `null` se ninguém leva). Sem alocação: n ≤ 8. */
 export function trickWinner(plays: readonly SeatPlay[], tieRule: TieRule): number | null {
-  if (plays.length === 0) return null;
-  if (tieRule === 'first') {
+  const n = plays.length;
+  if (n === 0) return null;
+  if (tieRule === 'nobody' || tieRule === 'suit') {
     let best = plays[0]!;
-    for (const p of plays) if (p.s > best.s) best = p;
-    return best.seat;
+    let tied = false;
+    for (let i = 1; i < n; i++) {
+      const p = plays[i]!;
+      if (p.s > best.s) {
+        best = p;
+        tied = false;
+      } else if (p.s === best.s) tied = true;
+    }
+    return tied ? null : best.seat;
   }
-  const counts = new Uint8Array(LEVELS);
-  for (const p of plays) counts[p.s]! += 1;
-  let best: SeatPlay | null = null;
-  for (const p of plays) if (counts[p.s] === 1 && (!best || p.s > best.s)) best = p;
-  return best ? best.seat : null;
+  let winner: SeatPlay | null = null;
+  for (let i = 0; i < n; i++) {
+    const p = plays[i]!;
+    if (winner && p.s <= winner.s) continue;
+    let unique = true;
+    for (let j = 0; j < n; j++) {
+      if (j !== i && plays[j]!.s === p.s) {
+        unique = false;
+        break;
+      }
+    }
+    if (unique) winner = p;
+  }
+  return winner ? winner.seat : null;
 }
 
 export interface Opponent {
@@ -50,7 +68,7 @@ export interface PolicyInput {
 export function holdProbability(s: number, inp: PolicyInput): number {
   let beat = 0;
   for (let x = s + 1; x < LEVELS; x++) beat += inp.unknown[x] ?? 0;
-  if (inp.tieRule === 'cancel') beat += inp.unknown[s] ?? 0;
+  if (inp.tieRule !== 'suit') beat += inp.unknown[s] ?? 0;
   const q = inp.unknownTotal > 0 ? Math.min(1, beat / inp.unknownTotal) : 0;
   let hold = 1;
   for (const a of inp.after) {

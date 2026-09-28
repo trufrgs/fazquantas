@@ -9,13 +9,13 @@ export function expectedTricks(
   unknown: ArrayLike<number>,
   unknownTotal: number,
   opponents: number,
-  cancel: boolean,
+  tiesLose: boolean,
 ): number {
   let e = 0;
   for (const s of handS) {
     let beat = 0;
     for (let x = s + 1; x < LEVELS; x++) beat += unknown[x] ?? 0;
-    if (cancel) beat += unknown[s] ?? 0;
+    if (tiesLose) beat += unknown[s] ?? 0;
     const q = unknownTotal > 0 ? Math.min(1, beat / unknownTotal) : 0;
     e += (1 - q) ** opponents;
   }
@@ -43,7 +43,7 @@ export function heuristicExpected(b: BotCtx): number {
     b.unknownCounts,
     b.unknownTotal,
     opponents,
-    b.view.rules.tieRule === 'cancel',
+    b.view.rules.tieRule !== 'suit',
   );
 }
 
@@ -75,11 +75,13 @@ function estimateBids(b: BotCtx, hands: number[][], myBid: number): number[] {
         deckUnknown,
         total,
         b.order.length - 1,
-        b.view.rules.tieRule === 'cancel',
+        b.view.rules.tieRule !== 'suit',
       );
       bid = Math.round(e);
       const isDealer = seat === b.order.length - 1;
-      if (isDealer && b.view.rules.dealerRestriction && sum + bid === cards) {
+      const restricted =
+        b.view.rules.dealerRestriction && (!b.view.blind || b.view.rules.dealerRestrictionInBlind);
+      if (isDealer && restricted && sum + bid === cards) {
         bid = e >= bid ? bid + 1 : Math.max(0, bid - 1);
         if (bid > cards) bid = cards - 1;
       }

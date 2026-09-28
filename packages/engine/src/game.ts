@@ -1,5 +1,5 @@
 import { card, fullDeck, isCardId } from './cards';
-import { strength, type StrengthCtx } from './hierarchy';
+import { trickStrength, type StrengthCtx } from './hierarchy';
 import { createRng, shuffle } from './rng';
 import {
   DECK_SIZE,
@@ -122,6 +122,7 @@ export function currentActor(state: GameState): Actor | null {
 export function forbiddenBid(state: GameState, playerId: string): number | null {
   const { round, rules } = state;
   if (!rules.dealerRestriction || playerId !== round.dealerId) return null;
+  if (round.blind && !rules.dealerRestrictionInBlind) return null;
   const others = round.order
     .filter((id) => id !== playerId)
     .reduce((sum, id) => sum + (round.bids[id] ?? 0), 0);
@@ -145,7 +146,7 @@ export function legalCards(state: GameState, playerId: string) {
 }
 
 export function maxCardsFor(aliveCount: number, rules: Rules): number {
-  const available = DECK_SIZE - (rules.hierarchy === 'paulista' ? 1 : 0);
+  const available = DECK_SIZE - (rules.hierarchy === 'vira' ? 1 : 0);
   const byDeck = Math.max(1, Math.floor(available / Math.max(1, aliveCount)));
   return rules.maxCards === null ? byDeck : Math.min(byDeck, rules.maxCards);
 }
@@ -171,19 +172,29 @@ export function nextProgression(
 }
 
 /**
- * Decide a vaza. Com `cancel`, cartas de mesma força se anulam e vence a maior força que sobrou
- * sozinha; `cancelled` lista só as anuladas que estavam acima da vencedora.
+ * Decide a vaza.
+ * - `cancel` (melar): cartas de mesma força se anulam; vence a maior força que sobrou sozinha.
+ *   `cancelled` lista só as anuladas que estavam acima da vencedora.
+ * - `nobody`: se as maiores empatam, ninguém leva (`cancelled` = as empatadas no topo).
+ * - `suit`: o naipe desempata; nunca há empate.
  */
 export function resolveTrick(
   plays: readonly Play[],
   ctx: StrengthCtx,
   tieRule: TieRule,
 ): { winnerId: string | null; cancelled: string[] } {
-  const scored = plays.map((p) => ({ id: p.playerId, s: strength(card(p.cardId), ctx) }));
-  if (tieRule === 'first') {
-    let best = scored[0];
-    for (const x of scored) if (best && x.s > best.s) best = x;
-    return { winnerId: best?.id ?? null, cancelled: [] };
+  const scored = plays.map((p) => ({
+    id: p.playerId,
+    s: trickStrength(card(p.cardId), ctx, tieRule),
+  }));
+  if (scored.length === 0) return { winnerId: null, cancelled: [] };
+  const top = Math.max(...scored.map((x) => x.s));
+  const tops = scored.filter((x) => x.s === top);
+  if (tieRule === 'suit' || tops.length === 1) {
+    return { winnerId: tops[0]!.id, cancelled: [] };
+  }
+  if (tieRule === 'nobody') {
+    return { winnerId: null, cancelled: tops.map((x) => x.id) };
   }
   const counts = new Map<number, number>();
   for (const x of scored) counts.set(x.s, (counts.get(x.s) ?? 0) + 1);
@@ -299,8 +310,12 @@ function advance(state: GameState): ApplyResult {
     if (s.result) {
       s.phase = 'gameOver';
     } else {
+      const someoneOut = (s.history.at(-1)?.eliminated.length ?? 0) > 0;
       const max = maxCardsFor(alivePlayers(s).length, s.rules);
-      const next = nextProgression(s.round.cards, s.direction, max, s.rules.progression);
+      const next =
+        someoneOut && s.rules.restartOnElimination
+          ? { cards: 1, direction: 'up' as const }
+          : nextProgression(s.round.cards, s.direction, max, s.rules.progression);
       s.direction = next.direction;
       dealRound(s, s.round.number + 1, next.cards, nextAliveAfter(s.players, s.round.dealerId));
     }
@@ -343,7 +358,10 @@ function dealRound(s: GameState, number: number, cards: number, dealerId: string
     bids[id] = null;
     tricksWon[id] = 0;
   });
-  const vira = s.rules.hierarchy === 'paulista' ? (deck[order.length * cards] ?? null) : null;
+  const vira = s.rules.hierarchy === 'vira' ? (deck[order.length * cards] ?? null) : null;
+  const blind =
+    cards === 1 &&
+    (s.rules.blindRound === 'all' || (s.rules.blindRound === 'first' && number === 1));
   s.round = {
     number,
     cards,
@@ -356,7 +374,7 @@ function dealRound(s: GameState, number: number, cards: number, dealerId: string
     tricksWon,
     trick: null,
     completedTricks: [],
-    blind: cards === 1 && s.rules.blindOneCardRound,
+    blind,
   };
   s.rngState = rng.state;
   s.phase = 'bidding';

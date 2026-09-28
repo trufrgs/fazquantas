@@ -117,7 +117,8 @@ export function getPlayerView(
     dealerId: round.dealerId,
     order: round.order.slice(),
     vira: round.vira,
-    manilhaRank: state.rules.hierarchy === 'paulista' && round.vira ? manilhaRank(card(round.vira)) : null,
+    manilhaRank:
+      state.rules.hierarchy === 'vira' && round.vira ? manilhaRank(card(round.vira)) : null,
     blind: round.blind,
     players,
     hand: handHidden ? null : (ownHand?.slice() ?? null),

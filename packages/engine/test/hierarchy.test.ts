@@ -7,6 +7,7 @@ import {
   sortByStrength,
   specialName,
   strength,
+  trickStrength,
   type StrengthCtx,
 } from '../src/hierarchy';
 
@@ -56,8 +57,8 @@ describe('hierarquia gaúcha (manilhas fixas)', () => {
   });
 });
 
-describe('hierarquia paulista (com vira)', () => {
-  const withVira = (vira: CardId): StrengthCtx => ({ mode: 'paulista', vira: card(vira) });
+describe('hierarquia com vira (manilha variável)', () => {
+  const withVira = (vira: CardId): StrengthCtx => ({ mode: 'vira', vira: card(vira) });
 
   it('picks the next rank after the vira, cycling after the 3', () => {
     expect(manilhaRank(card('O7'))).toBe(10);
@@ -95,6 +96,30 @@ describe('hierarquia paulista (com vira)', () => {
     expect(groups.slice(0, 4)).toEqual([['P5'], ['C5'], ['E5'], ['O5']]);
     expect(groups.flat()).toHaveLength(40);
     expect(groups).toHaveLength(13);
+  });
+});
+
+describe('hierarquia mineira (manilhas fixas)', () => {
+  const mineira: StrengthCtx = { mode: 'mineira', vira: null };
+  it('orders zap > sete de copas > espadilha > sete de ouros > 3 > 2 > ases', () => {
+    const chain: CardId[] = ['P4', 'C7', 'E1', 'O7', 'P3', 'P2', 'P1', 'P12', 'P11', 'P10', 'P7', 'P6', 'P5', 'C4'];
+    for (let i = 0; i < chain.length - 1; i++) {
+      expect(s(chain[i]!, mineira)).toBeGreaterThan(s(chain[i + 1]!, mineira));
+    }
+    expect(specialName(card('P4'), mineira)).toBe('Zap');
+    expect(isManilha(card('E1'), mineira)).toBe(true);
+    expect(isManilha(card('P1'), mineira)).toBe(false);
+  });
+});
+
+describe('trickStrength', () => {
+  it('breaks every tie by suit when asked to', () => {
+    const ts = (id: CardId) => trickStrength(card(id), gaucha, 'suit');
+    expect(ts('P3')).toBeGreaterThan(ts('C3'));
+    expect(ts('C3')).toBeGreaterThan(ts('E3'));
+    expect(ts('E3')).toBeGreaterThan(ts('O3'));
+    expect(ts('O3')).toBeGreaterThan(ts('P2'));
+    expect(trickStrength(card('P3'), gaucha, 'cancel')).toBe(trickStrength(card('O3'), gaucha, 'cancel'));
   });
 });
 

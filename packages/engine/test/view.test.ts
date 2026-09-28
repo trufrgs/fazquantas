@@ -91,7 +91,7 @@ describe('getPlayerView', () => {
   });
 
   it('carries the vira and the manilha rank in the paulista mode', () => {
-    const s = setupRound(newGame(3, { hierarchy: 'paulista' }, { firstDealer: 0 }), {
+    const s = setupRound(newGame(3, { hierarchy: 'vira' }, { firstDealer: 0 }), {
       cards: 2,
       hands: { p1: ['E1', 'C4'], p2: ['C3', 'O5'], p0: ['O3', 'P6'] },
       vira: 'C7',
@@ -99,7 +99,11 @@ describe('getPlayerView', () => {
     const v = getPlayerView(s, 'p0');
     expect(v.vira).toBe('C7');
     expect(v.manilhaRank).toBe(10);
-    expect(getPlayerView(threeCards(), 'p0').manilhaRank).toBeNull();
+    const gaucha = setupRound(newGame(3, { hierarchy: 'gaucha' }, { firstDealer: 0 }), {
+      cards: 2,
+      hands: { p1: ['E1', 'C4'], p2: ['C3', 'O5'], p0: ['O3', 'P6'] },
+    });
+    expect(getPlayerView(gaucha, 'p0').manilhaRank).toBeNull();
   });
 
   it('passes the turn deadline through', () => {

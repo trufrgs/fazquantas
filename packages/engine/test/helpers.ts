@@ -33,7 +33,9 @@ export function setupRound(
   s.round.cards = deal.cards;
   s.round.hands = structuredClone(deal.hands);
   s.round.vira = deal.vira ?? null;
-  s.round.blind = deal.cards === 1 && s.rules.blindOneCardRound;
+  s.round.blind =
+    deal.cards === 1 &&
+    (s.rules.blindRound === 'all' || (s.rules.blindRound === 'first' && s.round.number === 1));
   return s;
 }
 

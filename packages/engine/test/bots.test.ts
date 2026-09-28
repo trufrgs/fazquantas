@@ -56,10 +56,10 @@ describe('bots', () => {
   it('only make legal moves across many games and rule sets', () => {
     const ruleSets: Partial<Rules>[] = [
       {},
-      { hierarchy: 'paulista' },
-      { tieRule: 'first', penalty: 'fixed' },
-      { blindOneCardRound: false, dealerRestriction: false, progression: 'up' },
-      { maxCards: 3, startingLives: 2 },
+      { hierarchy: 'gaucha', tieRule: 'nobody' },
+      { hierarchy: 'mineira', tieRule: 'suit', penalty: 'fixed' },
+      { blindRound: 'off', dealerRestriction: false, progression: 'upDown' },
+      { blindRound: 'first', dealerRestrictionInBlind: true, restartOnElimination: false },
     ];
     let games = 0;
     for (const [i, rules] of ruleSets.entries()) {
@@ -77,7 +77,7 @@ describe('bots', () => {
 
   it('bets 0 in the blind round when the cards it sees are unbeatable', () => {
     const s = bidAll(
-      setupRound(newGame(3, {}, { firstDealer: 2 }), {
+      setupRound(newGame(3, { hierarchy: 'gaucha' }, { firstDealer: 2 }), {
         cards: 1,
         hands: { p0: ['C4'], p1: ['E1'], p2: ['P1'] },
       }),
@@ -91,7 +91,7 @@ describe('bots', () => {
   });
 
   it('bets 1 in the blind round when the cards it sees are the weakest', () => {
-    const s = setupRound(newGame(3, {}, { firstDealer: 2 }), {
+    const s = setupRound(newGame(3, { hierarchy: 'gaucha' }, { firstDealer: 2 }), {
       cards: 1,
       hands: { p0: ['C5'], p1: ['O4'], p2: ['E6'] },
     });
@@ -104,7 +104,7 @@ describe('bots', () => {
   });
 
   it('reads the table in the blind round: a 0 from someone who saw my card means it is strong', () => {
-    let s = setupRound(newGame(2, { dealerRestriction: false }, { firstDealer: 0 }), {
+    let s = setupRound(newGame(2, { hierarchy: 'gaucha' }, { firstDealer: 0 }), {
       cards: 1,
       hands: { p1: ['C12'], p0: ['E3'] },
     });

@@ -3,7 +3,7 @@ name: fodinha-design
 description: Spec do jogo Fodinha (baralho espanhol) — regras, UX, visual, arquitetura, bots, multiplayer e testes
 owner: "@trufrgs"
 last_updated: 2026-09-27
-status: draft
+status: active
 ---
 
 # Fodinha — design
@@ -40,63 +40,63 @@ num servidor com multiplayer; reaproveitar o que já existe pronto.
 
 ## 2. Regras
 
-> Seção fechada após a pesquisa de regras — ver §2.4 para as fontes.
+> Fechada com a pesquisa de 2026-09-27 (fontes em `docs/REGRAS.md`). Todas as fontes de Fodinha que
+> dizem a força das cartas — inclusive as de baralho espanhol — usam **vira com manilha variável**;
+> manilhas fixas (gaúcha, mineira) ficam como variante.
 
 ### 2.1 Regra padrão ("Tradicional")
 
-- **Baralho:** espanhol de 40 cartas — 1 a 7, 10 (sota), 11 (cavalo), 12 (rei), nos naipes ouros,
-  copas, espadas e paus.
-- **Jogadores:** 2 a 8.
-- **Vidas:** cada jogador começa com 5.
-- **Rodadas:** a 1ª rodada dá 1 carta a cada um, a 2ª dá 2, e assim por diante até o máximo; depois
-  desce até 1 e volta a subir (1, 2, …, máx, …, 2, 1, 2, …). O máximo é o que o baralho permite para os
-  vivos (40 ÷ vivos, arredondado para baixo; com vira, 39 ÷ vivos).
-- **Quem dá:** o carteador gira a cada rodada. O jogador seguinte ao carteador aposta primeiro e
-  começa a primeira vaza; o carteador ("pé") aposta por último.
-- **Apostas:** cada jogador diz quantas vazas vai fazer (0 até o nº de cartas). **Regra do pé:** o
-  último a apostar não pode escolher o número que faria a soma das apostas igualar o nº de cartas da
-  rodada — alguém sempre erra.
-- **Vazas:** cada um joga uma carta, na ordem. **Não é obrigatório seguir naipe** — vence a carta mais
-  forte pela hierarquia. Quem vence a vaza começa a próxima.
-- **Hierarquia (gaúcha, manilhas fixas):** 1 de espadas (espadão) > 1 de paus (bastião) > 7 de espadas
-  > 7 de ouros > 3 > 2 > 1 de copas/ouros > 12 > 11 > 10 > 7 de copas/paus > 6 > 5 > 4.
-- **Empate:** cartas de mesma força se anulam; vence a maior carta não anulada. Se todas se anulam,
-  ninguém leva a vaza e quem a começou começa a próxima.
-- **Rodada de 1 carta às cegas:** na rodada de 1 carta, cada jogador vê a carta dos outros, mas não a
-  própria ("carta na testa"), e aposta assim.
-- **Pontuação:** ao fim da rodada, cada um perde vidas iguais à diferença entre o que apostou e o que
-  fez. Zerou, está fora.
-- **Fim:** vence o último vivo. Se os últimos vivos zeram na mesma rodada, vence quem ficou com mais
-  vidas (menos negativo); persistindo o empate, é empate entre eles.
+- **Baralho:** espanhol de 40 cartas — 1 a 7, 10 (sota), 11 (cavalo), 12 (rei); ouros, copas,
+  espadas e paus.
+- **Jogadores:** 2 a 8 (3 a 8 recomendado).
+- **Vidas:** 5 para cada um.
+- **Força:** 4 < 5 < 6 < 7 < 10 < 11 < 12 < 1 < 2 < 3; naipe não conta. Depois de dar as cartas,
+  vira-se a carta do topo (**vira**, visível e fora do jogo). As 4 cartas do valor seguinte (circular:
+  7 → 10, 12 → 1, 3 → 4) são **manilhas** e vencem tudo, na ordem paus (zap) > copas > espadas >
+  ouros (pica-fumo).
+- **Sem obrigação de seguir naipe.**
+- **Carteador** sorteado na 1ª rodada e passa para a direita; tudo gira para a direita
+  (anti-horário).
+- **Palpites:** do jogador à direita do carteador até o carteador (o **pé**), um por vez, públicos,
+  de 0 a n. O pé não pode palpitar o número que faria a soma dos palpites bater com o número de
+  cartas (quando esse número está entre 0 e n).
+- **Vazas:** quem palpitou primeiro puxa a 1ª; a maior carta leva; quem leva puxa a próxima.
+- **Empate ("melar"):** cartas de mesma força se anulam e vence a maior restante; se todas se
+  anulam, ninguém leva e quem puxou puxa de novo.
+- **Pontuação:** cada um perde `|palpite − vazas feitas|` vidas; quem chega a 0 sai.
+- **Progressão ("serrote"):** 1, 2, 3… até o máximo (⌊39 ÷ vivos⌋ com vira) e volta a 1; também
+  recomeça em 1 quando alguém é eliminado.
+- **Rodadas de 1 carta:** às cegas ("carta na testa") — cada um vê a carta dos outros e a vira, não
+  a própria. Nessas rodadas a regra do pé é dispensada.
+- **Fim:** vence o último com vidas. Se os últimos zeram juntos, vence quem ficou menos negativo;
+  persistindo, empate (as fontes tradicionais não tratam o caso).
 
 ### 2.2 Variantes (configurações da partida)
 
 | Configuração | Opções | Padrão |
 |---|---|---|
-| Hierarquia | Gaúcha (manilhas fixas) · Paulista (com vira: a carta seguinte à vira é manilha; paus > copas > espadas > ouros) | Gaúcha |
-| Vidas iniciais | 1–10 | 5 |
-| Penalidade | Diferença entre aposta e vazas · 1 vida por erro | Diferença |
-| Empate na vaza | Anulam (vence a próxima maior) · A primeira jogada vence | Anulam |
-| Rodada de 1 carta às cegas | Liga/desliga | Liga |
+| Hierarquia | Com vira (manilha variável) · Manilhas fixas gaúchas (espadão, bastião, 7 de espadas, 7 de ouros; sem vira) · Manilhas fixas mineiras (4 de paus, 7 de copas, ás de espadas, 7 de ouros; sem vira) | Com vira |
+| Vidas iniciais | 1–12 | 5 |
+| Penalidade | Diferença · 1 vida por erro | Diferença |
+| Empate | Melar (anulam, vence a próxima) · Ninguém leva · Naipe desempata | Melar |
+| Rodada às cegas | Toda rodada de 1 carta · Só a primeira · Nunca | Toda de 1 carta |
 | Regra do pé | Liga/desliga | Liga |
-| Sequência de cartas | Sobe e desce · Só sobe (volta para 1) | Sobe e desce |
-| Máximo de cartas | Automático · 3 · 5 · 7 · 10 | Automático |
+| Regra do pé na rodada às cegas | Vale · Dispensada | Dispensada |
+| Progressão | Serrote (volta a 1) · Pirâmide (sobe e desce) | Serrote |
+| Recomeçar em 1 quando alguém sai | Liga/desliga | Liga |
+| Máximo de cartas | Automático · 3 · 5 · 7 · 9 | Automático |
 | Tempo por jogada (online) | Sem limite · 15 s · 30 s · 60 s | 30 s |
 
-Presets: **Tradicional** (padrão acima), **Paulista** (com vira), **Rápida** (3 vidas, máximo 5).
+Presets: **Tradicional** (acima), **Gaúcha** (manilhas fixas do truco gaudério), **Rápida**
+(3 vidas, máximo 5 cartas).
 
-### 2.3 Detalhes de implementação das regras
+### 2.3 Detalhes de implementação
 
-- Sentido do jogo anti-horário (tradição brasileira): na tela, o próximo jogador fica à sua direita.
-- Primeiro carteador sorteado.
-- Jogada forçada (só 1 carta na mão, inclusive a rodada às cegas) é feita automaticamente após uma
-  pausa curta.
-- Anulação: removem-se todas as cartas cuja força aparece mais de uma vez na vaza; vence a maior das
-  restantes. (Equivale a "as maiores empatadas se anulam, repetindo".)
-
-### 2.4 Fontes
-
-Ver `docs/REGRAS.md` (gerado a partir da pesquisa, com URLs).
+- Na tela, o próximo jogador fica à sua direita (sentido anti-horário).
+- Jogada forçada (uma carta só, inclusive a rodada às cegas) é feita automaticamente após uma pausa
+  curta.
+- Melar: removem-se todas as cartas cuja força aparece mais de uma vez; vence a maior das restantes.
+- Termos da interface: palpite, fazer (vazas), pé, vira, manilha, melou.
 
 ## 3. Experiência (UX)
 

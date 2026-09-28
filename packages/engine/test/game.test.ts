@@ -27,19 +27,40 @@ describe('createGame', () => {
     expect(Object.values(s.round.hands).every((h) => h.length === 1)).toBe(true);
     expect(s.players.every((p) => p.lives === DEFAULT_RULES.startingLives)).toBe(true);
     expect(s.round.blind).toBe(true);
-    expect(s.round.vira).toBeNull();
+    expect(s.round.vira).not.toBeNull();
     expect(currentActor(s)).toEqual({ playerId: 'p3', kind: 'bid' });
   });
 
-  it('turns a vira that is not in any hand in the paulista mode', () => {
-    const s = newGame(8, { hierarchy: 'paulista' });
+  it('turns a vira that is not in any hand, and none with fixed manilhas', () => {
+    expect(newGame(4, { hierarchy: 'gaucha' }).round.vira).toBeNull();
+    expect(newGame(4, { hierarchy: 'mineira' }).round.vira).toBeNull();
+    const s = newGame(8);
     expect(s.round.vira).not.toBeNull();
     const dealt = Object.values(s.round.hands).flat();
     expect(dealt).not.toContain(s.round.vira);
   });
 
   it('does not play blind when the rule is off', () => {
-    expect(newGame(3, { blindOneCardRound: false }).round.blind).toBe(false);
+    expect(newGame(3, { blindRound: 'off' }).round.blind).toBe(false);
+  });
+
+  it('plays blind only in the first round with the "first" option', () => {
+    let s = newGame(2, { blindRound: 'first', restartOnElimination: false, maxCards: 2 }, { firstDealer: 0 });
+    expect(s.round.blind).toBe(true);
+    const finish = (st: typeof s) => {
+      let x = st;
+      while (x.phase !== 'roundEnd') {
+        if (x.phase === 'bidding') x = bidAll(x, [0]);
+        else if (x.phase === 'trickEnd') x = cont(x);
+        else x = playAll(x, [x.round.hands[currentActor(x)!.playerId]![0]!]);
+      }
+      return cont(x);
+    };
+    s = finish(s); // rodada 2: 2 cartas
+    expect(s.round.cards).toBe(2);
+    s = finish(s); // rodada 3: volta a 1 carta (serrote)
+    expect(s.round.cards).toBe(1);
+    expect(s.round.blind).toBe(false);
   });
 
   it('rejects invalid tables', () => {
@@ -80,8 +101,15 @@ describe('apostas', () => {
     expect(s).toEqual(before);
   });
 
-  it('forbids the dealer from closing the sum (regra do pé)', () => {
+  it('dispenses the dealer restriction in the blind round by default', () => {
     let s = newGame(3, {}, { firstDealer: 0 });
+    s = bidAll(s, [0, 0]);
+    expect(s.round.blind).toBe(true);
+    expect(legalBids(s, 'p0')).toEqual([0, 1]);
+  });
+
+  it('forbids the dealer from closing the sum (regra do pé)', () => {
+    let s = newGame(3, { dealerRestrictionInBlind: true }, { firstDealer: 0 });
     s = bidAll(s, [0, 0]);
     expect(currentActor(s)).toEqual({ playerId: 'p0', kind: 'bid' });
     expect(legalBids(s, 'p0')).toEqual([0]);
@@ -151,17 +179,26 @@ describe('resolveTrick', () => {
     });
   });
 
-  it('gives the trick to the first of the tied cards with the "first" rule', () => {
-    expect(resolveTrick(plays('C2', 'C3', 'O3'), gaucha, 'first')).toEqual({
-      winnerId: 'p1',
+  it('gives the trick to nobody when the top cards tie with the "nobody" rule', () => {
+    expect(resolveTrick(plays('C2', 'C3', 'O3'), gaucha, 'nobody')).toEqual({
+      winnerId: null,
+      cancelled: ['p1', 'p2'],
+    });
+    expect(resolveTrick(plays('C3', 'C2', 'O2'), gaucha, 'nobody')).toEqual({
+      winnerId: 'p0',
       cancelled: [],
     });
+  });
+
+  it('breaks ties by suit with the "suit" rule (paus > copas > espadas > ouros)', () => {
+    expect(resolveTrick(plays('O3', 'P3', 'C3', 'E3'), gaucha, 'suit').winnerId).toBe('p1');
+    expect(resolveTrick(plays('O3', 'E3'), gaucha, 'suit').winnerId).toBe('p1');
   });
 });
 
 describe('vazas e fim de rodada', () => {
   const twoCardRound = () =>
-    setupRound(newGame(3, {}, { firstDealer: 0 }), {
+    setupRound(newGame(3, { hierarchy: 'gaucha' }, { firstDealer: 0 }), {
       cards: 2,
       // ordem: p1, p2, p0 (pé)
       hands: { p1: ['E1', 'C4'], p2: ['C3', 'O5'], p0: ['O3', 'P6'] },
@@ -211,7 +248,7 @@ describe('vazas e fim de rodada', () => {
   });
 
   it('loses a single life per miss with the fixed penalty', () => {
-    let s = setupRound(newGame(2, { penalty: 'fixed' }, { firstDealer: 0 }), {
+    let s = setupRound(newGame(2, { penalty: 'fixed', hierarchy: 'gaucha' }, { firstDealer: 0 }), {
       cards: 2,
       hands: { p1: ['C4', 'C5'], p0: ['E1', 'P1'] },
     });
@@ -241,12 +278,26 @@ describe('vazas e fim de rodada', () => {
 
 describe('progressão e máximo de cartas', () => {
   it('computes the max from the deck, reserving the vira', () => {
-    expect(maxCardsFor(4, normalizeRules({}))).toBe(10);
-    expect(maxCardsFor(4, normalizeRules({ hierarchy: 'paulista' }))).toBe(9);
-    expect(maxCardsFor(8, normalizeRules({}))).toBe(5);
-    expect(maxCardsFor(8, normalizeRules({ hierarchy: 'paulista' }))).toBe(4);
-    expect(maxCardsFor(2, normalizeRules({}))).toBe(20);
+    expect(maxCardsFor(4, normalizeRules({}))).toBe(9);
+    expect(maxCardsFor(4, normalizeRules({ hierarchy: 'gaucha' }))).toBe(10);
+    expect(maxCardsFor(8, normalizeRules({}))).toBe(4);
+    expect(maxCardsFor(8, normalizeRules({ hierarchy: 'mineira' }))).toBe(5);
+    expect(maxCardsFor(2, normalizeRules({}))).toBe(19);
     expect(maxCardsFor(2, normalizeRules({ maxCards: 7 }))).toBe(7);
+  });
+
+  it('restarts from 1 card after an elimination, unless disabled', () => {
+    const playOut = (restartOnElimination: boolean) => {
+      let s = newGame(3, { startingLives: 1, hierarchy: 'gaucha', restartOnElimination }, { firstDealer: 0 });
+      s = setupRound(s, { cards: 2, hands: { p1: ['E1', 'P1'], p2: ['C4', 'C5'], p0: ['O4', 'O5'] } });
+      s = bidAll(s, [0, 0, 0]); // p1 vai fazer 2 tendo pedido 0
+      while (s.phase !== 'roundEnd') {
+        s = s.phase === 'trickEnd' ? cont(s) : playAll(s, [s.round.hands[currentActor(s)!.playerId]![0]!]);
+      }
+      return cont(s);
+    };
+    expect(playOut(true).round.cards).toBe(1);
+    expect(playOut(false).round.cards).toBe(3);
   });
 
   it('goes up and down', () => {
@@ -265,7 +316,7 @@ describe('progressão e máximo de cartas', () => {
 
 describe('eliminação e fim de jogo', () => {
   it('ends when a single player is left', () => {
-    let s = setupRound(newGame(2, { startingLives: 1 }, { firstDealer: 0 }), {
+    let s = setupRound(newGame(2, { startingLives: 1, hierarchy: 'gaucha' }, { firstDealer: 0 }), {
       cards: 1,
       hands: { p1: ['E1'], p0: ['C4'] },
     });
@@ -302,7 +353,7 @@ describe('eliminação e fim de jogo', () => {
   });
 
   it('skips eliminated players when choosing the next dealer and the order', () => {
-    let s = newGame(3, { startingLives: 1 }, { firstDealer: 0 });
+    let s = newGame(3, { startingLives: 1, hierarchy: 'gaucha' }, { firstDealer: 0 });
     s = setupRound(s, { cards: 1, hands: { p1: ['E1'], p2: ['C4'], p0: ['C5'] } });
     s = bidAll(s, [0, 0, 0]); // p1 erra (faz 1)
     s = cont(playAll(s, ['E1', 'C4', 'C5']));
