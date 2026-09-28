@@ -134,7 +134,7 @@ describe('partida online', () => {
     const outOfTurn = await other.call('game:action', { action: { type: 'bid', value: 0 } });
     expect(outOfTurn).toEqual({
       ok: false,
-      error: { code: 'GAME_ERROR', message: 'Não é a sua vez.' },
+      error: { code: 'GAME_ERROR', message: 'Não é tua vez.' },
     });
     // Mandar o playerId de quem está na vez não adianta: vale sempre o do socket.
     const spoofed = await other.call('game:action', {

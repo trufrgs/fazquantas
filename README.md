@@ -6,7 +6,7 @@ bots no navegador ou com amigos online. É um webapp pronto para virar app Andro
 <p>
   <img src="docs/img/inicio.webp" alt="Tela inicial" width="250" />
   <img src="docs/img/palpite.webp" alt="Hora do palpite" width="250" />
-  <img src="docs/img/melou.webp" alt="Cartas iguais melando a vaza" width="250" />
+  <img src="docs/img/empardou.webp" alt="Cartas iguais empardando na mão" width="250" />
 </p>
 
 ## Jogar agora
@@ -65,8 +65,8 @@ cada jogador só a visão dele, então nenhuma carta escondida sai do servidor.
 | `pnpm start` | produção: <http://localhost:3001> serve o jogo e o multiplayer |
 | `FUZZ_GAMES=3000 pnpm --filter @fodinha/engine test` | fuzz longo do engine |
 
-Cenas de desenvolvimento para revisar o visual: `http://localhost:5173/?cena=melou` (também `mesa8`,
-`palpite`, `vaza`, `fimrodada`, `fimjogo`, `espectador`, `vira`) e `?galeria` com o baralho inteiro.
+Cenas de desenvolvimento para revisar o visual: `http://localhost:5173/?cena=empardou` (também `mesa8`,
+`palpite`, `mao`, `cega`, `fimrodada`, `fimjogo`, `espectador`, `vira`) e `?galeria` com o baralho inteiro.
 
 ## Produção e apps
 

@@ -72,7 +72,7 @@ describe('criar e entrar', () => {
     const res = await beto.call('room:join', { code: 'ZZZZ', name: 'Beto', avatar: 'b' });
     expect(res).toEqual({
       ok: false,
-      error: { code: 'ROOM_NOT_FOUND', message: 'Sala não encontrada. Confira o código.' },
+      error: { code: 'ROOM_NOT_FOUND', message: 'Sala não encontrada. Confere o código.' },
     });
   });
 

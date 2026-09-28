@@ -15,33 +15,37 @@ export interface BidPanelProps {
   onBid: (value: number) => void;
   /** Dica de primeira partida mostrada no topo do painel. */
   tip?: TipId | null;
+  /** Atalhos 0–9 ligados (desligados com menu/folha aberta por cima). */
+  keyboard?: boolean;
 }
 
-/** Painel "Quantas você faz?" — toque no número confirma o palpite. */
+/** Painel "Quantas tu faz?" — toque no número confirma o palpite. */
 export function BidPanel(p: BidPanelProps) {
   const options = Array.from({ length: p.cards + 1 }, (_, i) => i);
   const { open, legal, onBid } = p;
+  const keyboard = p.keyboard ?? true;
 
-  // Desktop: as teclas 0–9 palpitam.
+  // Desktop: as teclas 0–9 palpitam (só dígitos: Espaço não pode virar "0").
   useEffect(() => {
-    if (!open) return undefined;
+    if (!open || !keyboard) return undefined;
     const onKey = (e: KeyboardEvent) => {
-      if (e.target instanceof HTMLInputElement || e.metaKey || e.ctrlKey) return;
+      if (e.target instanceof HTMLInputElement || e.metaKey || e.ctrlKey || e.altKey) return;
+      if (!/^[0-9]$/.test(e.key)) return;
       const n = Number(e.key);
-      if (e.key.length === 1 && Number.isInteger(n) && legal.includes(n)) {
+      if (legal.includes(n)) {
         e.preventDefault();
         onBid(n);
       }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [open, legal, onBid]);
+  }, [open, keyboard, legal, onBid]);
   const big = options.length > 8;
   return (
     <AnimatePresence>
       {p.open && (
         <motion.section
-          aria-label="Seu palpite"
+          aria-label="Teu palpite"
           className="papel absolute inset-x-3 bottom-2 z-40 mx-auto max-w-md rounded-[24px] px-4 pb-3.5 pt-3 shadow-[0_18px_40px_rgb(0_0_0/0.55)] ring-1 ring-black/10"
           initial={{ y: 40, opacity: 0, scale: 0.96 }}
           animate={{ y: 0, opacity: 1, scale: 1 }}
@@ -51,7 +55,7 @@ export function BidPanel(p: BidPanelProps) {
           <CoachTip tip={p.tip ?? null} inline />
           <header className="mb-2.5 flex items-baseline justify-between gap-3">
             <h2 className="font-display text-[1.35rem] font-bold leading-tight" style={{ fontVariationSettings: '"SOFT" 100, "WONK" 1' }}>
-              Quantas você faz?
+              Quantas tu faz?
             </h2>
             <span className="shrink-0 text-sm text-tinta-2">
               palpites <strong className="tabular-nums text-tinta">{p.bidsSum}</strong> de {p.cards}
@@ -90,12 +94,12 @@ export function BidPanel(p: BidPanelProps) {
             <p className="mt-2 text-[13px] leading-snug text-tinta-2">
               {p.forbidden !== null ? (
                 <>
-                  Você é o <strong className="text-tinta">pé</strong>: pedir {p.forbidden} fecharia a soma em {p.cards}.
+                  Tu é o <strong className="text-tinta">pé</strong>: não pode pedir {p.forbidden}, senão a soma bate {p.cards}.
                 </>
               ) : p.blind ? (
-                <>Sua carta está na testa: palpite lendo as cartas dos outros.</>
+                <>Tua carta tá na testa: palpita olhando as dos outros.</>
               ) : (
-                <>Você é o pé e palpita por último.</>
+                <>Tu é o pé: palpita por último.</>
               )}
             </p>
           )}

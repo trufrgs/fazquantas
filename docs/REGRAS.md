@@ -2,20 +2,22 @@
 name: regras-fodinha
 description: Regras da Fodinha com baralho espanhol implementadas no jogo, com variantes e fontes
 owner: "@trufrgs"
-last_updated: 2026-09-27
+last_updated: 2026-09-28
 status: active
 ---
 
 # Regras da Fodinha
 
 > Resumo das regras que o jogo implementa. A regra padrão é a **gaúcha, com manilhas fixas**
-> (decisão de 2026-09-27). A pesquisa que sustenta as demais escolhas está em [Fontes](#fontes);
+> (decisão de 2026-09-27). Termos de mesa usados no jogo (decisão de 2026-09-28): cada disputa de
+> cartas é uma **mão** (em outras regiões, "vaza"), cartas iguais **empardam** (em outras regiões,
+> "melam") e o carteador é o **pé**. A pesquisa que sustenta as demais escolhas está em [Fontes](#fontes);
 > onde as fontes divergem, a divergência virou configuração.
 
 ## Objetivo
 
-Acertar, a cada rodada, **exatamente** quantas vazas você vai fazer. Quem erra perde vidas. Vence
-quem sobrar por último.
+Acertar, a cada rodada, **exatamente** quantas mãos tu vai fazer. Quem erra perde vidas (palitos).
+Vence quem sobrar por último.
 
 ## Baralho e força das cartas
 
@@ -57,14 +59,15 @@ espadas) > pica-fumo (7 de ouros) > 3 > 2 > 1 > 12 > 11 > 10 > 7 > 6 > 5 > 4.
 1. **Cartas:** a 1ª rodada dá 1 carta a cada um; a 2ª, 2; e assim até o máximo (⌊40 ÷ vivos⌋ na
    gaúcha; ⌊39 ÷ vivos⌋ com vira, que reserva uma carta). Depois volta a 1 ("serrote") — ou desce de volta ("pirâmide"). Quando
    alguém é eliminado, a rodada seguinte recomeça em 1.
-2. **Palpites:** começando pelo jogador à direita do carteador, cada um diz quantas vazas vai fazer.
+2. **Palpites:** começando pelo jogador à direita do carteador, cada um diz quantas mãos vai fazer.
    O carteador palpita por último — é o **pé** — e não pode escolher o número que faria a soma dos
    palpites bater com o número de cartas. Assim, alguém sempre erra.
-3. **Vazas:** quem palpitou primeiro puxa a primeira vaza. Cada um joga uma carta, sempre para a
-   direita. A mais forte leva, e quem leva puxa a próxima.
-4. **Empate:** cartas de mesma força **melam** (se anulam) e vence a maior restante. Se todas melam,
-   ninguém leva e quem puxou puxa de novo.
-5. **Vidas:** cada um perde a diferença entre o palpite e as vazas que fez. Chegou a 0, está fora.
+3. **Mãos:** quem palpitou primeiro começa a primeira mão. Cada um joga uma carta, sempre para a
+   direita. A mais forte leva a mão, e quem leva começa a próxima.
+4. **Empate:** cartas de mesma força **empardam** (se anulam) e leva a maior que sobrou. Se todas
+   empardam, ninguém leva e quem começou a mão começa de novo.
+5. **Vidas:** cada um perde a diferença entre o palpite e as mãos que fez. Chegou a 0, está fora
+   ("deu pra ti").
 
 ## Rodada às cegas
 
@@ -79,7 +82,7 @@ ainda empatar, é empate.
 ## Configurações disponíveis
 
 Hierarquia (gaúcha, com vira, mineira) · vidas (1–12) · penalidade (diferença ou 1 por erro) ·
-empate (melar, ninguém leva, naipe desempata) · rodada às cegas (toda de 1 carta, só a primeira,
+empate (empardar, ninguém leva, naipe desempata) · rodada às cegas (toda de 1 carta, só a primeira,
 nunca) · regra do pé (e se vale na rodada às cegas) · progressão (serrote ou pirâmide) · recomeçar
 em 1 quando alguém sai · teto de cartas · tempo por jogada no online.
 

@@ -29,9 +29,9 @@ export function PauseMenu(p: PauseMenuProps) {
           <p className="text-base">
             {confirm === 'exit'
               ? p.online
-                ? 'Sair da sala? Um bot assume o seu lugar até o fim da partida.'
-                : 'Sair para o início? A partida fica salva e você continua depois.'
-              : 'Começar uma partida nova com as mesmas regras? A atual será perdida.'}
+                ? 'Sair da sala? Um bot assume teu lugar até o fim da partida.'
+                : 'Sair pro início? A partida fica salva e tu continua depois.'
+              : 'Começar outra partida com as mesmas regras? Essa aqui se perde.'}
           </p>
           <div className="grid grid-cols-2 gap-2">
             <Button onClick={() => setConfirm(null)}>Cancelar</Button>
@@ -55,7 +55,7 @@ export function PauseMenu(p: PauseMenuProps) {
           </div>
           <div className="mt-2 divide-y divide-tinta/10 rounded-2xl bg-tinta/5 px-4">
             <Toggle checked={s.sound} onChange={(sound) => s.set({ sound })} label="Som" />
-            <Toggle checked={s.hints} onChange={(hints) => s.set({ hints })} label="Dicas" description="Sugere palpite e carta na sua vez." />
+            <Toggle checked={s.hints} onChange={(hints) => s.set({ hints })} label="Dicas" description="Sugere palpite e carta na tua vez." />
             {!p.online && (
               <div className="py-3">
                 <span className="mb-2 block font-semibold">Velocidade dos bots</span>

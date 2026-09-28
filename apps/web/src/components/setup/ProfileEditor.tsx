@@ -19,7 +19,7 @@ export function ProfileEditor() {
           value={name}
           maxLength={NAME_MAX_LENGTH}
           onChange={(e) => set({ name: e.target.value })}
-          placeholder="Seu apelido"
+          placeholder="Teu apelido"
           autoComplete="nickname"
           className="h-12 rounded-2xl border-0 bg-white/70 px-4 text-lg font-semibold text-tinta shadow-inner ring-1 ring-tinta/15 outline-none focus:ring-2 focus:ring-espadas"
         />

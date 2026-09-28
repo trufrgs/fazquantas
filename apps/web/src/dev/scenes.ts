@@ -45,12 +45,12 @@ export const SCENES: Record<string, Scene> = {
     seed: 5,
     until: (s) => s.phase === 'bidding' && s.round.blind && currentActor(s)?.playerId === YOU && s.round.bidTurn >= 2,
   },
-  vaza: {
+  mao: {
     players: 5,
     seed: 8,
     until: (s) => s.phase === 'playing' && s.round.cards >= 4 && (s.round.trick?.plays.length ?? 0) >= 3 && currentActor(s)?.playerId === YOU,
   },
-  melou: {
+  empardou: {
     players: 5,
     seed: 21,
     until: (s) => s.phase === 'trickEnd' && (s.round.completedTricks.at(-1)?.cancelled.length ?? 0) >= 2 && s.round.completedTricks.at(-1)?.winnerId !== null,
@@ -120,6 +120,7 @@ export function sceneConnection(name: string): GameConnection | null {
   const update: ViewUpdate = {
     view: getPlayerView(state, YOU, { revealAll: scene.revealAll }),
     auto: false,
+    reason: null,
     actorId: null,
   };
   return {

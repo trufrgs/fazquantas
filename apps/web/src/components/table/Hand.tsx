@@ -1,6 +1,6 @@
 import { card as cardOf, cardName, type CardId } from '@fodinha/engine';
 import { motion } from 'motion/react';
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Card, CARD_RATIO } from '../cards/Card';
 
 export interface HandProps {
@@ -18,6 +18,8 @@ export interface HandProps {
   /** Deslocamento (px) do centro da mão até o monte, para as cartas "saírem" dele. */
   dealFrom: { x: number; y: number };
   oneTap: boolean;
+  /** Atalhos de teclado ligados (desligados com menu/folha aberta por cima). */
+  keyboard?: boolean;
 }
 
 interface Slot {
@@ -58,11 +60,14 @@ function layoutFan(ids: Slot['id'][], width: number, cw: number): Slot[] {
   return slots;
 }
 
-/** Sua mão em leque. Toque escolhe; segundo toque (ou arrastar para cima) joga. */
+/** Tuas cartas em leque. Toque escolhe; segundo toque (ou arrastar para cima) joga. */
 export function Hand(p: HandProps) {
-  const [picked, setSelected] = useState<CardId | null>(null);
-  // Seleção só vale na sua vez e enquanto a carta está na mão (derivado, sem efeito).
-  const selected = p.canPlay && picked && p.cards.includes(picked) ? picked : null;
+  const [picked, setPicked] = useState<{ id: CardId; round: number } | null>(null);
+  // Seleção só vale na tua vez, na mesma rodada e com a carta ainda na mão (derivado, sem efeito).
+  const selected =
+    p.canPlay && picked && picked.round === p.roundKey && p.cards.includes(picked.id) ? picked.id : null;
+  const round = p.roundKey;
+  const setSelected = useCallback((id: CardId | null) => setPicked(id ? { id, round } : null), [round]);
   const ids = useMemo<Slot['id'][]>(
     () => (p.hiddenCount > 0 ? Array.from({ length: p.hiddenCount }, (_, i) => `oculta-${i}` as const) : p.cards),
     [p.cards, p.hiddenCount],
@@ -74,7 +79,7 @@ export function Hand(p: HandProps) {
 
   // Teclado: ←/→ escolhem, Enter/Espaço jogam.
   useEffect(() => {
-    if (!p.canPlay || p.hiddenCount > 0) return undefined;
+    if (!p.canPlay || p.hiddenCount > 0 || p.keyboard === false) return undefined;
     const onKey = (e: KeyboardEvent) => {
       if (e.target instanceof HTMLInputElement) return;
       const i = selected ? p.cards.indexOf(selected) : -1;
@@ -88,7 +93,7 @@ export function Hand(p: HandProps) {
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [p, selected]);
+  }, [p, selected, setSelected]);
 
   const tap = (id: CardId) => {
     if (!p.canPlay) return;
@@ -101,14 +106,14 @@ export function Hand(p: HandProps) {
       className="relative mx-auto"
       style={{ width: p.width, height: ch + (twoRows ? cw * 0.62 : 0) + 14 }}
       role="group"
-      aria-label="Sua mão"
+      aria-label="Tuas cartas"
     >
       {slots.map((s, index) => {
           const hidden = typeof s.id === 'string' && s.id.startsWith('oculta-');
           const id = s.id as CardId;
           const isSel = !hidden && selected === id;
           const lift = isSel ? -Math.min(30, ch * 0.2) : p.canPlay && !hidden ? -4 : 0;
-          const label = hidden ? 'Sua carta (escondida)' : cardName(cardOf(id));
+          const label = hidden ? 'Tua carta (escondida)' : cardName(cardOf(id));
           return (
             <motion.button
               key={`${p.roundKey}-${s.id}`}

@@ -53,7 +53,7 @@ export const useSettings = create<SettingsState>()(
   ),
 );
 
-/** Nome para mostrar (quem ainda não escolheu apelido aparece como "Você"). */
+/** Nome para mostrar na mesa local (sem apelido, aparece como "Eu"). */
 export function displayName(name: string): string {
-  return name.trim() || 'Você';
+  return name.trim() || 'Eu';
 }

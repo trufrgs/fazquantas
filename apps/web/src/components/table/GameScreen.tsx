@@ -47,24 +47,24 @@ function statusLine(view: PlayerView, name: (id: string) => string): { text: str
   const you = view.you;
   const me = view.players.find((p) => p.id === you);
   if (view.phase === 'gameOver') return { text: 'Fim de jogo', tone: 'info' };
-  if (me?.eliminated) return { text: 'Você está fora — assistindo', tone: 'bad' };
+  if (me?.eliminated) return { text: 'Deu pra ti: tu tá fora', tone: 'bad' };
   if (view.phase === 'roundEnd') return { text: 'Fim da rodada', tone: 'info' };
   if (view.phase === 'trickEnd') {
     const w = view.lastTrick?.winnerId ?? null;
-    if (w === null) return { text: 'Melou! Ninguém fez', tone: 'info' };
-    return w === you ? { text: 'Você fez a vaza', tone: 'good' } : { text: `${name(w)} fez a vaza`, tone: 'info' };
+    if (w === null) return { text: 'Empardou! Ninguém fez', tone: 'info' };
+    return w === you ? { text: 'Tu fez a mão!', tone: 'good' } : { text: `${name(w)} fez a mão`, tone: 'info' };
   }
   const actor = view.actor;
   if (!actor) return { text: '', tone: 'info' };
   if (actor.playerId !== you) {
     return { text: actor.kind === 'bid' ? `${name(actor.playerId)} palpitando…` : `Vez de ${name(actor.playerId)}`, tone: 'info' };
   }
-  if (actor.kind === 'bid') return { text: 'Sua vez de palpitar', tone: 'turn' };
-  if (view.handHidden) return { text: 'Revelando sua carta…', tone: 'turn' };
+  if (actor.kind === 'bid') return { text: 'Tua vez de palpitar', tone: 'turn' };
+  if (view.handHidden) return { text: 'Revelando tua carta…', tone: 'turn' };
   const need = (me?.bid ?? 0) - (me?.tricks ?? 0);
-  if (need > 0) return { text: `Sua vez: falta${need > 1 ? 'm' : ''} ${need}`, tone: 'turn' };
-  if (need === 0) return { text: 'Sua vez: não faça mais', tone: 'turn' };
-  return { text: 'Sua vez: já passou', tone: 'turn' };
+  if (need > 0) return { text: `Tua vez: falta${need > 1 ? 'm' : ''} ${need}`, tone: 'turn' };
+  if (need === 0) return { text: 'Tua vez: não faz mais', tone: 'turn' };
+  return { text: `Tua vez: fez ${-need} a mais`, tone: 'turn' };
 }
 
 export function GameScreen() {
@@ -72,6 +72,7 @@ export function GameScreen() {
   const update = useGame((s) => s.update);
   const seats = useGame((s) => s.seats);
   const reactions = useGame((s) => s.reactions);
+  const gameKey = useGame((s) => s.gameKey);
   useTableEffects(update);
   if (!conn || !update) {
     return (
@@ -82,7 +83,8 @@ export function GameScreen() {
       </div>
     );
   }
-  return <Table conn={conn} update={update} seats={seats} reactions={reactions} />;
+  // Partida nova (inclusive revanche) remonta a mesa: nenhuma trava ou seleção sobra da anterior.
+  return <Table key={gameKey} conn={conn} update={update} seats={seats} reactions={reactions} />;
 }
 
 function Table({ conn, update, seats, reactions }: { conn: GameConnection; update: ViewUpdate; seats: SeatInfo[]; reactions: LiveReaction[] }) {
@@ -116,27 +118,35 @@ function Table({ conn, update, seats, reactions }: { conn: GameConnection; updat
   }, [menu, online, conn]);
 
 
-  // Botão voltar do Android (e Esc no desktop) abre o menu da partida.
+  // Botão voltar do Android: fecha a camada aberta; sem camada, abre/fecha o menu.
+  // Esc só abre o menu; quem fecha é a própria folha (senão as duas coisas brigam).
   useEffect(() => {
-    const toggle = () => setMenu((m) => !m);
-    // Esc só abre; quem fecha é a própria folha (senão as duas coisas brigam).
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && !menu && !score && !forca) setMenu(true);
+    const back = () => {
+      if (picker) setPicker(false);
+      else if (score) setScore(false);
+      else if (forca) setForca(false);
+      else setMenu((m) => !m);
     };
-    window.addEventListener('fodinha:voltar', toggle);
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && !menu && !score && !forca && !picker) setMenu(true);
+    };
+    window.addEventListener('fodinha:voltar', back);
     window.addEventListener('keydown', onKey);
     return () => {
-      window.removeEventListener('fodinha:voltar', toggle);
+      window.removeEventListener('fodinha:voltar', back);
       window.removeEventListener('keydown', onKey);
     };
-  }, [menu, score, forca]);
+  }, [menu, score, forca, picker]);
+  const closePicker = useCallback(() => setPicker(false), []);
+  // Atalhos de teclado só valem com a mesa livre (sem menu, caderneta ou força abertos).
+  const layerOpen = menu || score || forca;
   useEffect(() => {
     if (!toast) return undefined;
     const t = window.setTimeout(() => setToast(null), 2600);
     return () => window.clearTimeout(t);
   }, [toast]);
 
-  // Aviso quando o tempo acabou e o servidor jogou por você (vem do store).
+  // Aviso quando o tempo acabou e o servidor jogou por ti (vem do store).
   const notice = useGame((s) => s.notice);
   useEffect(() => {
     if (!notice) return undefined;
@@ -283,6 +293,7 @@ function Table({ conn, update, seats, reactions }: { conn: GameConnection; updat
           isDealer={view.dealerId === you}
           onBid={(value) => void send({ type: 'bid', value })}
           tip={bidding ? tip : null}
+          keyboard={!layerOpen}
         />
         <AnimatePresence>
           {(toast ?? notice?.text) && (
@@ -309,6 +320,8 @@ function Table({ conn, update, seats, reactions }: { conn: GameConnection; updat
             startingLives={view.rules.startingLives}
             status={status}
             reaction={reactionFor(me.id)}
+            isTurn={myTurn && !view.handHidden}
+            deadline={myTurn ? view.turnDeadline : null}
           />
         )}
         {spectating ? (
@@ -335,6 +348,7 @@ function Table({ conn, update, seats, reactions }: { conn: GameConnection; updat
             cardWidth={handCardW}
             dealFrom={dealFrom}
             oneTap={false}
+            keyboard={!layerOpen}
           />
         )}
       </div>
@@ -352,9 +366,9 @@ function Table({ conn, update, seats, reactions }: { conn: GameConnection; updat
           view={view}
           seats={seats}
           onAgain={online ? (isHost() ? () => useOnline.getState().rematch() : undefined) : startLocalGame}
-          againLabel={online ? 'Revanche' : 'Jogar de novo'}
+          againLabel={online ? 'Revanche' : 'Mais uma?'}
           onLobby={online && isHost() ? () => useOnline.getState().backToLobby() : undefined}
-          waitingText={online ? `Aguardando ${room?.seats.find((s) => s.playerId === room.hostId)?.name ?? 'o anfitrião'} chamar a revanche…` : undefined}
+          waitingText={online ? `Esperando ${room?.seats.find((s) => s.playerId === room.hostId)?.name ?? 'o anfitrião'} chamar a revanche…` : undefined}
           onExit={exit}
         />
       )}
@@ -363,10 +377,11 @@ function Table({ conn, update, seats, reactions }: { conn: GameConnection; updat
         <h2 className="font-display text-2xl font-bold" style={{ fontVariationSettings: '"SOFT" 100, "WONK" 1' }}>
           Força das cartas
         </h2>
-        <p className="mb-3 text-sm text-tinta-2">Da mais forte (1) para a mais fraca. Cartas na mesma linha empatam e melam.</p>
+        <p className="mb-3 text-sm text-tinta-2">Da mais forte (1) pra mais fraca. Cartas da mesma linha empardam.</p>
         <Hierarchy mode={view.rules.hierarchy} vira={view.vira} />
       </Sheet>
       <PauseMenu
+        key={menu ? 'aberto' : 'fechado'}
         open={menu}
         online={online}
         onClose={() => setMenu(false)}
@@ -378,13 +393,20 @@ function Table({ conn, update, seats, reactions }: { conn: GameConnection; updat
           setMenu(false);
           setForca(true);
         }}
-        onRestart={online ? undefined : startLocalGame}
+        onRestart={
+          online
+            ? undefined
+            : () => {
+                setMenu(false);
+                startLocalGame();
+              }
+        }
         onExit={exit}
         onSpeed={(m) => conn.setSpeed?.(m)}
       />
       <ReactionPicker
         open={picker}
-        onClose={() => setPicker(false)}
+        onClose={closePicker}
         onPick={(r) => {
           conn.react(r);
           setPicker(false);

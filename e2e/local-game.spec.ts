@@ -13,10 +13,10 @@ test('partida local contra bots do início ao fim', async ({ page }) => {
 
   const dialog = page.getByRole('dialog', { name: 'Fim de jogo' });
   await expect(dialog.getByRole('listitem')).toHaveCount(4);
-  await expect(dialog.getByRole('button', { name: 'Jogar de novo' })).toBeVisible();
+  await expect(dialog.getByRole('button', { name: 'Mais uma?' })).toBeVisible();
 
   // Jogar de novo começa outra partida do zero.
-  await dialog.getByRole('button', { name: 'Jogar de novo' }).click();
+  await dialog.getByRole('button', { name: 'Mais uma?' }).click();
   await expect(page.getByText('Rodada 1')).toBeVisible();
   expect(errors).toEqual([]);
 });
@@ -26,7 +26,7 @@ test('continuar a partida depois de recarregar a página', async ({ page }) => {
   await presetSettings(page, { speed: 'normal', rules: { startingLives: 5 } });
   await page.goto('/');
   await page.getByRole('button', { name: 'Jogar agora' }).click();
-  await page.locator('section[aria-label="Seu palpite"] button:not([disabled])').first().click();
+  await page.locator('section[aria-label="Teu palpite"] button:not([disabled])').first().click();
   await page.waitForTimeout(1500);
   await page.reload();
   await expect(page.getByRole('button', { name: /Continuar partida/ })).toBeVisible();
@@ -41,9 +41,9 @@ test('palpite proibido do pé fica desabilitado e explicado', async ({ page }) =
   await page.getByRole('button', { name: 'Jogar agora' }).click();
   // Joga até ser o pé numa rodada (com 2 jogadores, alterna a cada rodada).
   for (let i = 0; i < 40; i++) {
-    const panel = page.locator('section[aria-label="Seu palpite"]');
+    const panel = page.locator('section[aria-label="Teu palpite"]');
     if (await panel.isVisible().catch(() => false)) {
-      if (await panel.getByText('Você é o pé').isVisible().catch(() => false)) {
+      if (await panel.getByText('Tu é o', { exact: false }).isVisible().catch(() => false)) {
         const forbidden = panel.getByRole('button', { name: /proibido para o pé/ });
         if ((await forbidden.count()) > 0) {
           await expect(forbidden).toBeDisabled();
@@ -52,7 +52,7 @@ test('palpite proibido do pé fica desabilitado e explicado', async ({ page }) =
       }
       await panel.locator('button:not([disabled])').first().click({ timeout: 2000 }).catch(() => undefined);
     }
-    const card = page.locator('[aria-label="Sua mão"] button:not([disabled])').first();
+    const card = page.locator('[aria-label="Tuas cartas"] button:not([disabled])').first();
     if (await card.isVisible().catch(() => false)) {
       await card.click({ timeout: 2000 }).catch(() => undefined);
       await card.click({ timeout: 2000 }).catch(() => undefined);

@@ -24,7 +24,7 @@ export function inviteLink(code: string): string {
 /** Compartilha pelo menu nativo (Capacitor/Web Share) ou copia para a área de transferência. */
 export async function shareInvite(code: string): Promise<'shared' | 'copied' | 'failed'> {
   const url = inviteLink(code);
-  const text = `Bora uma Fodinha? Entra na sala ${code}: ${url}`;
+  const text = `Buenas! Bora uma Fodinha? Entra na sala ${code}: ${url}`;
   try {
     if (isNative) {
       const { Share } = await import('@capacitor/share');

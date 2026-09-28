@@ -8,6 +8,7 @@ import type {
   RoomState,
   Rules,
   ServerToClientEvents,
+  ViewMessage,
 } from '@fodinha/engine';
 import { io, type Socket } from 'socket.io-client';
 import { create } from 'zustand';
@@ -16,11 +17,12 @@ import { serverUrl } from '../lib/platform';
 import { storage } from '../lib/storage';
 import { useApp } from './app';
 import { useGame } from './game';
-import { displayName, useSettings } from './settings';
+import { useSettings } from './settings';
 
 type FodinhaSocket = Socket<ServerToClientEvents, ClientToServerEvents>;
 
 const SESSION_KEY = 'fodinha:sala';
+const ACK_TIMEOUT_MS = 8000;
 
 interface Session {
   code: string;
@@ -38,6 +40,8 @@ class OnlineConnection implements GameConnection {
   private last: ViewUpdate | null = null;
   private readonly listeners = new Set<(u: ViewUpdate) => void>();
   private readonly reactionListeners = new Set<(r: ReactionEvent) => void>();
+  private seatsFor: RoomState | null = null;
+  private seatsCache: SeatInfo[] = [];
 
   constructor(
     readonly youId: string,
@@ -45,7 +49,12 @@ class OnlineConnection implements GameConnection {
     private readonly getRoom: () => RoomState | null,
   ) {}
 
-  push(u: ViewUpdate) {
+  push(msg: ViewMessage) {
+    // O prazo vem no relógio do servidor: converte para o relógio deste aparelho.
+    const skew = msg.serverNow - Date.now();
+    const deadline = msg.view.turnDeadline;
+    const view = deadline === null ? msg.view : { ...msg.view, turnDeadline: deadline - skew };
+    const u: ViewUpdate = { view, auto: msg.auto, reason: msg.reason ?? null, actorId: msg.actorId };
     this.last = u;
     for (const l of [...this.listeners]) l(u);
   }
@@ -58,15 +67,21 @@ class OnlineConnection implements GameConnection {
     return this.last;
   }
 
+  /** Recalcula só quando a sala muda (o `memo` dos assentos depende disso). */
   seats(): SeatInfo[] {
-    return (this.getRoom()?.seats ?? []).map((s) => ({
-      id: s.playerId,
-      name: s.name,
-      avatar: s.avatar,
-      kind: s.kind,
-      difficulty: s.kind === 'bot' ? s.difficulty : undefined,
-      connected: s.kind === 'bot' ? true : s.connected,
-    }));
+    const room = this.getRoom();
+    if (room !== this.seatsFor) {
+      this.seatsFor = room;
+      this.seatsCache = (room?.seats ?? []).map((s) => ({
+        id: s.playerId,
+        name: s.name,
+        avatar: s.avatar,
+        kind: s.kind,
+        difficulty: s.kind === 'bot' ? s.difficulty : undefined,
+        connected: s.kind === 'bot' ? true : s.connected,
+      }));
+    }
+    return this.seatsCache;
   }
 
   subscribe(listener: (u: ViewUpdate) => void) {
@@ -80,8 +95,9 @@ class OnlineConnection implements GameConnection {
   }
 
   act(action: ClientAction): Promise<string | null> {
+    if (!this.socket.connected) return Promise.resolve('Sem conexão com o servidor. Espera reconectar.');
     return new Promise((resolve) => {
-      const timer = window.setTimeout(() => resolve('Sem resposta do servidor. Confira sua conexão.'), 8000);
+      const timer = window.setTimeout(() => resolve('Sem resposta do servidor. Confere a tua conexão.'), ACK_TIMEOUT_MS);
       this.socket.emit('game:action', { action }, (r: Ack) => {
         window.clearTimeout(timer);
         resolve(r.ok ? null : r.error.message);
@@ -90,7 +106,7 @@ class OnlineConnection implements GameConnection {
   }
 
   react(reaction: ReactionId) {
-    this.socket.emit('game:react', { reaction });
+    if (this.socket.connected) this.socket.emit('game:react', { reaction });
   }
 
   dispose() {
@@ -122,55 +138,86 @@ interface OnlineState {
 let socket: FodinhaSocket | null = null;
 let connection: OnlineConnection | null = null;
 
-function emitAck<T extends object>(fn: (ack: (r: Ack<T>) => void) => void, timeoutMs = 8000): Promise<Ack<T>> {
+const NO_ANSWER = { ok: false as const, error: { code: 'TIMEOUT', message: 'O servidor não respondeu. Tenta de novo.' } };
+const NO_SERVER = {
+  ok: false as const,
+  error: { code: 'OFFLINE', message: 'Não deu pra falar com o servidor. Confere a conexão e tenta de novo.' },
+};
+
+/** Espera o socket conectar (sem enfileirar mensagens que chegariam atrasadas). */
+function whenConnected(s: FodinhaSocket, timeoutMs = ACK_TIMEOUT_MS): Promise<boolean> {
+  if (s.connected) return Promise.resolve(true);
   return new Promise((resolve) => {
-    const timer = window.setTimeout(
-      () => resolve({ ok: false, error: { code: 'TIMEOUT', message: 'O servidor não respondeu. Tente de novo.' } }),
-      timeoutMs,
-    );
-    fn((r) => {
+    const done = (ok: boolean) => {
+      window.clearTimeout(timer);
+      s.off('connect', onConnect);
+      resolve(ok);
+    };
+    const onConnect = () => done(true);
+    const timer = window.setTimeout(() => done(false), timeoutMs);
+    s.on('connect', onConnect);
+  });
+}
+
+async function emitAck<T extends object>(fn: (s: FodinhaSocket, ack: (r: Ack<T>) => void) => void): Promise<Ack<T>> {
+  const s = ensureSocket();
+  if (!(await whenConnected(s))) return NO_SERVER;
+  return new Promise((resolve) => {
+    const timer = window.setTimeout(() => resolve(NO_ANSWER), ACK_TIMEOUT_MS);
+    fn(s, (r) => {
       window.clearTimeout(timer);
       resolve(r);
     });
   });
 }
 
+/** Sai da sala localmente e mostra o motivo na tela "Jogar com a gurizada". */
+function dropToOnlineScreen(error: string) {
+  storage.remove(SESSION_KEY);
+  resetOnline();
+  useOnline.setState({ error });
+  if (useApp.getState().screen !== 'home') useApp.getState().reset('online');
+}
+
 function ensureSocket(): FodinhaSocket {
   if (socket) return socket;
-  const s: FodinhaSocket = io(serverUrl(), { transports: ['websocket', 'polling'], autoConnect: true, reconnectionDelayMax: 4000 });
+  const s: FodinhaSocket = io(serverUrl(), {
+    transports: ['websocket', 'polling'],
+    autoConnect: true,
+    reconnectionDelayMax: 4000,
+  });
   socket = s;
 
   s.on('connect', () => {
     const st = useOnline.getState();
     if (st.status === 'reconnecting' && st.room) {
-      void st.join(st.room.code, true);
-    } else if (st.status === 'connecting') {
-      useOnline.setState({ status: 'online' });
+      const code = st.room.code;
+      void st.join(code, true).then((ok) => {
+        // A sala sumiu (servidor reiniciou, ficou ociosa…) ou o lugar foi perdido.
+        if (!ok) dropToOnlineScreen(useOnline.getState().error ?? `A sala ${code} não existe mais.`);
+      });
     }
   });
   s.on('disconnect', (reason) => {
     if (reason === 'io server disconnect') {
       // O servidor derrubou este socket: o mesmo jogador entrou por outro aparelho ou aba.
-      resetOnline();
-      useOnline.setState({ error: 'Você abriu esta sala em outro aparelho ou aba. Continue por lá.' });
-      if (useApp.getState().screen !== 'home') useApp.getState().reset('online');
+      // Esse socket não reconecta sozinho — descarta para o próximo uso abrir outro.
+      s.removeAllListeners();
+      socket = null;
+      dropToOnlineScreen('Tu abriu essa sala em outro aparelho ou aba. Segue por lá.');
       return;
     }
     if (useOnline.getState().room) useOnline.setState({ status: 'reconnecting' });
   });
-  s.on('connect_error', () => {
-    const st = useOnline.getState();
-    if (st.status === 'connecting') {
-      useOnline.setState({ error: 'Não foi possível falar com o servidor. Confira a conexão e tente de novo.' });
-    }
-  });
   s.on('room:state', (room) => {
     useOnline.setState({ room, status: 'online' });
-    if (room.status !== 'lobby' && connection && useApp.getState().screen === 'lobby') {
-      useApp.getState().reset('game');
-    }
-    if (room.status === 'lobby' && useApp.getState().screen === 'game' && useGame.getState().conn?.kind === 'online') {
-      useApp.getState().reset('lobby');
+    const app = useApp.getState();
+    if (room.status !== 'lobby' && connection && app.screen === 'lobby') app.reset('game');
+    if (room.status === 'lobby' && useGame.getState().conn?.kind === 'online') {
+      // Voltou para a sala: a partida anterior sai da mesa (a próxima chega do zero).
+      useGame.getState().detach();
+      connection = null;
+      if (app.screen === 'game') app.reset('lobby');
     }
   });
   s.on('game:view', (msg) => {
@@ -183,14 +230,13 @@ function ensureSocket(): FodinhaSocket {
     } else {
       connection.push(msg);
     }
-    if (useApp.getState().screen === 'lobby' || useApp.getState().screen === 'online') useApp.getState().reset('game');
+    const screen = useApp.getState().screen;
+    if (screen === 'lobby' || screen === 'online') useApp.getState().reset('game');
   });
   s.on('game:reaction', (r) => connection?.pushReaction({ playerId: r.playerId, reaction: r.reaction }));
   s.on('room:kicked', () => {
-    storage.remove(SESSION_KEY);
-    resetOnline();
-    useOnline.setState({ kicked: true, error: 'O anfitrião tirou você da sala.' });
-    useApp.getState().reset('online');
+    dropToOnlineScreen('O anfitrião te tirou da sala.');
+    useOnline.setState({ kicked: true });
   });
   return s;
 }
@@ -203,7 +249,8 @@ function resetOnline() {
 
 function profile() {
   const s = useSettings.getState();
-  return { name: displayName(s.name).slice(0, 16), avatar: s.avatar };
+  // Online, sem apelido, o nome é "Jogador" (o servidor numera se repetir).
+  return { name: (s.name.trim() || 'Jogador').slice(0, 16), avatar: s.avatar };
 }
 
 export const useOnline = create<OnlineState>((set, get) => ({
@@ -214,15 +261,13 @@ export const useOnline = create<OnlineState>((set, get) => ({
 
   create: async () => {
     set({ status: 'connecting', error: null, kicked: false });
-    const s = ensureSocket();
-    const r = await emitAck<JoinResult>((ack) => s.emit('room:create', profile(), ack));
+    const r = await emitAck<JoinResult>((s, ack) => s.emit('room:create', profile(), ack));
     if (!r.ok) {
       set({ status: 'idle', error: r.error.message });
       return false;
     }
     storage.set(SESSION_KEY, { code: r.code, token: r.token, playerId: r.playerId });
-    const settings = useSettings.getState();
-    s.emit('room:update', { rules: settings.rules });
+    socket?.emit('room:update', { rules: useSettings.getState().rules });
     set({ status: 'online' });
     return true;
   },
@@ -230,13 +275,12 @@ export const useOnline = create<OnlineState>((set, get) => ({
   join: async (rawCode, useToken = true) => {
     const code = rawCode.trim().toUpperCase();
     set({ status: get().status === 'reconnecting' ? 'reconnecting' : 'connecting', error: null, kicked: false });
-    const s = ensureSocket();
     const session = savedSession();
     const token = useToken && session?.code === code ? session.token : undefined;
-    const r = await emitAck<JoinResult>((ack) => s.emit('room:join', { code, ...profile(), token }, ack));
+    const r = await emitAck<JoinResult>((s, ack) => s.emit('room:join', { code, ...profile(), token }, ack));
     if (!r.ok) {
       if (session?.code === code) storage.remove(SESSION_KEY);
-      set({ status: 'idle', error: r.error.message });
+      set({ status: get().status === 'reconnecting' ? 'reconnecting' : 'idle', error: r.error.message });
       return false;
     }
     storage.set(SESSION_KEY, { code: r.code, token: r.token, playerId: r.playerId });
@@ -245,7 +289,7 @@ export const useOnline = create<OnlineState>((set, get) => ({
   },
 
   leave: () => {
-    socket?.emit('room:leave');
+    if (socket?.connected) socket.emit('room:leave');
     storage.remove(SESSION_KEY);
     resetOnline();
   },
@@ -255,8 +299,7 @@ export const useOnline = create<OnlineState>((set, get) => ({
   setBot: (playerId, difficulty) => socket?.emit('room:setBot', { playerId, difficulty }),
   removeSeat: (playerId) => socket?.emit('room:removeSeat', { playerId }),
   start: async () => {
-    if (!socket) return 'Sem conexão.';
-    const r = await emitAck<object>((ack) => socket!.emit('room:start', ack));
+    const r = await emitAck<object>((s, ack) => s.emit('room:start', ack));
     return r.ok ? null : r.error.message;
   },
   rematch: () => socket?.emit('room:rematch'),

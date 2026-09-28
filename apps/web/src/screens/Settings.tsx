@@ -16,8 +16,8 @@ export function Settings() {
       <Panel title="Jogo">
         <div className="divide-y divide-tinta/10">
           <Toggle checked={s.sound} onChange={(sound) => s.set({ sound })} label="Som" />
-          <Toggle checked={s.haptics} onChange={(haptics) => s.set({ haptics })} label="Vibração" description="Na sua vez e quando perde palito." />
-          <Toggle checked={s.hints} onChange={(hints) => s.set({ hints })} label="Dicas" description="Sugere palpite e carta na sua vez." />
+          <Toggle checked={s.haptics} onChange={(haptics) => s.set({ haptics })} label="Vibração" description="Na tua vez e quando perde palito." />
+          <Toggle checked={s.hints} onChange={(hints) => s.set({ hints })} label="Dicas" description="Sugere palpite e carta na tua vez." />
           <div className="py-3">
             <span className="mb-2 block font-semibold">Velocidade dos bots</span>
             <Segmented<Speed>
@@ -32,9 +32,9 @@ export function Settings() {
             />
           </div>
           <div className="py-3">
-            <span className="mb-2 block font-semibold">Ordem da mão</span>
+            <span className="mb-2 block font-semibold">Ordem das tuas cartas</span>
             <Segmented<'forca' | 'naipe'>
-              label="Ordem da mão"
+              label="Ordem das tuas cartas"
               value={s.sortHand}
               onChange={(sortHand) => s.set({ sortHand })}
               options={[

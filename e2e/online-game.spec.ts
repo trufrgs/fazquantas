@@ -13,7 +13,7 @@ test('partida online: anfitriã + convidado pelo link + bot, até o fim e de vol
 
   // Ana cria a sala.
   await ana.goto('/');
-  await ana.getByRole('button', { name: 'Jogar com amigos' }).click();
+  await ana.getByRole('button', { name: 'Jogar com a gurizada' }).click();
   await ana.getByRole('button', { name: 'Criar sala' }).click();
   await expect(ana.getByText(/Na mesa \(1\/8\)/)).toBeVisible();
   const codeLabel = await ana.locator('div[aria-label^="Código "]').getAttribute('aria-label');
@@ -23,7 +23,7 @@ test('partida online: anfitriã + convidado pelo link + bot, até o fim e de vol
 
   // Beto entra pelo link de convite.
   await beto.goto(`/?sala=${code}`);
-  await expect(beto.getByText(/Aguardando Ana começar/)).toBeVisible();
+  await expect(beto.getByText(/Esperando Ana começar/)).toBeVisible();
   await expect(ana.getByText('Beto', { exact: true })).toBeVisible();
   await expect(ana.getByText(/Na mesa \(3\/8\)/)).toBeVisible();
 
@@ -37,12 +37,12 @@ test('partida online: anfitriã + convidado pelo link + bot, até o fim e de vol
   const overB = beto.getByRole('dialog', { name: 'Fim de jogo' });
   await expect(overA.getByRole('listitem')).toHaveCount(3);
   await expect(overA.getByRole('button', { name: 'Revanche' })).toBeVisible();
-  await expect(overB.getByText(/Aguardando Ana chamar a revanche/)).toBeVisible();
+  await expect(overB.getByText(/Esperando Ana chamar a revanche/)).toBeVisible();
 
   // Ana volta todo mundo para a sala.
-  await overA.getByRole('button', { name: 'Voltar para a sala' }).click();
+  await overA.getByRole('button', { name: 'Voltar pra sala' }).click();
   await expect(ana.getByRole('button', { name: 'Começar partida' })).toBeVisible();
-  await expect(beto.getByText(/Aguardando Ana começar/)).toBeVisible();
+  await expect(beto.getByText(/Esperando Ana começar/)).toBeVisible();
 
   expect(errorsA).toEqual([]);
   expect(errorsB).toEqual([]);
@@ -53,7 +53,7 @@ test('partida online: anfitriã + convidado pelo link + bot, até o fim e de vol
 test('código de sala inexistente mostra erro claro', async ({ page }) => {
   await presetSettings(page, { name: 'Cida' });
   await page.goto('/');
-  await page.getByRole('button', { name: 'Jogar com amigos' }).click();
+  await page.getByRole('button', { name: 'Jogar com a gurizada' }).click();
   await page.getByLabel('Código da sala').fill('ZZZZ');
   await page.getByRole('button', { name: 'Entrar' }).click();
   await expect(page.getByRole('alert')).toContainText(/Sala não encontrada/);

@@ -95,7 +95,15 @@ export interface HostEvent {
   action: Action | null;
   /** Feita automaticamente (bot, tempo esgotado, desconectado, jogada forçada, pausa). */
   auto: boolean;
+  /** Por que a jogada foi automática (`null` quando foi de um humano ou não houve jogada). */
+  reason: AutoReason | null;
 }
+
+/**
+ * - `bot`: decisão de um bot; `forced`: só havia uma carta; `timeout`: acabou o tempo do humano;
+ * - `away`: o humano está desconectado; `system`: avanço de fim de vaza/rodada.
+ */
+export type AutoReason = 'bot' | 'forced' | 'timeout' | 'away' | 'system';
 
 interface Seat extends SeatConfig {
   away: boolean;
@@ -112,6 +120,8 @@ export class GameHost {
   private rng: Rng;
   private timer: unknown = null;
   private deadlineAt: number | null = null;
+  /** Relógio da vez atual; só reinicia quando a vez muda (cair e voltar não ganha tempo). */
+  private turnClock: { seq: number; playerId: string; deadline: number } | null = null;
   private speed = 1;
   private paused = false;
   private started = false;
@@ -171,7 +181,7 @@ export class GameHost {
     if (this.started || this.disposed) return;
     this.started = true;
     this.scheduleNext(this.newRoundJustDealt() ? this.timing.dealMs : 0);
-    this.emit(null, false);
+    this.emit(null, null);
   }
 
   view(playerId: string | null): PlayerView {
@@ -187,7 +197,7 @@ export class GameHost {
     if (!seat || seat.kind !== 'human' || this.disposed) {
       return { ok: false, error: { code: 'INVALID_ACTION', message: 'Ação inválida.' } };
     }
-    return this.apply({ ...action, playerId } as PlayerAction, false);
+    return this.apply({ ...action, playerId } as PlayerAction, null);
   }
 
   subscribe(listener: (e: HostEvent) => void): () => void {
@@ -202,7 +212,7 @@ export class GameHost {
     seat.away = away;
     if (currentActor(this.current)?.playerId === playerId) {
       this.scheduleNext();
-      this.emit(null, false);
+      this.emit(null, null);
     }
   }
 
@@ -214,7 +224,7 @@ export class GameHost {
     seat.difficulty = kind === 'bot' ? difficulty : seat.difficulty;
     if (currentActor(this.current)?.playerId === playerId) {
       this.scheduleNext();
-      this.emit(null, false);
+      this.emit(null, null);
     }
   }
 
@@ -227,14 +237,15 @@ export class GameHost {
     this.paused = true;
     this.clearTimer();
     this.deadlineAt = null;
-    this.emit(null, false);
+    this.turnClock = null;
+    this.emit(null, null);
   }
 
   resume(): void {
     if (!this.paused) return;
     this.paused = false;
     this.scheduleNext();
-    this.emit(null, false);
+    this.emit(null, null);
   }
 
   /** Pula a pausa de fim de vaza/rodada. */
@@ -262,22 +273,22 @@ export class GameHost {
 
   // -------------------------------------------------------------------------
 
-  private apply(action: Action, auto: boolean): ApplyResult {
+  private apply(action: Action, reason: AutoReason | null): ApplyResult {
     const before = this.current.phase;
     const result = applyAction(this.current, action);
     if (!result.ok) return result;
     this.current = result.state;
     const newRound = before === 'roundEnd' && this.current.phase === 'bidding';
     this.scheduleNext(newRound ? this.timing.dealMs : 0);
-    this.emit(action, auto);
+    this.emit(action, reason);
     return result;
   }
 
   private advance(): void {
-    this.apply({ type: 'continue' }, true);
+    this.apply({ type: 'continue' }, 'system');
   }
 
-  private autoAct(playerId: string, difficulty: BotDifficulty): void {
+  private autoAct(playerId: string, difficulty: BotDifficulty, reason: AutoReason): void {
     const state = this.current;
     const actor = currentActor(state);
     if (!actor || actor.playerId !== playerId) return;
@@ -289,7 +300,7 @@ export class GameHost {
           ? { type: 'play', playerId, cardId: state.round.hands[playerId]![0]! }
           : { type: 'bid', playerId, value: legalBids(state, playerId)[0] ?? 0 };
     }
-    this.apply(action, true);
+    this.apply(action, reason);
   }
 
   private scaled(ms: number): number {
@@ -320,26 +331,31 @@ export class GameHost {
     const seat = this.seatMap.get(actor.playerId);
     if (!seat) return;
     const forced = actor.kind === 'play' && (s.round.hands[actor.playerId]?.length ?? 0) <= 1;
-    const act = (difficulty: BotDifficulty) => () => this.autoAct(actor.playerId, difficulty);
+    const act = (difficulty: BotDifficulty, reason: AutoReason) => () =>
+      this.autoAct(actor.playerId, difficulty, reason);
 
     if (seat.kind === 'bot') {
       const [lo, hi] = this.timing.botThinkMs;
       const think = forced ? this.timing.forcedPlayMs : lo + this.rng.next() * (hi - lo);
-      this.after(this.scaled(think + extraMs), act(seat.difficulty ?? 'medio'));
+      this.after(this.scaled(think + extraMs), act(seat.difficulty ?? 'medio', forced ? 'forced' : 'bot'));
       return;
     }
     if (forced) {
-      this.after(this.scaled(this.timing.forcedPlayMs + extraMs), act('medio'));
+      this.after(this.scaled(this.timing.forcedPlayMs + extraMs), act('medio', 'forced'));
       return;
     }
     if (seat.away) {
-      this.after(this.scaled(this.timing.awayActMs + extraMs), act('medio'));
+      this.after(this.scaled(this.timing.awayActMs + extraMs), act('medio', 'away'));
       return;
     }
     if (this.turnTimeoutMs !== null) {
-      const ms = this.turnTimeoutMs + this.scaled(extraMs);
-      this.deadlineAt = this.clock.now() + ms;
-      this.after(ms, act('medio'));
+      // Mesma vez de antes (ex.: o jogador caiu e voltou): o relógio continua de onde estava.
+      const clock = this.turnClock;
+      const sameTurn = clock !== null && clock.seq === s.seq && clock.playerId === actor.playerId;
+      const deadline = sameTurn ? clock.deadline : this.clock.now() + this.turnTimeoutMs + this.scaled(extraMs);
+      this.turnClock = { seq: s.seq, playerId: actor.playerId, deadline };
+      this.deadlineAt = deadline;
+      this.after(Math.max(0, deadline - this.clock.now()), act('medio', 'timeout'));
     }
   }
 
@@ -357,8 +373,8 @@ export class GameHost {
     }
   }
 
-  private emit(action: Action | null, auto: boolean): void {
-    const event: HostEvent = { state: this.current, action, auto };
+  private emit(action: Action | null, reason: AutoReason | null): void {
+    const event: HostEvent = { state: this.current, action, auto: reason !== null, reason };
     for (const listener of [...this.listeners]) listener(event);
   }
 }

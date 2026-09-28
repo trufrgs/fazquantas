@@ -75,19 +75,29 @@ export function TrickArea(p: TrickAreaProps) {
               >
                 <Card id={play.cardId} width={cw} />
               </div>
-              {isCancelled && (
-                <motion.span
-                  initial={{ scale: 2, opacity: 0, rotate: -24 }}
-                  animate={{ scale: 1, opacity: 1, rotate: -14 }}
-                  transition={{ type: 'spring', stiffness: 500, damping: 18, delay: 0.1 }}
-                  className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-md border-2 border-copas bg-papel/90 px-1.5 font-hand text-2xl font-bold leading-none text-copas shadow"
-                >
-                  melou
-                </motion.span>
-              )}
             </motion.div>
           );
         })}
+        {/* Carimbos por cima de todas as cartas (senão a carta seguinte cobre o carimbo). */}
+        {p.resolved &&
+          p.plays
+            .filter((play) => p.cancelled.includes(play.playerId))
+            .map((play) => {
+              const at = p.geometry.tricks.get(play.playerId) ?? p.geometry.center;
+              return (
+                <motion.span
+                  key={`carimbo-${play.cardId}`}
+                  className="absolute z-[60] -translate-x-1/2 -translate-y-1/2 whitespace-nowrap rounded-md border-2 border-copas bg-papel/95 px-1.5 font-hand text-xl font-bold leading-none text-copas shadow"
+                  style={{ left: at.x, top: at.y }}
+                  initial={{ scale: 2, opacity: 0, rotate: -24 }}
+                  animate={{ scale: 1, opacity: 1, rotate: -14 }}
+                  exit={{ opacity: 0, transition: { duration: 0.15 } }}
+                  transition={{ type: 'spring', stiffness: 500, damping: 18, delay: 0.1 }}
+                >
+                  empardou
+                </motion.span>
+              );
+            })}
       </AnimatePresence>
     </div>
   );

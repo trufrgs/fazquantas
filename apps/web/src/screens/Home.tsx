@@ -12,7 +12,7 @@ import { hasSavedGame, LOCAL_SAVE_KEY } from '../lib/local-connection';
 import { storage } from '../lib/storage';
 import { useApp } from '../stores/app';
 import { savedSession, useOnline } from '../stores/online';
-import { displayName, useSettings } from '../stores/settings';
+import { useSettings } from '../stores/settings';
 
 const FAN = ['O7', 'E7', 'P1', 'E1'] as const;
 
@@ -28,6 +28,7 @@ export function Home() {
   const go = useApp((s) => s.go);
   const { name, avatar } = useSettings();
   const [ask, setAsk] = useState<null | (() => void)>(null);
+  const [confirmNew, setConfirmNew] = useState(false);
   const saved = hasSavedGame();
   const session = savedSession();
   const joining = useOnline((s) => s.status === 'connecting');
@@ -47,7 +48,7 @@ export function Home() {
           aria-label="Perfil e ajustes"
         >
           <Avatar seed={avatar} size={34} />
-          <span className="max-w-32 truncate text-sm font-bold">{displayName(name)}</span>
+          <span className="max-w-40 truncate text-sm font-bold">{name.trim() ? `Buenas, ${name.trim()}!` : 'Buenas!'}</span>
         </button>
         <IconButton label="Ajustes" onClick={() => go('settings')}>
           <Settings size={21} />
@@ -71,7 +72,7 @@ export function Home() {
             animate={{ opacity: 1 }}
             transition={{ delay: 0.35, duration: 0.5 }}
           >
-            Diga quantas faz. Faça quantas disse.
+            Diz quantas faz. Faz quantas disse.
           </motion.p>
         </div>
 
@@ -100,11 +101,11 @@ export function Home() {
               <span className="text-xs font-semibold opacity-75">{savedSummary()}</span>
             </Button>
           )}
-          <Button variant={saved ? 'papel' : 'ouro'} size="lg" onClick={withName(startLocalGame)}>
+          <Button variant={saved ? 'papel' : 'ouro'} size="lg" onClick={withName(() => (saved ? setConfirmNew(true) : startLocalGame()))}>
             Jogar agora
           </Button>
           <Button variant="papel" size="lg" onClick={withName(() => go('online'))}>
-            Jogar com amigos
+            Jogar com a gurizada
           </Button>
           <Button variant="vidro" onClick={withName(() => go('setup'))}>
             Montar partida contra bots
@@ -118,7 +119,7 @@ export function Home() {
                 else go('online');
               }}
             >
-              Voltar para a sala {session.code}
+              Voltar pra sala {session.code}
             </Button>
           )}
         </nav>
@@ -136,7 +137,24 @@ export function Home() {
         </button>
       </footer>
 
-      <Sheet open={ask !== null} onClose={() => setAsk(null)} label="Seu apelido">
+      <Sheet open={confirmNew} onClose={() => setConfirmNew(false)} label="Começar outra partida">
+        <p className="pr-10 text-lg font-semibold">Começar outra partida?</p>
+        <p className="mt-1 text-tinta-2">A partida que tá salva ({savedSummary()}) se perde.</p>
+        <div className="mt-4 grid grid-cols-2 gap-2">
+          <Button onClick={() => setConfirmNew(false)}>Deixa quieto</Button>
+          <Button
+            variant="copas"
+            onClick={() => {
+              setConfirmNew(false);
+              startLocalGame();
+            }}
+          >
+            Começar outra
+          </Button>
+        </div>
+      </Sheet>
+
+      <Sheet open={ask !== null} onClose={() => setAsk(null)} label="Teu apelido">
         <ProfileEditor />
         <div className="mt-4 grid grid-cols-2 gap-2">
           <Button

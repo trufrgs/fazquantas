@@ -13,7 +13,12 @@ export interface Notice {
 
 interface GameState {
   conn: GameConnection | null;
-  /** Aviso curto (ex.: o tempo acabou e o servidor jogou por você). */
+  /**
+   * Identidade da partida em curso: muda a cada partida nova (inclusive revanche online, em que a
+   * conexão é a mesma e o `seq` recomeça do zero). A mesa remonta por ela.
+   */
+  gameKey: number;
+  /** Aviso curto (ex.: o tempo acabou e o servidor jogou por ti). */
   notice: Notice | null;
   clearNotice: (key: number) => void;
   update: ViewUpdate | null;
@@ -25,10 +30,16 @@ interface GameState {
 }
 
 let unsubscribe: (() => void)[] = [];
-let reactionKey = 0;
+let counter = 0;
+
+/** Partida nova: o `seq` voltou para trás ou a primeira rodada recomeçou. */
+function isNewGame(prev: PlayerView | null, next: PlayerView): boolean {
+  return prev !== null && (next.seq < prev.seq || (next.roundNumber === 1 && prev.roundNumber > 1));
+}
 
 export const useGame = create<GameState>((set, get) => ({
   conn: null,
+  gameKey: 0,
   notice: null,
   clearNotice: (key) => {
     if (get().notice?.key === key) set({ notice: null });
@@ -39,16 +50,23 @@ export const useGame = create<GameState>((set, get) => ({
   reactions: [],
   attach: (conn) => {
     get().detach();
-    set({ conn, update: conn.current(), prev: null, seats: conn.seats(), reactions: [] });
+    set({ conn, gameKey: ++counter, update: conn.current(), prev: null, seats: conn.seats(), reactions: [] });
     unsubscribe = [
       conn.subscribe((u) => {
-        set({ prev: get().update?.view ?? null, update: u, seats: conn.seats() });
-        if (conn.kind === 'online' && u.auto && u.actorId === conn.youId) {
-          set({ notice: { key: ++reactionKey, text: 'Tempo esgotado: jogamos por você.' } });
+        const prev = get().update?.view ?? null;
+        const fresh = isNewGame(prev, u.view);
+        set({
+          prev: fresh ? null : prev,
+          update: u,
+          seats: conn.seats(),
+          ...(fresh ? { gameKey: ++counter } : {}),
+        });
+        if (u.reason === 'timeout' && u.actorId === conn.youId) {
+          set({ notice: { key: ++counter, text: 'Acabou o tempo, jogamos por ti.' } });
         }
       }),
       conn.onReaction((r) => {
-        const key = ++reactionKey;
+        const key = ++counter;
         set({ reactions: [...get().reactions, { ...r, key }] });
         window.setTimeout(() => set({ reactions: get().reactions.filter((x) => x.key !== key) }), 2600);
       }),

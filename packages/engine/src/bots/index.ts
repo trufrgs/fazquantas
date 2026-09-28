@@ -10,12 +10,12 @@ import { monteCarloPlay, policyPlay, randomPlay } from './play';
 export type BotDifficulty = 'facil' | 'medio' | 'dificil';
 
 export const BOT_DIFFICULTIES: readonly { id: BotDifficulty; name: string; description: string }[] = [
-  { id: 'facil', name: 'Fácil', description: 'Aposta no olho e às vezes joga qualquer carta.' },
+  { id: 'facil', name: 'Fácil', description: 'Palpita no olho e às vezes joga qualquer carta.' },
   { id: 'medio', name: 'Médio', description: 'Conta as cartas e joga com critério.' },
   {
     id: 'dificil',
     name: 'Difícil',
-    description: 'Simula a rodada centenas de vezes, lê as apostas e atrapalha quando pode.',
+    description: 'Simula a rodada centenas de vezes, lê os palpites e atrapalha quando pode.',
   },
 ];
 

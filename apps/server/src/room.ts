@@ -580,7 +580,13 @@ export class Room {
         if (!seat.socket) continue;
         this.outbox.push({
           playerId: seat.playerId,
-          message: { view: game.view(seat.playerId), auto: event.auto, actorId },
+          message: {
+            view: game.view(seat.playerId),
+            auto: event.auto,
+            reason: event.reason,
+            actorId,
+            serverNow: this.serverNow(),
+          },
         });
       }
       if (event.state.phase === 'gameOver' && this.currentStatus === 'playing') this.finishGame();
@@ -622,12 +628,17 @@ export class Room {
     this.refreshIdle();
   }
 
+  /** Hora no mesmo relógio que marca o prazo da vez. */
+  private serverNow(): number {
+    return this.deps.clock.now();
+  }
+
   private queueView(playerId: string): void {
     const game = this.gameHost;
     if (!game) return;
     this.outbox.push({
       playerId,
-      message: { view: game.view(playerId), auto: false, actorId: null },
+      message: { view: game.view(playerId), auto: false, reason: null, actorId: null, serverNow: this.serverNow() },
     });
     this.queueFlush();
   }

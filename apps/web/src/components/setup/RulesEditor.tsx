@@ -17,14 +17,14 @@ import { useState } from 'react';
 import { Segmented, Stepper, Toggle } from '../ui/Controls';
 
 const HIERARCHY_LABEL: Record<HierarchyMode, string> = { gaucha: 'Gaúcha', vira: 'Com vira', mineira: 'Mineira' };
-const TIE_LABEL: Record<TieRule, string> = { cancel: 'melam', nobody: 'ninguém leva', suit: 'naipe desempata' };
+const TIE_LABEL: Record<TieRule, string> = { cancel: 'empardam', nobody: 'ninguém leva', suit: 'naipe desempata' };
 
 /** Resumo em uma linha, para quem só lê as regras (convidados da sala). */
 export function rulesSummary(r: Rules): string {
   const parts = [
     HIERARCHY_LABEL[r.hierarchy],
     `${r.startingLives} ${r.startingLives === 1 ? 'vida' : 'vidas'}`,
-    `iguais ${TIE_LABEL[r.tieRule]}`,
+    `cartas iguais: ${TIE_LABEL[r.tieRule]}`,
     r.progression === 'up' ? 'serrote' : 'pirâmide',
   ];
   if (r.maxCards) parts.push(`máx. ${r.maxCards} cartas`);
@@ -111,14 +111,14 @@ export function RulesEditor({ value, onChange, dark }: RulesEditorProps) {
               ]}
             />
           </Field>
-          <Field label="Cartas iguais na vaza">
+          <Field label="Cartas iguais na mão" hint="Empardam: as iguais se anulam e leva a maior que sobrou.">
             <Segmented<TieRule>
               label="Empate"
               dark={dark}
               value={value.tieRule}
               onChange={(v) => set('tieRule', v)}
               options={[
-                { value: 'cancel', label: 'Melam' },
+                { value: 'cancel', label: 'Empardam' },
                 { value: 'nobody', label: 'Ninguém leva' },
                 { value: 'suit', label: 'Naipe desempata' },
               ]}
@@ -141,7 +141,7 @@ export function RulesEditor({ value, onChange, dark }: RulesEditorProps) {
             checked={value.dealerRestriction}
             onChange={(v) => set('dealerRestriction', v)}
             label="Regra do pé"
-            description="Quem palpita por último não pode fechar a soma no número de cartas."
+            description="Quem palpita por último não pode fazer a soma dos palpites bater com o número de cartas."
           />
           {value.dealerRestriction && value.blindRound !== 'off' && (
             <Toggle

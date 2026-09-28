@@ -5,10 +5,10 @@ import { useSettings } from '../../stores/settings';
 export type TipId = 'palpite' | 'jogar' | 'cega' | 'pe';
 
 export const TIPS: Record<TipId, string> = {
-  palpite: 'Olha tuas cartas e diz quantas vazas tu vai fazer. Acertou na mosca, não perde palito.',
+  palpite: 'Olha tuas cartas e diz quantas mãos tu vai fazer. Acertou na mosca, não perde palito.',
   jogar: 'Toca numa carta pra escolher e toca de novo pra jogar. Também dá pra arrastar pra cima.',
   cega: 'Carta na testa: tu vê a carta dos outros, mas não a tua. Palpita lendo a mesa.',
-  pe: 'Tu é o pé: palpita por último e não pode fechar a soma no número de cartas.',
+  pe: 'Tu é o pé: palpita por último, e a soma dos palpites não pode bater com o número de cartas.',
 };
 
 /** Marca uma dica como vista (quando a pessoa já fez o que ela ensina). */

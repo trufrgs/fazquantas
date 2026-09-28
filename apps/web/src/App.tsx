@@ -25,7 +25,8 @@ function inviteCode(): string | undefined {
 export function App() {
   const screen = useApp((s) => s.screen);
   const sound = useSettings((s) => s.sound);
-  const [code] = useState(inviteCode);
+  // O código do convite vale uma vez só (depois de usado, não entra de novo sozinho).
+  const [code, setCode] = useState(inviteCode);
 
   useEffect(() => setSoundEnabled(sound), [sound]);
 
@@ -61,7 +62,8 @@ export function App() {
       CapApp.addListener('backButton', () => {
         const app = useApp.getState();
         if (app.screen === 'home') void CapApp.exitApp();
-        else if (app.screen === 'game') window.dispatchEvent(new Event('fodinha:voltar'));
+        // Mesa e sala tratam o voltar (fechar camada, menu, confirmar saída da sala).
+        else if (app.screen === 'game' || app.screen === 'lobby') window.dispatchEvent(new Event('fodinha:voltar'));
         else app.back();
       }).then((h) => (remove = () => void h.remove())),
     );
@@ -69,7 +71,7 @@ export function App() {
     return () => remove?.();
   }, []);
 
-  // Cenas de desenvolvimento: `?cena=melou`, `?cena=mesa8`…
+  // Cenas de desenvolvimento: `?cena=empardou`, `?cena=mesa8`…
   useEffect(() => {
     const scene = new URLSearchParams(window.location.search).get('cena');
     if (!import.meta.env.DEV || !scene) return;
@@ -97,7 +99,7 @@ export function App() {
       <CardSprite />
       {screen === 'home' && <Home />}
       {screen === 'setup' && <NewGame />}
-      {screen === 'online' && <Online initialCode={code} />}
+      {screen === 'online' && <Online initialCode={code} onCodeUsed={() => setCode(undefined)} />}
       {screen === 'lobby' && <Lobby />}
       {screen === 'game' && <GameScreen />}
       {screen === 'rules' && <Rules />}

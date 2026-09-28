@@ -22,7 +22,7 @@ export function NewGame() {
     >
       <Panel title="Na mesa">
         <div className="flex items-center justify-between gap-3">
-          <span className="text-tinta-2">Você e {s.players - 1} {s.players - 1 === 1 ? 'bot' : 'bots'}</span>
+          <span className="text-tinta-2">Tu e {s.players - 1} {s.players - 1 === 1 ? 'bot' : 'bots'}</span>
           <Stepper label="jogadores" value={s.players} min={MIN_PLAYERS} max={MAX_PLAYERS} onChange={(players) => s.set({ players })} />
         </div>
         <div className="mt-3 flex -space-x-2">

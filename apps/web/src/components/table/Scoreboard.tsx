@@ -17,7 +17,7 @@ export function Scoreboard({ open, onClose, view, seats }: { open: boolean; onCl
       <h2 className="font-display text-2xl font-bold" style={{ fontVariationSettings: '"SOFT" 100, "WONK" 1' }}>
         Caderneta
       </h2>
-      <p className="text-sm text-tinta-2">Palpite / vazas feitas em cada rodada.</p>
+      <p className="text-sm text-tinta-2">Palpite / mãos feitas em cada rodada.</p>
       <div
         ref={scroller}
         tabIndex={0}

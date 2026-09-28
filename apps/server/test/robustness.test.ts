@@ -152,25 +152,25 @@ describe('limites', () => {
     const b = await joinRoom(beto, a.code, 'Beto');
     await createRoom(outsider, 'Caio');
 
-    ana.send('game:react', { reaction: 'boa' });
-    ana.send('game:react', { reaction: 'haha' }); // cedo demais: ignorada
-    beto.send('game:react', { reaction: 'vamo' }); // o limite é por jogador
+    ana.send('game:react', { reaction: 'tri' });
+    ana.send('game:react', { reaction: 'masbah' }); // cedo demais: ignorada
+    beto.send('game:react', { reaction: 'barbada' }); // o limite é por jogador
     await ana.waitFor(() => ana.reactions.length === 2, 'duas reações');
     now += 1_500;
-    ana.send('game:react', { reaction: 'eita' });
+    ana.send('game:react', { reaction: 'bemcapaz' });
     expect(await ana.call('game:react', { reaction: 'nada' })).toMatchObject({
       ok: false,
       error: { code: 'INVALID_PAYLOAD' },
     });
     await beto.waitFor(
-      () => beto.reactions.some((r) => r.reaction === 'eita'),
+      () => beto.reactions.some((r) => r.reaction === 'bemcapaz'),
       'reação depois do intervalo',
     );
 
     expect(beto.reactions).toEqual([
-      { playerId: a.playerId, reaction: 'boa', at: 5_000 },
-      { playerId: b.playerId, reaction: 'vamo', at: 5_000 },
-      { playerId: a.playerId, reaction: 'eita', at: 6_500 },
+      { playerId: a.playerId, reaction: 'tri', at: 5_000 },
+      { playerId: b.playerId, reaction: 'barbada', at: 5_000 },
+      { playerId: a.playerId, reaction: 'bemcapaz', at: 6_500 },
     ]);
     expect(ana.reactions).toEqual(beto.reactions);
     expect(outsider.reactions).toEqual([]);

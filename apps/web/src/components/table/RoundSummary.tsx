@@ -41,23 +41,23 @@ export function RoundSummary({ open, view, seats, autoMs, onContinue }: RoundSum
               const lost = (rec.livesBefore[id] ?? 0) - (rec.livesAfter[id] ?? 0);
               const out = rec.eliminated.includes(id);
               return (
-                <li key={id} className="flex items-center gap-3 py-2">
+                <li key={id} className={`flex items-center gap-3 py-2 ${id === view.you ? '-mx-2 rounded-xl bg-ouros/15 px-2' : ''}`}>
                   <Avatar seed={seat?.avatar ?? id} size={34} dim={out} />
                   <span className="min-w-0 flex-1">
                     <span className="block truncate font-semibold">
                       {p?.name ?? id}
-                      {id === view.you && p?.name !== 'Você' && <span className="font-normal text-tinta-2"> (você)</span>}
+
                     </span>
                     <span className="font-hand text-xl leading-none text-tinta-2">
                       pediu {bid} · fez {took}
                     </span>
                   </span>
                   {out ? (
-                    <span className="rounded-full bg-copas px-2.5 py-0.5 text-sm font-bold text-papel">fora!</span>
+                    <span className="rounded-full bg-copas px-2.5 py-0.5 text-sm font-bold text-papel">deu pra ti!</span>
                   ) : lost > 0 ? (
                     <span className="font-display text-xl font-bold text-copas tabular-nums">−{lost}</span>
                   ) : (
-                    <span className="font-hand text-2xl font-bold text-paus">certinho</span>
+                    <span className="font-hand text-2xl font-bold text-paus">na mosca!</span>
                   )}
                 </li>
               );

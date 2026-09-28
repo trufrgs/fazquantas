@@ -165,6 +165,36 @@ describe('GameHost', () => {
     expect(checked).toBe(true);
   });
 
+  it('tells why each automatic move happened', () => {
+    const clock = new FakeClock();
+    const host = new GameHost({ seats: withHuman(3), seed: 3, clock, firstDealer: 2, turnTimeoutMs: 5_000 });
+    const events: HostEvent[] = [];
+    host.subscribe((e) => events.push(e));
+    host.start();
+    clock.advance(6_000); // o humano estourou o tempo no palpite
+    const timeout = events.find((e) => e.action?.type === 'bid' && 'playerId' in e.action && e.action.playerId === 'eu');
+    expect(timeout?.reason).toBe('timeout');
+    clock.runAll();
+    const reasons = new Set(events.map((e) => e.reason));
+    expect(reasons.has('bot')).toBe(true);
+    expect(reasons.has('system')).toBe(true);
+    expect(reasons.has('forced')).toBe(true);
+    for (const e of events) expect(e.auto).toBe(e.reason !== null);
+  });
+
+  it('keeps the turn clock running when a player drops and comes back', () => {
+    const clock = new FakeClock();
+    const host = new GameHost({ seats: withHuman(3), seed: 3, clock, firstDealer: 2, turnTimeoutMs: 10_000, timing: { dealMs: 0 } });
+    host.start();
+    const deadline = host.deadline!;
+    clock.advance(4_000);
+    host.setAway('eu', true);
+    host.setAway('eu', false);
+    expect(host.deadline).toBe(deadline);
+    clock.advance(6_000);
+    expect(host.state.round.bids.eu).not.toBeNull();
+  });
+
   it('turns a leaving human into a bot', () => {
     const clock = new FakeClock();
     const host = new GameHost({ seats: withHuman(3), seed: 3, clock, firstDealer: 2 });

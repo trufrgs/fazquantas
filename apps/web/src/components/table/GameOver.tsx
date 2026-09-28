@@ -24,7 +24,7 @@ async function celebrate() {
   window.setTimeout(() => confetti({ particleCount: 90, angle: 120, spread: 60, origin: { x: 1, y: 0.6 }, colors, disableForReducedMotion: true }), 400);
 }
 
-export function GameOver({ view, seats, onAgain, againLabel = 'Jogar de novo', onExit, onLobby, waitingText }: GameOverProps) {
+export function GameOver({ view, seats, onAgain, againLabel = 'Mais uma?', onExit, onLobby, waitingText }: GameOverProps) {
   const result = view.result;
   const youWon = !!result && !!view.you && result.winners.includes(view.you);
   const draw = (result?.winners.length ?? 0) > 1;
@@ -38,8 +38,8 @@ export function GameOver({ view, seats, onAgain, againLabel = 'Jogar de novo', o
   const title = draw
     ? `Empate entre ${result.winners.map(name).join(' e ')}`
     : youWon
-      ? 'Você venceu!'
-      : `${name(result.winners[0]!)} venceu`;
+      ? 'Bah, tu ganhou!'
+      : `${name(result.winners[0]!)} ganhou`;
 
   const mine = view.you
     ? view.history.filter((r) => r.bids[view.you!] !== undefined)
@@ -77,13 +77,13 @@ export function GameOver({ view, seats, onAgain, againLabel = 'Jogar de novo', o
               return (
                 <li
                   key={id}
-                  className={`flex items-center gap-3 rounded-2xl px-3 py-2 ${winner ? 'bg-ouros/35 ring-1 ring-ouros-escuro/40' : 'bg-tinta/5'}`}
+                  className={`flex items-center gap-3 rounded-2xl px-3 py-2 ${winner ? 'bg-ouros/35 ring-1 ring-ouros-escuro/40' : 'bg-tinta/5'} ${id === view.you ? 'font-bold' : ''}`}
                 >
                   <span className="w-5 text-center font-display text-lg font-bold tabular-nums">{i + 1}</span>
                   <Avatar seed={seat?.avatar ?? id} size={32} />
                   <span className="min-w-0 flex-1 truncate font-semibold">
                     {p?.name ?? id}
-                    {id === view.you && p?.name !== 'Você' && <span className="font-normal text-tinta-2"> (você)</span>}
+
                   </span>
                   <span className="text-sm text-tinta-2">
                     {winner ? '🏆' : p?.eliminatedRound ? `saiu na ${p.eliminatedRound}ª` : ''}
@@ -94,7 +94,7 @@ export function GameOver({ view, seats, onAgain, againLabel = 'Jogar de novo', o
           </ol>
           {mine.length > 0 && (
             <p className="mt-3 text-center text-sm text-tinta-2">
-              Você acertou <strong className="text-tinta">{exact}</strong> de {mine.length}{' '}
+              Tu acertou <strong className="text-tinta">{exact}</strong> de {mine.length}{' '}
               {mine.length === 1 ? 'palpite' : 'palpites'}.
             </p>
           )}
@@ -108,7 +108,7 @@ export function GameOver({ view, seats, onAgain, againLabel = 'Jogar de novo', o
             )}
             {onLobby && (
               <Button variant="papel" onClick={onLobby}>
-                Voltar para a sala
+                Voltar pra sala
               </Button>
             )}
             <Button variant="papel" onClick={onExit}>

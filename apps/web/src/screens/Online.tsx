@@ -15,13 +15,14 @@ function cleanCode(raw: string): string {
     .slice(0, ROOM_CODE_LENGTH);
 }
 
-export function Online({ initialCode }: { initialCode?: string }) {
+export function Online({ initialCode, onCodeUsed }: { initialCode?: string; onCodeUsed?: () => void }) {
   const { status, error, create, join, clearError } = useOnline();
   const reset = useApp((s) => s.reset);
   const [code, setCode] = useState(cleanCode(initialCode ?? ''));
   const busy = status === 'connecting';
   const session = savedSession();
 
+  // O erro fica visível até a pessoa sair desta tela.
   useEffect(() => () => clearError(), [clearError]);
 
   const doJoin = async (c: string) => {
@@ -29,13 +30,17 @@ export function Online({ initialCode }: { initialCode?: string }) {
   };
 
   useEffect(() => {
-    if (initialCode && cleanCode(initialCode).length === ROOM_CODE_LENGTH) void doJoin(cleanCode(initialCode));
+    if (!initialCode) return;
+    onCodeUsed?.();
+    if (cleanCode(initialCode).length === ROOM_CODE_LENGTH && !useOnline.getState().kicked) {
+      void doJoin(cleanCode(initialCode));
+    }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
-    <ScreenFrame title="Jogar com amigos">
+    <ScreenFrame title="Jogar com a gurizada">
       <Panel title="Criar uma sala">
-        <p className="mb-3 text-tinta-2">Você recebe um código de 4 letras para chamar a turma. Lugares vazios podem ser completados com bots.</p>
+        <p className="mb-3 text-tinta-2">Tu recebe um código de 4 letras pra chamar a gurizada. Lugar vazio dá pra completar com bot.</p>
         <Button
           variant="ouro"
           size="lg"
@@ -76,7 +81,7 @@ export function Online({ initialCode }: { initialCode?: string }) {
         </form>
         {session && session.code !== code && (
           <button type="button" className="mt-3 text-sm font-bold text-espadas" onClick={() => void doJoin(session.code)}>
-            Voltar para a sala {session.code}
+            Voltar pra sala {session.code}
           </button>
         )}
       </Panel>
@@ -85,7 +90,7 @@ export function Online({ initialCode }: { initialCode?: string }) {
           {error}
         </div>
       )}
-      <p className="text-center text-xs text-papel/60">Servidor: {serverUrl()}</p>
+      {import.meta.env.DEV && <p className="text-center text-xs text-papel/60">Servidor: {serverUrl()}</p>}
     </ScreenFrame>
   );
 }

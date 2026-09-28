@@ -1,4 +1,4 @@
-import type { BotDifficulty, ClientAction, PlayerView, ReactionId } from '@fodinha/engine';
+import type { AutoReason, BotDifficulty, ClientAction, PlayerView, ReactionId } from '@fodinha/engine';
 
 export interface SeatInfo {
   id: string;
@@ -13,6 +13,8 @@ export interface ViewUpdate {
   view: PlayerView;
   /** A mudança foi automática (bot, tempo esgotado, jogada forçada…). */
   auto: boolean;
+  /** Motivo da jogada automática (só `timeout` vira aviso). */
+  reason: AutoReason | null;
   actorId: string | null;
 }
 

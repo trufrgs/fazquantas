@@ -1,6 +1,6 @@
 import { BOT_DIFFICULTIES, TURN_TIMEOUT_OPTIONS, type BotDifficulty } from '@fodinha/engine';
 import { Crown, Share2, UserPlus, X } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { RulesEditor, rulesSummary } from '../components/setup/RulesEditor';
 import { Avatar } from '../components/ui/Avatar';
 import { Button } from '../components/ui/Button';
@@ -20,6 +20,12 @@ export function Lobby() {
   const settings = useSettings();
   const [botDifficulty, setBotDifficulty] = useState<BotDifficulty>(settings.difficulty);
   const [confirmLeave, setConfirmLeave] = useState(false);
+  // Botão voltar do Android na sala: pergunta antes de sair (sair de verdade libera o lugar).
+  useEffect(() => {
+    const ask = () => setConfirmLeave((open) => !open);
+    window.addEventListener('fodinha:voltar', ask);
+    return () => window.removeEventListener('fodinha:voltar', ask);
+  }, []);
   const [shareMsg, setShareMsg] = useState<string | null>(null);
   const [startError, setStartError] = useState<string | null>(null);
   const room = online.room;
@@ -28,7 +34,7 @@ export function Lobby() {
     return (
       <ScreenFrame title="Sala" onBack={() => reset('online')}>
         <Panel>
-          <p>{online.status === 'reconnecting' || online.status === 'connecting' ? 'Conectando à sala…' : 'Você não está numa sala.'}</p>
+          <p>{online.status === 'reconnecting' || online.status === 'connecting' ? 'Conectando na sala…' : 'Tu não está em nenhuma sala.'}</p>
         </Panel>
       </ScreenFrame>
     );
@@ -53,7 +59,7 @@ export function Lobby() {
           icon={<Share2 size={16} />}
           onClick={async () => {
             const r = await shareInvite(room.code);
-            setShareMsg(r === 'copied' ? 'Convite copiado.' : r === 'failed' ? 'Não deu para compartilhar. Dite o código.' : null);
+            setShareMsg(r === 'copied' ? 'Convite copiado.' : r === 'failed' ? 'Não deu pra compartilhar: dita o código pra gurizada.' : null);
             window.setTimeout(() => setShareMsg(null), 2500);
           }}
         >
@@ -71,12 +77,12 @@ export function Lobby() {
               disabled={room.seats.length < 2}
               onClick={async () => setStartError(await online.start())}
             >
-              {room.seats.length < 2 ? 'Chame alguém ou adicione um bot' : 'Começar partida'}
+              {room.seats.length < 2 ? 'Chama alguém ou bota um bot' : 'Começar partida'}
             </Button>
           </div>
         ) : (
           <p className="rounded-2xl bg-noite/45 px-4 py-3 text-center font-semibold ring-1 ring-papel/10">
-            Aguardando {hostName} começar a partida…
+            Esperando {hostName} começar a partida…
           </p>
         )
       }
@@ -108,7 +114,7 @@ export function Lobby() {
                 </span>
                 <span className="text-sm text-tinta-2">
                   {s.playerId === room.youId
-                    ? 'você'
+                    ? 'tu'
                     : s.kind === 'bot'
                       ? `bot ${DIFF_NAME[s.difficulty]}`
                       : s.connected

@@ -54,9 +54,19 @@ export class LocalConnection implements GameConnection {
   private lastBanter = 0;
   private timers: number[] = [];
   private readonly rng = createRng(randomSeed(Math.random));
+  /** Assentos não mudam numa partida local: calculados uma vez (o `memo` da mesa agradece). */
+  private readonly seatInfo: SeatInfo[];
 
   private constructor(host: GameHost) {
     this.host = host;
+    this.seatInfo = host.seats.map((s) => ({
+      id: s.id,
+      name: s.name,
+      avatar: s.avatar ?? s.id,
+      kind: s.kind,
+      difficulty: s.difficulty,
+      connected: true,
+    }));
     host.subscribe((e) => this.onHostEvent(e));
   }
 
@@ -101,18 +111,11 @@ export class LocalConnection implements GameConnection {
   }
 
   current(): ViewUpdate | null {
-    return this.last ?? { view: this.host.view(YOU), auto: false, actorId: null };
+    return this.last ?? { view: this.host.view(YOU), auto: false, reason: null, actorId: null };
   }
 
   seats(): SeatInfo[] {
-    return this.host.seats.map((s) => ({
-      id: s.id,
-      name: s.name,
-      avatar: s.avatar ?? s.id,
-      kind: s.kind,
-      difficulty: s.difficulty,
-      connected: true,
-    }));
+    return this.seatInfo;
   }
 
   subscribe(listener: (u: ViewUpdate) => void): () => void {
@@ -159,7 +162,7 @@ export class LocalConnection implements GameConnection {
 
   private onHostEvent(e: HostEvent): void {
     const actorId = e.action && 'playerId' in e.action ? e.action.playerId : null;
-    this.last = { view: this.host.view(YOU), auto: e.auto, actorId };
+    this.last = { view: this.host.view(YOU), auto: e.auto, reason: e.reason, actorId };
     if (e.state.phase === 'gameOver') clearSavedGame();
     else storage.set(LOCAL_SAVE_KEY, { v: 1, snapshot: this.host.snapshot(), savedAt: Date.now() });
     for (const l of [...this.listeners]) l(this.last);
@@ -185,28 +188,34 @@ export class LocalConnection implements GameConnection {
       if (rec) {
         const out = rec.eliminated.find((id) => id !== YOU && bots.some((b) => b.id === id));
         const bigMiss = Object.keys(rec.bids).find((id) => (rec.livesBefore[id] ?? 0) - (rec.livesAfter[id] ?? 0) >= 2);
-        if (out && this.rng.next() < 0.6) reaction = { playerId: out, reaction: 'chora' };
-        else if (bigMiss && this.rng.next() < 0.45) {
+        if (out && this.rng.next() < 0.6) {
+          // Quem saiu lamenta, ou alguém tira sarro.
+          const teaser = pick(aliveBots.filter((b) => b.id !== out));
+          reaction =
+            teaser && this.rng.next() < 0.5
+              ? { playerId: teaser.id, reaction: 'deuprati' }
+              : { playerId: out, reaction: 'barbaridade' };
+        } else if (bigMiss && this.rng.next() < 0.45) {
           const teaser = pick(aliveBots.filter((b) => b.id !== bigMiss));
-          if (teaser) reaction = { playerId: teaser.id, reaction: 'haha' };
+          if (teaser) reaction = { playerId: teaser.id, reaction: pick(['masbah', 'teacalma'] as ReactionId[])! };
         } else if (rec.cards >= 4 && this.rng.next() < 0.2) {
           const exact = aliveBots.find((b) => rec.bids[b.id] === rec.tricks[b.id]);
-          if (exact) reaction = { playerId: exact.id, reaction: pick(['vamo', 'tche'] as ReactionId[])! };
+          if (exact) reaction = { playerId: exact.id, reaction: pick(['barbada', 'tri'] as ReactionId[])! };
         }
       }
     } else if (state.phase === 'trickEnd' && e.action?.type === 'play') {
       const t = state.round.completedTricks.at(-1);
       if (t && t.cancelled.length > 0 && this.rng.next() < 0.25) {
         const who = pick(aliveBots);
-        if (who) reaction = { playerId: who.id, reaction: 'eita' };
+        if (who) reaction = { playerId: who.id, reaction: 'masbah' };
       }
     } else if (state.phase === 'gameOver' && e.action?.type === 'continue') {
       if (state.result?.winners.includes(YOU)) {
         const who = pick(bots);
-        if (who) reaction = { playerId: who.id, reaction: 'boa' };
+        if (who) reaction = { playerId: who.id, reaction: pick(['tri', 'bemcapaz'] as ReactionId[])! };
       } else {
         const winner = state.result?.winners[0];
-        if (winner && winner !== YOU) reaction = { playerId: winner, reaction: 'tche' };
+        if (winner && winner !== YOU) reaction = { playerId: winner, reaction: 'barbada' };
       }
     }
 

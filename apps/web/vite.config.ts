@@ -19,18 +19,19 @@ export default defineConfig(({ mode }) => ({
     tailwindcss(),
     mode !== 'native' &&
       VitePWA({
-        registerType: 'autoUpdate',
+        // Atualização silenciosa: a versão nova entra na próxima abertura (não recarrega no meio da partida).
+        registerType: 'prompt',
         injectRegister: null,
         includeAssets: ['icon.svg', 'sounds/*', 'cards/*'],
         manifest: {
           name: 'Fodinha',
           short_name: 'Fodinha',
-          description: 'Fodinha com baralho espanhol: diga quantas faz e faça quantas disse.',
+          description: 'Fodinha com baralho espanhol e regra gaúcha: diz quantas faz, faz quantas disse.',
           lang: 'pt-BR',
           theme_color: '#2a1a10',
           background_color: '#2a1a10',
           display: 'standalone',
-          orientation: 'portrait',
+          orientation: 'any',
           icons: [
             { src: '/icons/icon-192.png', sizes: '192x192', type: 'image/png' },
             { src: '/icons/icon-512.png', sizes: '512x512', type: 'image/png' },

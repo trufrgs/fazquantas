@@ -52,13 +52,13 @@ export async function playUntilGameOver(page: Page, maxMs = 200_000) {
   let actions = 0;
   while (Date.now() < deadline) {
     if (await gameOver.isVisible()) return actions;
-    const bid = page.locator('section[aria-label="Seu palpite"] button:not([disabled])').first();
+    const bid = page.locator('section[aria-label="Teu palpite"] button:not([disabled])').first();
     if (await bid.isVisible().catch(() => false)) {
       await bid.click({ timeout: 2000 }).catch(() => undefined);
       actions++;
       continue;
     }
-    const card = page.locator('[aria-label="Sua mão"] button:not([disabled])').first();
+    const card = page.locator('[aria-label="Tuas cartas"] button:not([disabled])').first();
     if (await card.isVisible().catch(() => false)) {
       await card.click({ timeout: 2000 }).catch(() => undefined);
       await card.click({ timeout: 2000 }).catch(() => undefined);

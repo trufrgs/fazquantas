@@ -3,6 +3,7 @@
  */
 import type { BotDifficulty } from './bots';
 import type { CardId } from './cards';
+import type { AutoReason } from './host';
 import type { Rules } from './rules';
 import type { PlayerView } from './view';
 
@@ -15,16 +16,28 @@ export const NAME_MAX_LENGTH = 16;
 export const TURN_TIMEOUT_OPTIONS = [null, 15, 30, 60] as const;
 export const DEFAULT_TURN_TIMEOUT_SEC = 30;
 
-export type ReactionId = 'boa' | 'eita' | 'haha' | 'chora' | 'bravo' | 'tche' | 'sorte' | 'vamo';
+/**
+ * Reações rápidas da mesa, em expressões gaúchas de uso corrente (validadas em pesquisa):
+ * quatro de surpresa/aprovação e quatro de provocação amigável.
+ */
+export type ReactionId =
+  | 'masbah'
+  | 'barbaridade'
+  | 'bemcapaz'
+  | 'tri'
+  | 'barbada'
+  | 'deuprati'
+  | 'teacalma'
+  | 'quesorte';
 export const REACTIONS: readonly { id: ReactionId; emoji: string; label: string }[] = [
-  { id: 'boa', emoji: '👏', label: 'Boa!' },
-  { id: 'haha', emoji: '😂', label: 'Haha' },
-  { id: 'eita', emoji: '😱', label: 'Eita!' },
-  { id: 'chora', emoji: '😭', label: 'Chora' },
-  { id: 'bravo', emoji: '😤', label: 'Ah, não!' },
-  { id: 'tche', emoji: '🧉', label: 'Bah, tchê!' },
-  { id: 'sorte', emoji: '🍀', label: 'Sorte…' },
-  { id: 'vamo', emoji: '🔥', label: 'Vamo!' },
+  { id: 'masbah', emoji: '😮', label: 'Mas bah!' },
+  { id: 'barbaridade', emoji: '😱', label: 'Barbaridade!' },
+  { id: 'bemcapaz', emoji: '🙄', label: 'Bem capaz!' },
+  { id: 'tri', emoji: '👏', label: 'Tri!' },
+  { id: 'barbada', emoji: '😎', label: 'Que barbada!' },
+  { id: 'deuprati', emoji: '👋', label: 'Deu pra ti!' },
+  { id: 'teacalma', emoji: '🧉', label: 'Te acalma!' },
+  { id: 'quesorte', emoji: '🍀', label: 'Bah, que sorte!' },
 ];
 
 export type SeatPublic =
@@ -87,8 +100,12 @@ export interface ViewMessage {
   view: PlayerView;
   /** A mudança foi automática (bot, tempo esgotado, desconectado, jogada forçada). */
   auto: boolean;
+  /** Motivo da jogada automática — só `timeout` merece aviso ao jogador. */
+  reason: AutoReason | null;
   /** Quem agiu na mudança que gerou esta visão. */
   actorId: string | null;
+  /** `Date.now()` do servidor no envio: o cliente corrige o prazo pelo próprio relógio. */
+  serverNow: number;
 }
 
 export interface ClientToServerEvents {

@@ -213,11 +213,11 @@ export function resolveTrick(
 const MESSAGES: Record<GameErrorCode, string> = {
   GAME_OVER: 'A partida já terminou.',
   WRONG_PHASE: 'Agora não é hora disso.',
-  NOT_YOUR_TURN: 'Não é a sua vez.',
+  NOT_YOUR_TURN: 'Não é tua vez.',
   UNKNOWN_PLAYER: 'Jogador desconhecido.',
-  INVALID_BID: 'Aposta inválida.',
-  FORBIDDEN_BID: 'O pé não pode fechar a soma das apostas.',
-  CARD_NOT_IN_HAND: 'Essa carta não está na sua mão.',
+  INVALID_BID: 'Palpite inválido.',
+  FORBIDDEN_BID: 'O pé não pode fazer a soma dos palpites bater com o número de cartas.',
+  CARD_NOT_IN_HAND: 'Essa carta não é tua.',
   INVALID_ACTION: 'Ação inválida.',
 };
 
@@ -254,7 +254,7 @@ function bid(state: GameState, playerId: string, value: number): ApplyResult {
     return fail('INVALID_BID');
   }
   if (value === forbiddenBid(state, playerId)) {
-    return fail('FORBIDDEN_BID', `O pé não pode pedir ${value}: a soma fecharia ${state.round.cards}.`);
+    return fail('FORBIDDEN_BID', `O pé não pode pedir ${value}: a soma bateria ${state.round.cards}.`);
   }
   const s = structuredClone(state);
   s.round.bids[playerId] = value;

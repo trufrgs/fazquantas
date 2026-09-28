@@ -2,7 +2,7 @@ import type { Phase, PublicPlayer } from '@fodinha/engine';
 import type { LiveReaction } from '../../stores/game';
 import { Avatar } from '../ui/Avatar';
 import { Matches } from '../ui/Matches';
-import { BidBadge, DealerChip, ReactionBubble } from './Seat';
+import { BidBadge, DealerChip, ReactionBubble, TurnRing } from './Seat';
 
 export type StatusTone = 'turn' | 'info' | 'good' | 'bad';
 
@@ -14,6 +14,9 @@ export interface MySeatProps {
   startingLives: number;
   status: { text: string; tone: StatusTone };
   reaction: LiveReaction | undefined;
+  isTurn: boolean;
+  /** Prazo da tua vez (online com tempo por jogada). */
+  deadline: number | null;
 }
 
 const TONE: Record<StatusTone, string> = {
@@ -24,10 +27,11 @@ const TONE: Record<StatusTone, string> = {
 };
 
 /** Sua faixa acima da mão: avatar, vidas, palpite e o que está acontecendo. */
-export function MySeat({ player, avatar, phase, remaining, startingLives, status, reaction }: MySeatProps) {
+export function MySeat({ player, avatar, phase, remaining, startingLives, status, reaction, isTurn, deadline }: MySeatProps) {
   return (
     <div className="relative z-20 flex items-center gap-2.5 px-3">
       <div className="relative">
+        {isTurn && !player.eliminated && <TurnRing key={deadline ?? 0} size={40} deadline={deadline} />}
         <Avatar seed={avatar} size={40} dim={player.eliminated} />
         {player.isDealer && !player.eliminated && (
           <span className="absolute -left-2 -top-1.5">
