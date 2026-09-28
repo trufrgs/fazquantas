@@ -28,7 +28,7 @@ import { CoachTip, markTipSeen, type TipId } from './CoachTip';
 import { ForcaChip, Hierarchy } from './ForcaChip';
 import { GameOver } from './GameOver';
 import { Hand } from './Hand';
-import { tableGeometry } from './layout';
+import { isCompact, SEAT_BOX, tableGeometry } from './layout';
 import { MySeat, type StatusTone } from './MySeat';
 import { PauseMenu } from './PauseMenu';
 import { ReactionPicker } from './ReactionPicker';
@@ -148,12 +148,12 @@ function Table({ conn, update, seats, reactions }: { conn: GameConnection; updat
   const vw = root.width || window.innerWidth;
   const vh = root.height || window.innerHeight;
   const crowd = view.players.length;
-  const compact = crowd >= 6 || vw < 380 || vh < 640;
+  const compact = isCompact(crowd, vw, vh);
   const handCardW = clamp(Math.min(vw * 0.19, vh * 0.125), 56, 108);
   const trickCardW = clamp(Math.min(vw * 0.14, vh * 0.11) * (crowd >= 7 ? 0.84 : crowd >= 5 ? 0.92 : 1), 38, 96);
   const geometry = useMemo(
-    () => tableGeometry(table.width, table.height, order, you, trickCardW),
-    [table.width, table.height, order, you, trickCardW],
+    () => tableGeometry(table.width, table.height, order, you, trickCardW, SEAT_BOX[compact ? 'compact' : 'normal']),
+    [table.width, table.height, order, you, trickCardW, compact],
   );
 
   const ctx = useMemo(() => ({ mode: view.rules.hierarchy, vira: view.vira ? card(view.vira) : null }), [view.rules.hierarchy, view.vira]);

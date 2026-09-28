@@ -10,7 +10,8 @@
     "typecheck": "tsc -p tsconfig.json",
     "cap:sync": "vite build --mode native && cap sync",
     "cap:android": "vite build --mode native && cap sync android && cap open android",
-    "cap:ios": "vite build --mode native && cap sync ios && cap open ios"
+    "cap:ios": "vite build --mode native && cap sync ios && cap open ios",
+    "test": "vitest run --maxWorkers=3"
   },
   "dependencies": {
     "@capacitor/app": "^8.1.1",
@@ -48,6 +49,7 @@
     "tailwindcss": "^4.3.3",
     "typescript": "~6.0.3",
     "vite": "^8.3.1",
-    "vite-plugin-pwa": "^1.3.0"
+    "vite-plugin-pwa": "^1.3.0",
+    "vitest": "^5.0.2"
   }
 }

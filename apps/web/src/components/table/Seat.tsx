@@ -165,7 +165,7 @@ export const Seat = memo(function Seat(p: SeatProps) {
 
   return (
     <div
-      className="absolute z-10 flex w-[84px] flex-col items-center"
+      className={`absolute z-10 flex flex-col items-center ${p.compact ? 'w-[72px]' : 'w-[84px]'}`}
       style={{ left: p.x, top: p.y, transform: 'translate(-50%, -50%)' }}
       aria-label={`${player.name}${out ? ', fora do jogo' : ''}`}
     >

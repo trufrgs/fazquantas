@@ -1,4 +1,5 @@
 import { AnimatePresence, motion } from 'motion/react';
+import { useEffect } from 'react';
 import { useSettings } from '../../stores/settings';
 
 export type TipId = 'palpite' | 'jogar' | 'cega' | 'pe';
@@ -22,6 +23,14 @@ export function CoachTip({ tip, inline = false }: { tip: TipId | null; inline?: 
   const seen = useSettings((s) => s.seenTips);
   const set = useSettings((s) => s.set);
   const show = tip !== null && !seen.includes(tip);
+
+  // O balão flutuante cobre parte da mesa: some sozinho depois de uns segundos.
+  useEffect(() => {
+    if (!show || inline) return undefined;
+    const t = window.setTimeout(() => markTipSeen(tip), 9000);
+    return () => window.clearTimeout(t);
+  }, [show, inline, tip]);
+
   return (
     <AnimatePresence>
       {show && tip && (
