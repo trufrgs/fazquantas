@@ -8,6 +8,12 @@ const page = await browser.newPage({
   deviceScaleFactor: 2,
   hasTouch: Number(w) < 900,
 });
+if (process.env.SETTINGS) {
+  const state = JSON.parse(process.env.SETTINGS);
+  await page.addInitScript((value) => {
+    window.localStorage.setItem('fodinha:ajustes', JSON.stringify({ state: value, version: 1 }));
+  }, state);
+}
 const errors = [];
 page.on('pageerror', (e) => errors.push(`pageerror: ${e.message}`));
 page.on('console', (m) => m.type() === 'error' && errors.push(`console: ${m.text()}`));

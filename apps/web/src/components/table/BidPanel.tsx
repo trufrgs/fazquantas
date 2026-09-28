@@ -1,4 +1,5 @@
 import { AnimatePresence, motion } from 'motion/react';
+import { useEffect } from 'react';
 import { Lightbulb } from 'lucide-react';
 
 export interface BidPanelProps {
@@ -16,6 +17,22 @@ export interface BidPanelProps {
 /** Painel "Quantas você faz?" — toque no número confirma o palpite. */
 export function BidPanel(p: BidPanelProps) {
   const options = Array.from({ length: p.cards + 1 }, (_, i) => i);
+  const { open, legal, onBid } = p;
+
+  // Desktop: as teclas 0–9 palpitam.
+  useEffect(() => {
+    if (!open) return undefined;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.target instanceof HTMLInputElement || e.metaKey || e.ctrlKey) return;
+      const n = Number(e.key);
+      if (e.key.length === 1 && Number.isInteger(n) && legal.includes(n)) {
+        e.preventDefault();
+        onBid(n);
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [open, legal, onBid]);
   const big = options.length > 8;
   return (
     <AnimatePresence>

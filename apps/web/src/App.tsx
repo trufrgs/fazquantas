@@ -61,7 +61,8 @@ export function App() {
       CapApp.addListener('backButton', () => {
         const app = useApp.getState();
         if (app.screen === 'home') void CapApp.exitApp();
-        else if (app.screen !== 'game') app.back();
+        else if (app.screen === 'game') window.dispatchEvent(new Event('fodinha:voltar'));
+        else app.back();
       }).then((h) => (remove = () => void h.remove())),
     );
     void import('@capacitor/splash-screen').then(({ SplashScreen }) => SplashScreen.hide());

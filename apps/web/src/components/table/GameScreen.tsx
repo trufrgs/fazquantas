@@ -114,6 +114,18 @@ function Table({ conn, update, seats, reactions }: { conn: GameConnection; updat
   }, [menu, online, conn]);
 
   useEffect(() => setPending(false), [view.seq]);
+
+  // Botão voltar do Android (e Esc no desktop) abre o menu da partida.
+  useEffect(() => {
+    const open = () => setMenu((m) => !m);
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && !score && !forca && open();
+    window.addEventListener('fodinha:voltar', open);
+    window.addEventListener('keydown', onKey);
+    return () => {
+      window.removeEventListener('fodinha:voltar', open);
+      window.removeEventListener('keydown', onKey);
+    };
+  }, [score, forca]);
   useEffect(() => {
     if (!toast) return undefined;
     const t = window.setTimeout(() => setToast(null), 2600);
@@ -131,7 +143,7 @@ function Table({ conn, update, seats, reactions }: { conn: GameConnection; updat
   const crowd = view.players.length;
   const compact = crowd >= 6 || vw < 380 || vh < 640;
   const handCardW = clamp(Math.min(vw * 0.19, vh * 0.125), 56, 108);
-  const trickCardW = clamp(Math.min(vw * 0.14, vh * 0.085) * (crowd >= 7 ? 0.84 : crowd >= 5 ? 0.92 : 1), 38, 84);
+  const trickCardW = clamp(Math.min(vw * 0.14, vh * 0.11) * (crowd >= 7 ? 0.84 : crowd >= 5 ? 0.92 : 1), 38, 96);
   const geometry = useMemo(
     () => tableGeometry(table.width, table.height, order, you, trickCardW),
     [table.width, table.height, order, you, trickCardW],
@@ -197,6 +209,7 @@ function Table({ conn, update, seats, reactions }: { conn: GameConnection; updat
         onReact={() => setPicker((v) => !v)}
       />
 
+      <div className="mx-auto flex min-h-0 w-full max-w-[1180px] flex-1 flex-col">
       <div ref={tableRef} className="relative min-h-0 flex-1">
         <ForcaChip mode={view.rules.hierarchy} vira={view.vira} onOpen={() => setForca(true)} />
         {online && onlineStatus === 'reconnecting' && (
@@ -304,6 +317,7 @@ function Table({ conn, update, seats, reactions }: { conn: GameConnection; updat
             oneTap={false}
           />
         )}
+      </div>
       </div>
 
       <RoundSummary
