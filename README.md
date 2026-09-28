@@ -86,9 +86,15 @@ Cenas de desenvolvimento para revisar o visual: `http://localhost:5173/?cena=emp
 `palpite`, `mao`, `cega`, `cega8`, `muitas`, `fimrodada`, `fimjogo`, `espectador`, `vira`) e `?galeria` com
 o baralho inteiro.
 
+## Contribuir
+
+Preparar o ambiente, rodar os testes, commits, CI e segredos: [CONTRIBUTING.md](CONTRIBUTING.md).
+Agentes de IA: [AGENTS.md](AGENTS.md).
+
 ## Produção e apps
 
-- Publicação no Cloudflare (Pages + Workers, plano gratuito): [docs/DEPLOY.md](docs/DEPLOY.md).
+- Publicação no Cloudflare (Pages + Workers, plano gratuito) pela CI do GitHub a cada push na `main`:
+  [docs/DEPLOY.md](docs/DEPLOY.md).
 - Plano de lançamento (web e lojas): [docs/LANCAMENTO.md](docs/LANCAMENTO.md).
 - Apps Android e iOS com Capacitor: [docs/MOBILE.md](docs/MOBILE.md).
 

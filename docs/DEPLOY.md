@@ -8,8 +8,11 @@ status: active
 
 # Deploy
 
-Tudo roda no plano gratuito do Cloudflare, na conta pessoal, e publica sozinho a cada push na `main`
-do [trufrgs/fazquantas](https://github.com/trufrgs/fazquantas).
+Tudo roda no plano gratuito do Cloudflare, na conta pessoal. A CI do GitHub
+([ci.yml](../.github/workflows/ci.yml)) publica cada push na `main` do
+[trufrgs/fazquantas](https://github.com/trufrgs/fazquantas) depois de lint, tipos e testes: primeiro o
+Worker, depois os segredos, depois o site, e confere a saúde no fim. Segredos e variáveis do GitHub
+estão no [CONTRIBUTING](../CONTRIBUTING.md#publicação).
 
 | Parte | Onde | Endereço |
 |---|---|---|
@@ -18,9 +21,9 @@ do [trufrgs/fazquantas](https://github.com/trufrgs/fazquantas).
 
 ## Como funciona
 
-- **Site:** o Pages roda `pnpm --filter @fodinha/web build:pages` e publica `apps/web/dist`
-  (variáveis de build `PNPM_VERSION=9.15.0` e `NODE_VERSION=24`). O web fala com o Worker de produção
-  por padrão (`apps/web/src/lib/platform.ts`); `VITE_SERVER_URL` troca o endereço.
+- **Site:** a CI gera `apps/web/dist` (`pnpm --filter @fodinha/web build:pages`) e manda com
+  `wrangler pages deploy` para o projeto `fazquantas`. O web fala com o Worker de produção por padrão
+  (`apps/web/src/lib/platform.ts`); `VITE_SERVER_URL` troca o endereço.
 - **Servidor:** um Worker na frente (`apps/worker/src/index.ts`) e Durable Objects com SQLite:
   - `SalaDO`: uma sala por objeto (`idFromName(código)`). WebSockets hibernáveis, estado salvo a cada
     mudança, e o alarme do objeto como relógio (bots, tempo da vez, pausas). A sala some sozinha
@@ -35,9 +38,8 @@ do [trufrgs/fazquantas](https://github.com/trufrgs/fazquantas).
     o apelido e o avatar dele, apelido de outro ganha número, bloqueado não senta.
   - `PainelDO`: o painel do `/admin` — visitas por dia (IP truncado, cidade, aparelho), salas abertas
     e encerradas, contadores (salas, partidas, ranqueadas, avisos). Guarda 90 dias.
-- O Worker publica pelo Workers Builds (Git): deploy com
-  `pnpm --filter @fodinha/worker exec wrangler deploy`; branches que não são a `main` sobem uma versão
-  de prévia (`wrangler versions upload`).
+- O Worker publica com `wrangler deploy` na CI. Os builds pelo Git do próprio Cloudflare (Workers
+  Builds e Pages) ficam desligados, para não publicar duas vezes nem fora de ordem.
 
 ## Variáveis e segredos do Worker
 
@@ -46,11 +48,12 @@ do [trufrgs/fazquantas](https://github.com/trufrgs/fazquantas).
 | `ORIGENS` | variável | Sites que podem abrir salas (além de localhost, rede local, prévias `*.fazquantas.pages.dev` e o app nativo) |
 | `SITE` | variável | Link das notificações |
 | `VAPID_PUBLICO` / `VAPID_CONTATO` | variável | Web Push |
-| `VAPID_PRIVADO` | **segredo** (painel do Worker → Settings → Variables and secrets) | Assina o push. Cópia no Keychain: `pessoal/fazquantas/vapid-privado` |
-| `ADMIN_SENHA` | **segredo** (idem; pelo menos 8 caracteres) | Entrada do `/admin`. Sem ele, o admin fica desligado; trocar a senha derruba as sessões do admin |
+| `VAPID_PRIVADO` | **segredo**, vem do segredo do GitHub (a CI copia) | Assina o push. Cópia no Keychain: `pessoal/fazquantas/vapid-privado` |
+| `ADMIN_SENHA` | **segredo**, vem do segredo do GitHub (a CI copia; 8+ caracteres) | Entrada do `/admin`. Sem ele, o admin fica desligado; trocar a senha derruba as sessões do admin |
 | `RAPIDO` | variável | `1` só nos testes E2E, com pausas curtas |
 
-Trocar o par VAPID: gerar um par P-256 novo, pôr a privada no segredo e a pública em `VAPID_PUBLICO`.
+Trocar o par VAPID: gerar um par P-256 novo, pôr a privada no segredo `VAPID_PRIVADO` do GitHub e a
+pública em `VAPID_PUBLICO`.
 Os aparelhos refazem a assinatura sozinhos ao abrir o jogo (o web compara a chave).
 
 ## O que cabe no plano gratuito

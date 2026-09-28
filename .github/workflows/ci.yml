@@ -1,0 +1,107 @@
+# Verifica todo push e PR (lint, tipos e testes de unidade) e, na main, publica no Cloudflare:
+# primeiro o Worker (servidor do jogo online), depois os segredos, depois o site.
+# Os testes E2E (Playwright) rodam à mão por enquanto: ver CONTRIBUTING.md.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  verificar:
+    name: Lint, tipos e testes
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm lint
+      - run: pnpm typecheck
+      - run: pnpm test
+
+  publicar:
+    name: Publicar no Cloudflare
+    needs: verificar
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    # Um deploy por vez; o mais novo espera o anterior terminar.
+    concurrency:
+      group: publicar-producao
+      cancel-in-progress: false
+    environment:
+      name: producao
+      url: https://fazquantas.pages.dev
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - name: Tem acesso ao Cloudflare?
+        id: acesso
+        run: |
+          if [ -z "$CLOUDFLARE_API_TOKEN" ] || [ -z "$CLOUDFLARE_ACCOUNT_ID" ]; then
+            echo "::warning::Sem CLOUDFLARE_API_TOKEN (segredo) ou CLOUDFLARE_ACCOUNT_ID (variável): nada foi publicado."
+            echo "ok=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "ok=true" >> "$GITHUB_OUTPUT"
+          fi
+      - if: steps.acesso.outputs.ok == 'true'
+        uses: actions/checkout@v4
+      - if: steps.acesso.outputs.ok == 'true'
+        uses: pnpm/action-setup@v4
+      - if: steps.acesso.outputs.ok == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - if: steps.acesso.outputs.ok == 'true'
+        run: pnpm install --frozen-lockfile
+
+      - name: Worker (servidor do jogo online)
+        if: steps.acesso.outputs.ok == 'true'
+        run: pnpm --filter @fodinha/worker exec wrangler deploy --message "${GITHUB_SHA::7}"
+
+      - name: Segredos do Worker (só os que existem no GitHub)
+        if: steps.acesso.outputs.ok == 'true'
+        env:
+          VAPID_PRIVADO: ${{ secrets.VAPID_PRIVADO }}
+          ADMIN_SENHA: ${{ secrets.ADMIN_SENHA }}
+        # Os valores vão num arquivo temporário (nunca em argumentos nem em log) e o arquivo some.
+        run: |
+          umask 077
+          node -e '
+            const s = {};
+            for (const k of ["VAPID_PRIVADO", "ADMIN_SENHA"]) if (process.env[k]) s[k] = process.env[k];
+            process.stdout.write(JSON.stringify(s));
+          ' > "$RUNNER_TEMP/segredos.json"
+          if [ "$(cat "$RUNNER_TEMP/segredos.json")" != "{}" ]; then
+            pnpm --filter @fodinha/worker exec wrangler secret bulk "$RUNNER_TEMP/segredos.json"
+          fi
+          rm -f "$RUNNER_TEMP/segredos.json"
+
+      - name: Site (Cloudflare Pages)
+        if: steps.acesso.outputs.ok == 'true'
+        run: |
+          pnpm --filter @fodinha/web build:pages
+          pnpm --filter @fodinha/worker exec wrangler pages deploy ../web/dist \
+            --project-name fazquantas --branch main --commit-hash "$GITHUB_SHA" --commit-dirty=true
+
+      - name: Saúde da produção
+        if: steps.acesso.outputs.ok == 'true'
+        run: |
+          curl -fsS https://fazquantas-api.fancy-night-938c.workers.dev/api/saude
+          curl -fsS -o /dev/null https://fazquantas.pages.dev/
