@@ -13,6 +13,9 @@ if (import.meta.env.PROD && !isNative) {
   );
 }
 
+// Build desta aba, à vista para diagnóstico (e para o teste de atualização).
+document.documentElement.dataset.build = __BUILD_ID__;
+
 startUiScale();
 
 createRoot(document.getElementById('root')!).render(

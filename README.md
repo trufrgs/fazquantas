@@ -19,7 +19,8 @@ pnpm install
 pnpm dev
 ```
 
-- Abra <http://localhost:5173> e toque em **Jogar agora**: começa uma partida contra 3 bots.
+- Abra <http://localhost:5173> e toque em **Jogar contra bots**: começa na hora, contra 3 bots
+  ("Mudar bots e regras" ajusta quantos, a dificuldade e as regras).
 - O `pnpm dev` também sobe o servidor do jogo online (o Worker, no `wrangler dev`) na porta 8787.
   Para jogar online na rede de casa,
   abra `http://<IP-do-computador>:5173` em outro navegador ou no celular (o Vite mostra o endereço

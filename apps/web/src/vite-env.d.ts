@@ -15,3 +15,5 @@ interface ImportMeta {
 }
 
 declare const __APP_VERSION__: string;
+/** Identidade do build (commit curto, ou a hora do build): o `version.json` publicado diz o mesmo. */
+declare const __BUILD_ID__: string;

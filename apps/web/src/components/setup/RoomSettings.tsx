@@ -14,6 +14,7 @@ import {
   type RoomUpdatePayload,
 } from '@fodinha/engine';
 import { Eye, EyeOff, KeyRound } from 'lucide-react';
+import { play } from '../../lib/sound';
 import { useState } from 'react';
 import { Button } from '../ui/Button';
 import { Segmented, Stepper, Toggle } from '../ui/Controls';
@@ -23,9 +24,46 @@ const TIMEOUT_LABEL = (t: number | null) =>
   t === null ? 'Sem limite' : t >= 3600 ? `${t / 3600} h` : t >= 60 ? `${t / 60} min` : `${t} s`;
 const LIVE_TIMEOUTS = TURN_TIMEOUT_OPTIONS.filter((t) => !isAsyncTurn(t));
 const ASYNC_TIMEOUTS = TURN_TIMEOUT_OPTIONS.filter((t) => isAsyncTurn(t));
-/** Ao trocar de jeito de jogar, o tempo que cada um começa. */
-const DEFAULT_LIVE_TIMEOUT = 30;
-const DEFAULT_ASYNC_TIMEOUT = 43200;
+
+/**
+ * Tempo por jogada num seletor só: a primeira linha é para jogar todo mundo junto, a segunda para
+ * cada um jogar no seu tempo (a sala fica assíncrona). Uma escolha entre todas.
+ */
+function TimeoutPicker({ value, onChange }: { value: number | null; onChange: (t: number | null) => void }) {
+  const row = (label: string, options: readonly (number | null)[], cols: string) => (
+    <div className="flex flex-col gap-1">
+      <span className="px-1 text-xs font-semibold text-tinta-2">{label}</span>
+      <div className={`grid gap-1 ${cols}`}>
+        {options.map((t) => {
+          const active = t === value;
+          return (
+            <button
+              key={String(t)}
+              type="button"
+              role="radio"
+              aria-checked={active}
+              onClick={() => {
+                play('click');
+                onChange(t);
+              }}
+              className={`min-h-10 whitespace-nowrap rounded-xl px-1 text-sm font-semibold transition ${
+                active ? 'bg-tinta text-papel shadow' : 'text-tinta/70'
+              }`}
+            >
+              {TIMEOUT_LABEL(t)}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+  return (
+    <div role="radiogroup" aria-label="Tempo por jogada" className="flex flex-col gap-2 rounded-2xl bg-tinta/8 p-2 ring-1 ring-tinta/10">
+      {row('Todo mundo junto', LIVE_TIMEOUTS, 'grid-cols-5')}
+      {row('Cada um no seu tempo', ASYNC_TIMEOUTS, 'grid-cols-4')}
+    </div>
+  );
+}
 
 function timeoutHint(t: number | null): string {
   if (!isAsyncTurn(t)) return 'Quem estoura o tempo duas vezes seguidas fica ausente: a mesa joga por ele até ele voltar.';
@@ -118,28 +156,7 @@ export function RoomSettings({ room, onChange }: RoomSettingsProps) {
         />
       </Field>
       <Field label="Tempo por jogada" hint={timeoutHint(room.turnTimeoutSec)}>
-        <div className="flex flex-col gap-2">
-          <Segmented<'live' | 'async'>
-            label="Jeito de jogar"
-            value={isAsyncTurn(room.turnTimeoutSec) ? 'async' : 'live'}
-            onChange={(mode) =>
-              void change({ turnTimeoutSec: mode === 'async' ? DEFAULT_ASYNC_TIMEOUT : DEFAULT_LIVE_TIMEOUT })
-            }
-            options={[
-              { value: 'live', label: 'Todo mundo junto' },
-              { value: 'async', label: 'Cada um no seu tempo' },
-            ]}
-          />
-          <Segmented<number | null>
-            label="Tempo por jogada"
-            value={room.turnTimeoutSec}
-            onChange={(turnTimeoutSec) => void change({ turnTimeoutSec })}
-            options={(isAsyncTurn(room.turnTimeoutSec) ? ASYNC_TIMEOUTS : LIVE_TIMEOUTS).map((t) => ({
-              value: t,
-              label: TIMEOUT_LABEL(t),
-            }))}
-          />
-        </div>
+        <TimeoutPicker value={room.turnTimeoutSec} onChange={(turnTimeoutSec) => void change({ turnTimeoutSec })} />
       </Field>
       <Toggle
         checked={room.ranked}

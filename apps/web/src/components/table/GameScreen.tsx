@@ -601,12 +601,12 @@ function Table({
         />
       )}
       <Scoreboard open={score} onClose={() => setScore(false)} view={view} seats={seats} />
-      <Sheet open={forca} onClose={() => setForca(false)} label="Força das cartas">
+      <Sheet open={forca} onClose={() => setForca(false)} label="Quem mata quem">
         <h2
           className="font-display text-2xl font-bold"
           style={{ fontVariationSettings: '"SOFT" 100, "WONK" 1' }}
         >
-          Força das cartas
+          Quem mata quem
         </h2>
         <p className="mb-3 text-sm text-tinta-2">
           Da mais forte (1) pra mais fraca. Cartas da mesma linha empardam.

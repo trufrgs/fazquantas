@@ -1,4 +1,4 @@
-import { BOT_NAMES, DEFAULT_RULES, GAUCHO_AVATARS, ROOM_CAPACITY, normalizeRules, type JoinResult } from '@fodinha/engine';
+import { BOT_NAMES, DEFAULT_RULES, DEFAULT_TURN_TIMEOUT_SEC, GAUCHO_AVATARS, ROOM_CAPACITY, normalizeRules, type JoinResult } from '@fodinha/engine';
 import { describe, expect, it } from 'vitest';
 import { MESSAGES } from '../src/erros';
 import { connect, createRoom, joinRoom, ok, startWorld, waitUntil } from './helpers';
@@ -25,7 +25,7 @@ describe('criar e entrar', () => {
       hostId: res.playerId,
       youId: res.playerId,
       rules: { ...DEFAULT_RULES },
-      turnTimeoutSec: 30,
+      turnTimeoutSec: DEFAULT_TURN_TIMEOUT_SEC,
       pace: 'normal',
       bestOf: 1,
       ranked: false,
@@ -198,10 +198,10 @@ describe('anfitrião', () => {
     ok(
       await ana.call('room:update', {
         rules: { startingLives: 3, hierarchy: 'vira', maxCards: 5, inventada: true },
-        turnTimeoutSec: 60,
+        turnTimeoutSec: 180,
       }),
     );
-    state = await ana.waitForState((s) => s.turnTimeoutSec === 60);
+    state = await ana.waitForState((s) => s.turnTimeoutSec === 180);
     expect(state.rules).toEqual(normalizeRules({ ...DEFAULT_RULES, startingLives: 3, hierarchy: 'vira', maxCards: 5 }));
     ok(await ana.call('room:update', { rules: { maxCards: null }, turnTimeoutSec: 120 }));
     state = await ana.waitForState((s) => s.turnTimeoutSec === 120);

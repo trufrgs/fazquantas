@@ -76,7 +76,7 @@ export function Settings() {
           Créditos
         </Button>
       </div>
-      <p className="text-center text-xs text-papel/55">Faz quantas? {__APP_VERSION__}</p>
+      <p className="text-center text-xs text-papel/55">Faz quantas? {__APP_VERSION__} · build {__BUILD_ID__}</p>
     </ScreenFrame>
   );
 }

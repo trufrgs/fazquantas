@@ -134,21 +134,26 @@ export function Home() {
                 <span className="text-xs font-semibold opacity-75">{savedGameSummary()}</span>
               </Button>
             )}
-            <Button
-              variant={saved ? 'papel' : 'ouro'}
-              size="lg"
-              onClick={withName(() => (saved ? setConfirmNew(true) : startLocalGame()))}
-            >
-              Jogar agora
-            </Button>
             {multiplayer && (
-              <Button variant="papel" size="lg" onClick={withName(() => go('online'))}>
+              <Button variant={saved || myTurn ? 'papel' : 'ouro'} size="lg" onClick={withName(() => go('online'))}>
                 Jogar com a gurizada
               </Button>
             )}
-            <Button variant="vidro" onClick={withName(() => go('setup'))}>
-              Montar partida contra bots
+            <Button
+              variant={saved || multiplayer ? 'papel' : 'ouro'}
+              size="lg"
+              onClick={withName(() => (saved ? setConfirmNew(true) : startLocalGame()))}
+            >
+              Jogar contra bots
             </Button>
+            {/* Os ajustes da partida contra bots (quantos, dificuldade, regras) ficam num link só. */}
+            <button
+              type="button"
+              onClick={withName(() => go('setup'))}
+              className="self-center text-sm font-bold text-papel/80 underline-offset-4 hover:underline"
+            >
+              Mudar bots e regras
+            </button>
             {session && session.code !== myTurn?.code && (
               <Button variant="vidro" disabled={joining} onClick={() => void openRoom(session.code)}>
                 Voltar pra sala {session.code}

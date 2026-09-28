@@ -42,9 +42,12 @@ test('assíncrona: larga a mesa, a vez espera, "Tua vez na sala" no início e vo
   await ana.page.goto('/');
   await ana.page.getByRole('button', { name: 'Jogar com a gurizada' }).click();
   await ana.page.getByRole('button', { name: 'Criar sala' }).click();
-  await ana.page.getByRole('radio', { name: 'Cada um no seu tempo' }).click();
-  await expect(ana.page.getByRole('radio', { name: '12 h' })).toHaveAttribute('aria-checked', 'true');
-  await expect(ana.page.getByRole('radio', { name: 'Sem limite' })).toBeVisible();
+  // Um seletor só: a primeira linha é jogar junto (1 min é o padrão), a segunda cada um no seu tempo.
+  const tempo = ana.page.getByRole('radiogroup', { name: 'Tempo por jogada' });
+  await expect(tempo.getByRole('radio', { name: '1 min' })).toHaveAttribute('aria-checked', 'true');
+  for (const t of ['30 s', '2 min', '3 min', '5 min', '1 h', '6 h', 'Sem limite']) await expect(tempo.getByRole('radio', { name: t })).toBeVisible();
+  await tempo.getByRole('radio', { name: '12 h' }).click();
+  await expect(tempo.getByRole('radio', { name: '12 h' })).toHaveAttribute('aria-checked', 'true');
   const codeLabel = await ana.page.locator('div[aria-label^="Código "]').getAttribute('aria-label');
   const code = codeLabel!.replace('Código ', '').replace(/ /g, '');
 

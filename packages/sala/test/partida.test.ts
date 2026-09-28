@@ -218,8 +218,8 @@ describe('partida online', () => {
     expect(beto.closed?.code).toBe(4001);
     await beto2.waitForState((s) => s.youId === b.playerId);
     // Uma volta de mensagem depois, o assento continua conectado.
-    ok(await ana.call('room:update', { turnTimeoutSec: 15 }));
-    const state = await ana.waitForState((s) => s.turnTimeoutSec === 15);
+    ok(await ana.call('room:update', { turnTimeoutSec: 30 }));
+    const state = await ana.waitForState((s) => s.turnTimeoutSec === 30);
     expect(state.seats[1]).toMatchObject({ playerId: b.playerId, connected: true });
     expect(state.seats).toHaveLength(2);
   });

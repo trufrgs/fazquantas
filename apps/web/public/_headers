@@ -4,6 +4,18 @@
   Referrer-Policy: strict-origin-when-cross-origin
   Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=()
 
+# O que diz qual é a versão nunca fica em cache (senão a aba aberta não descobre a nova).
+/sw.js
+  Cache-Control: no-cache
+/workbox-*.js
+  Cache-Control: no-cache
+/index.html
+  Cache-Control: no-cache
+/manifest.webmanifest
+  Cache-Control: no-cache
+/version.json
+  Cache-Control: no-store
+
 # Arquivos do build com hash no nome: podem ficar no cache para sempre.
 /assets/*
   Cache-Control: public, max-age=31536000, immutable

@@ -5,7 +5,7 @@ test('partida local contra bots do início ao fim', async ({ page }) => {
   const errors = watchErrors(page);
   await presetSettings(page);
   await page.goto('/');
-  await page.getByRole('button', { name: 'Jogar agora' }).click();
+  await page.getByRole('button', { name: 'Jogar contra bots' }).click();
   await expect(page.getByText('Rodada 1')).toBeVisible();
 
   const actions = await playUntilGameOver(page);
@@ -25,7 +25,7 @@ test('continuar a partida depois de recarregar a página', async ({ page }) => {
   const errors = watchErrors(page);
   await presetSettings(page, { speed: 'normal', rules: { startingLives: 5 } });
   await page.goto('/');
-  await page.getByRole('button', { name: 'Jogar agora' }).click();
+  await page.getByRole('button', { name: 'Jogar contra bots' }).click();
   await page.locator('section[aria-label="Teu palpite"] button:not([disabled])').first().click();
   await page.waitForTimeout(1500);
   await page.reload();
@@ -38,7 +38,7 @@ test('continuar a partida depois de recarregar a página', async ({ page }) => {
 test('palpite proibido do pé fica desabilitado e explicado', async ({ page }) => {
   await presetSettings(page, { speed: 'turbo', players: 2, rules: { dealerRestriction: true, blindRound: 'off', startingLives: 5 } });
   await page.goto('/');
-  await page.getByRole('button', { name: 'Jogar agora' }).click();
+  await page.getByRole('button', { name: 'Jogar contra bots' }).click();
   // Joga até ser o pé numa rodada (com 2 jogadores, alterna a cada rodada).
   for (let i = 0; i < 40; i++) {
     const panel = page.locator('section[aria-label="Teu palpite"]');
@@ -68,13 +68,13 @@ test('montar partida pergunta antes de apagar a partida salva', async ({ page })
   const errors = watchErrors(page);
   await presetSettings(page, { speed: 'normal', rules: { startingLives: 5 } });
   await page.goto('/');
-  await page.getByRole('button', { name: 'Jogar agora' }).click();
+  await page.getByRole('button', { name: 'Jogar contra bots' }).click();
   await page.locator('section[aria-label="Teu palpite"] button:not([disabled])').first().click();
   await page.waitForTimeout(800);
   await page.reload();
   await expect(page.getByRole('button', { name: /Continuar partida/ })).toBeVisible();
 
-  await page.getByRole('button', { name: 'Montar partida contra bots' }).click();
+  await page.getByRole('button', { name: 'Mudar bots e regras' }).click();
   await page.getByRole('button', { name: 'Começar partida' }).click();
   const confirm = page.getByRole('dialog', { name: 'Começar outra partida' });
   await expect(confirm).toBeVisible();
@@ -83,7 +83,7 @@ test('montar partida pergunta antes de apagar a partida salva', async ({ page })
   await page.getByRole('button', { name: 'Voltar' }).click();
   await expect(page.getByRole('button', { name: /Continuar partida/ })).toBeVisible();
 
-  await page.getByRole('button', { name: 'Montar partida contra bots' }).click();
+  await page.getByRole('button', { name: 'Mudar bots e regras' }).click();
   await page.getByRole('button', { name: 'Começar partida' }).click();
   await page.getByRole('dialog', { name: 'Começar outra partida' }).getByRole('button', { name: 'Começar outra' }).click();
   await expect(page.getByText('Rodada 1')).toBeVisible();
@@ -93,7 +93,7 @@ test('montar partida pergunta antes de apagar a partida salva', async ({ page })
 test('o menu da partida reabre no começo, sem a confirmação da vez anterior', async ({ page }) => {
   await presetSettings(page, { speed: 'normal' });
   await page.goto('/');
-  await page.getByRole('button', { name: 'Jogar agora' }).click();
+  await page.getByRole('button', { name: 'Jogar contra bots' }).click();
   const menu = page.getByRole('dialog', { name: 'Menu da partida' });
   await page.getByRole('button', { name: 'Menu', exact: true }).click();
   await menu.getByRole('button', { name: 'Sair', exact: true }).click();

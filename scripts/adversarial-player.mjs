@@ -77,7 +77,7 @@ async function play(cfg) {
   page.on('pageerror', (e) => errors.push(`pageerror: ${e.message}`));
   page.on('console', (m) => m.type() === 'error' && errors.push(`console: ${m.text()}`));
   await page.goto(`${BASE}/`, { waitUntil: 'networkidle' });
-  await page.getByRole('button', { name: 'Jogar agora' }).click();
+  await page.getByRole('button', { name: 'Jogar contra bots' }).click();
   let shots = 0;
   let maxReveal = 0;
   let rotated = false;

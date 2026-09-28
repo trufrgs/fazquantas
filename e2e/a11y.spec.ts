@@ -17,10 +17,10 @@ test.describe('acessibilidade', () => {
 
   test('telas de menu sem violações graves', async ({ page }) => {
     await page.goto('/');
-    await expect(page.getByRole('button', { name: 'Jogar agora' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Jogar contra bots' })).toBeVisible();
     expect(await serious(page)).toEqual([]);
 
-    await page.getByRole('button', { name: /Montar partida/ }).click();
+    await page.getByRole('button', { name: 'Mudar bots e regras' }).click();
     expect(await serious(page)).toEqual([]);
     await page.getByRole('button', { name: 'Voltar' }).click();
 
@@ -30,7 +30,7 @@ test.describe('acessibilidade', () => {
 
   test('mesa sem violações graves', async ({ page }) => {
     await page.goto('/');
-    await page.getByRole('button', { name: 'Jogar agora' }).click();
+    await page.getByRole('button', { name: 'Jogar contra bots' }).click();
     await expect(page.getByText('Rodada 1')).toBeVisible();
     await page.waitForTimeout(1500);
     expect(await serious(page)).toEqual([]);

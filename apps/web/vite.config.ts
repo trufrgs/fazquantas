@@ -2,7 +2,29 @@ import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
 import { defineConfig } from 'vite';
 import { VitePWA } from 'vite-plugin-pwa';
+import { execSync } from 'node:child_process';
 import pkg from './package.json' with { type: 'json' };
+
+/** Commit do build (na CI vem do GITHUB_SHA); sem git, a hora do build. */
+function buildId(): string {
+  if (process.env.VITE_BUILD_ID) return process.env.VITE_BUILD_ID;
+  if (process.env.GITHUB_SHA) return process.env.GITHUB_SHA.slice(0, 7);
+  try {
+    return execSync('git rev-parse --short HEAD', { stdio: ['ignore', 'pipe', 'ignore'] }).toString().trim();
+  } catch {
+    return String(Date.now());
+  }
+}
+const BUILD_ID = buildId();
+
+/** `version.json` com o build publicado: o app compara com o dele para saber se ficou para trás. */
+const versionFile = {
+  name: 'fodinha-version-json',
+  apply: 'build' as const,
+  generateBundle(this: { emitFile: (f: { type: 'asset'; fileName: string; source: string }) => void }) {
+    this.emitFile({ type: 'asset', fileName: 'version.json', source: JSON.stringify({ build: BUILD_ID }) + '\n' });
+  },
+};
 
 /** No build nativo não há PWA: o registro do service worker vira um no-op. */
 const nativePwaStub = {
@@ -15,6 +37,7 @@ const nativePwaStub = {
 export default defineConfig(({ mode }) => ({
   plugins: [
     react(),
+    mode !== 'native' && versionFile,
     mode === 'native' && nativePwaStub,
     tailwindcss(),
     mode !== 'native' &&
@@ -41,6 +64,7 @@ export default defineConfig(({ mode }) => ({
           ],
         },
         workbox: {
+          // Sem .json: o version.json nunca vem do cache (é ele que diz se a aba ficou para trás).
           globPatterns: ['**/*.{js,css,html,svg,png,webp,woff2,mp3,wav}'],
           // Só o subconjunto latino das fontes vai para o cache offline.
           globIgnores: ['**/*-cyrillic*', '**/*-vietnamese*', '**/*-greek*', '**/*-latin-ext*'],
@@ -54,7 +78,7 @@ export default defineConfig(({ mode }) => ({
         },
       }),
   ],
-  define: { __APP_VERSION__: JSON.stringify(pkg.version) },
+  define: { __APP_VERSION__: JSON.stringify(pkg.version), __BUILD_ID__: JSON.stringify(BUILD_ID) },
   server: { host: true, port: 5173 },
   preview: { host: true, port: 4173 },
   build: { target: 'es2022', chunkSizeWarningLimit: 900 },

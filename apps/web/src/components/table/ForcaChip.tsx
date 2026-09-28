@@ -20,7 +20,7 @@ const FIXED_MANILHAS: Record<Exclude<HierarchyMode, 'vira'>, CardId[]> = {
 
 const RANK_LABEL: Record<Rank, string> = { 1: 'ás', 2: '2', 3: '3', 4: '4', 5: '5', 6: '6', 7: '7', 10: 'sota', 11: 'cavalo', 12: 'rei' };
 
-/** Chip no canto da mesa: as manilhas (fixas) ou a vira e a manilha da rodada. Toque abre a força das cartas. */
+/** Cola no canto da mesa, "quem mata quem": as manilhas (fixas) ou a vira e a manilha da rodada. Toque abre a força das cartas. */
 export function ForcaChip({ mode, vira, onOpen }: { mode: HierarchyMode; vira: CardId | null; onOpen: () => void }) {
   const s = useUiScale();
   return (
@@ -28,7 +28,7 @@ export function ForcaChip({ mode, vira, onOpen }: { mode: HierarchyMode; vira: C
       type="button"
       onClick={onOpen}
       className="absolute bottom-2 left-3 z-20 flex items-center gap-2 rounded-2xl bg-noite/45 px-2.5 py-1.5 text-left ring-1 ring-papel/15 backdrop-blur-sm transition active:scale-95"
-      aria-label="Ver a força das cartas"
+      aria-label="Quem mata quem: a força das cartas"
     >
       {mode === 'vira' ? (
         vira ? (
@@ -42,12 +42,14 @@ export function ForcaChip({ mode, vira, onOpen }: { mode: HierarchyMode; vira: C
         ) : null
       ) : (
         <>
-          <span className="flex -space-x-2">
-            {FIXED_MANILHAS[mode].map((id) => (
-              <Card key={id} id={id} width={20 * s} />
+          <span className="flex shrink-0">
+            {FIXED_MANILHAS[mode].map((id, k) => (
+              <span key={id} className="shrink-0" style={{ marginLeft: k === 0 ? 0 : -8 * s }}>
+                <Card id={id} width={20 * s} />
+              </span>
             ))}
           </span>
-          <span className="text-xs font-bold leading-tight">manilhas</span>
+          <span className="text-xs font-bold leading-tight">quem mata quem</span>
         </>
       )}
     </button>
@@ -94,9 +96,12 @@ export function Hierarchy({ mode, vira }: { mode: HierarchyMode; vira: CardId | 
       {groups.map((ids, i) => (
         <li key={i} className="flex items-center gap-3">
           <span className="w-6 shrink-0 text-right font-display text-lg font-bold text-tinta-2 tabular-nums">{i + 1}</span>
-          <span className="flex shrink-0 -space-x-6" style={{ width: 44 + (ids.length - 1) * 20 }}>
-            {ids.map((id) => (
-              <Card key={id} id={id} width={44 * s} className="shadow-[0_2px_6px_rgb(0_0_0/0.25)]" />
+          {/* Carta e sobreposição na mesma escala: nada de caixa fixa espremendo a carta. */}
+          <span className="flex shrink-0">
+            {ids.map((id, k) => (
+              <span key={id} className="shrink-0" style={{ marginLeft: k === 0 ? 0 : -24 * s }}>
+                <Card id={id} width={44 * s} className="shadow-[0_2px_6px_rgb(0_0_0/0.25)]" />
+              </span>
             ))}
           </span>
           <span className="min-w-0 text-[0.9375rem] font-semibold leading-tight">{groupLabel(ids, ctx)}</span>

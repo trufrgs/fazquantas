@@ -235,10 +235,10 @@ describe('ranking', () => {
 
 describe('ausência e avisos', () => {
   it('quem estoura o tempo 2 vezes seguidas fica ausente até dizer "voltei"', async () => {
-    const mundo = startWorld({ turnScale: 0.002 }); // 15 s viram 30 ms
+    const mundo = startWorld({ turnScale: 0.001 }); // 30 s viram 30 ms
     const ana = connect(mundo);
     const beto = connect(mundo);
-    const a = await createRoom(ana, 'Ana', { settings: { turnTimeoutSec: 15, rules: { blindRound: 'off' } } });
+    const a = await createRoom(ana, 'Ana', { settings: { turnTimeoutSec: 30, rules: { blindRound: 'off' } } });
     const b = await joinRoom(beto, a.code, 'Beto');
     const pa = autoPlay(ana); // Ana joga; Beto some sem fechar a aba
     ok(await ana.call('room:start'));
@@ -257,9 +257,9 @@ describe('ausência e avisos', () => {
   });
 
   it('todos ausentes: a partida pausa; alguém voltar retoma', async () => {
-    const mundo = startWorld({ turnScale: 0.002 });
+    const mundo = startWorld({ turnScale: 0.001 });
     const ana = connect(mundo);
-    const a = await createRoom(ana, 'Ana', { settings: { turnTimeoutSec: 15 } });
+    const a = await createRoom(ana, 'Ana', { settings: { turnTimeoutSec: 30 } });
     ok(await ana.call('room:addBot', { difficulty: 'facil' }));
     ok(await ana.call('room:start'));
     const game = () => mundo.rooms.get(a.code)!.game!;

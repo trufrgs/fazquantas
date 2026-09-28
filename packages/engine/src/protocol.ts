@@ -16,7 +16,7 @@ export const ROOM_CODE_LENGTH = 4;
 export const ROOM_CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 export const NAME_MAX_LENGTH = 16;
 /** Segundos por jogada; `null` = sem limite (sempre por último na lista). */
-export const TURN_TIMEOUT_OPTIONS = [15, 30, 60, 120, 3600, 21600, 43200, null] as const;
+export const TURN_TIMEOUT_OPTIONS = [30, 60, 120, 180, 300, 3600, 21600, 43200, null] as const;
 /**
  * A partir de 1 h por jogada (ou sem limite) a sala é assíncrona: quem fecha o jogo não perde a
  * vez nem vira bot; a vez espera o prazo e o aviso chega por push.
@@ -26,7 +26,7 @@ export const ASYNC_TURN_SEC = 3600;
 export function isAsyncTurn(turnTimeoutSec: number | null): boolean {
   return turnTimeoutSec === null || turnTimeoutSec >= ASYNC_TURN_SEC;
 }
-export const DEFAULT_TURN_TIMEOUT_SEC = 30;
+export const DEFAULT_TURN_TIMEOUT_SEC = 60;
 export const PASSWORD_MAX_LENGTH = 24;
 
 /** Ritmo da mesa: quanto os bots pensam e quanto a vaza e o resumo da rodada ficam na tela. */

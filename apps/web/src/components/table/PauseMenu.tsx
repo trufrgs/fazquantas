@@ -62,7 +62,7 @@ export function PauseMenu(p: PauseMenuProps) {
           </Button>
           <div className="grid grid-cols-2 gap-2">
             <Button icon={<Layers size={18} />} onClick={p.onHierarchy}>
-              Força das cartas
+              Quem mata quem
             </Button>
             <Button icon={<BookOpen size={18} />} onClick={p.onRules}>
               Como jogar
