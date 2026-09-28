@@ -8,7 +8,7 @@
   },
   "scripts": {
     "dev": "pnpm --parallel --filter @fodinha/web --filter @fodinha/worker dev",
-    "test": "pnpm --filter @fodinha/engine --filter @fodinha/sala --filter @fodinha/web test",
+    "test": "pnpm --filter @fodinha/engine --filter @fodinha/sala --filter @fodinha/worker --filter @fodinha/web test",
     "e2e": "playwright test",
     "build": "pnpm --filter @fodinha/web build",
     "typecheck": "pnpm -r typecheck",

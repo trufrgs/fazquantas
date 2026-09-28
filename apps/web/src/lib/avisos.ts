@@ -7,7 +7,10 @@ import { serverUrl } from './platform';
  */
 
 const BASE_TITLE = typeof document !== 'undefined' ? document.title : '';
+const TURN_BADGE = '🔔 Tua vez';
 let badge: string | null = null;
+/** É a vez desta pessoa agora (para avisar se ela esconder a página no meio da vez). */
+let myTurn = false;
 /** Este aparelho recebe push do servidor: a vez chega por lá, a página não repete o aviso. */
 let pushActive = false;
 
@@ -23,6 +26,7 @@ function setBadge(text: string | null) {
 if (typeof document !== 'undefined') {
   document.addEventListener('visibilitychange', () => {
     if (!hidden() && badge) setBadge(null);
+    else if (hidden() && myTurn) setBadge(TURN_BADGE);
   });
 }
 
@@ -133,17 +137,24 @@ async function show(title: string, body: string, tag: string) {
   }
 }
 
+/** A mesa diz se é a vez desta pessoa (a cada visão nova). */
+export function setMyTurn(on: boolean) {
+  myTurn = on;
+  if (!on && badge === TURN_BADGE) setBadge(null);
+}
+
 /** A vez chegou e a pessoa não está olhando. */
 export function warnTurn(kind: 'bid' | 'play', secondsLeft: number | null) {
   if (!hidden()) return;
   const what = kind === 'bid' ? 'palpitar' : 'jogar';
-  setBadge('🔔 Tua vez');
+  setBadge(TURN_BADGE);
   void show('Tua vez!', secondsLeft ? `Tua vez de ${what}. Tem ${secondsLeft} s.` : `Tua vez de ${what}.`, 'vez');
 }
 
 /** Algo aconteceu na sala enquanto a pessoa estava em outra tela. */
 export function warnRoom(text: string, tag = 'sala') {
   if (!hidden()) return;
-  setBadge('🔔 Sala');
+  // A vez pesa mais que a notícia da sala: não troca o aviso.
+  if (badge !== TURN_BADGE) setBadge('🔔 Sala');
   void show('Faz quantas?', text, tag);
 }

@@ -44,6 +44,15 @@ export function Credits() {
           React, Motion, Tailwind CSS, zustand, howler.js, zod, Cloudflare Workers (wrangler), Capacitor, DiceBear e canvas-confetti, sob licença MIT/ISC.
         </p>
       </Panel>
+      <Panel title="Privacidade">
+        <p className="text-sm text-tinta-2">
+          Sem conta, sem anúncio, sem rastreamento. O que o jogo online guarda, e por quanto tempo:{' '}
+          <a href="/privacidade.html" target="_blank" rel="noreferrer" className="font-semibold text-espadas underline underline-offset-2">
+            política de privacidade
+          </a>
+          .
+        </p>
+      </Panel>
     </ScreenFrame>
   );
 }

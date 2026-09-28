@@ -1,6 +1,6 @@
 ---
 name: deploy-fodinha
-description: Como publicar o servidor do Faz quantas? (web + multiplayer) e o que muda para escalar
+description: Como o Faz quantas? está publicado (Cloudflare Pages + Workers), o que cabe no plano gratuito e como operar
 owner: "@trufrgs"
 last_updated: 2026-09-28
 status: active
@@ -8,61 +8,64 @@ status: active
 
 # Deploy
 
-Um processo Node só serve tudo: os arquivos do web (build do Vite) e o multiplayer (socket.io) na
-mesma porta. As salas ficam na memória desse processo.
+Tudo roda no plano gratuito do Cloudflare, na conta pessoal, e publica sozinho a cada push na `main`
+do [trufrgs/fazquantas](https://github.com/trufrgs/fazquantas).
 
-## Variáveis de ambiente
-
-| Variável | Padrão | Para quê |
+| Parte | Onde | Endereço |
 |---|---|---|
-| `PORT` | `3001` | porta HTTP |
-| `HOST` | `0.0.0.0` | interface de rede |
-| `STATIC_DIR` | `apps/web/dist` (se existir) | pasta do build do web |
-| `CORS_ORIGINS` | qualquer origem | lista separada por vírgula; as origens do app Capacitor entram sozinhas |
-| `FODINHA_FAST` | desligado | `1` encurta as pausas (testes e demonstração) |
+| Site (PWA) | Cloudflare Pages, projeto `fazquantas` | <https://fazquantas.pages.dev> |
+| Servidor do jogo online | Cloudflare Workers, `fazquantas-api` | <https://fazquantas-api.fancy-night-938c.workers.dev> |
 
-O web descobre o servidor sozinho quando está na mesma origem. Se o web ficar num domínio e o servidor
-em outro, gere o build com `VITE_SERVER_URL=https://servidor.exemplo.com pnpm build`.
+## Como funciona
 
-## Docker
+- **Site:** o Pages roda `pnpm --filter @fodinha/web build:pages` e publica `apps/web/dist`
+  (variáveis de build `PNPM_VERSION=9.15.0` e `NODE_VERSION=24`). O web fala com o Worker de produção
+  por padrão (`apps/web/src/lib/platform.ts`); `VITE_SERVER_URL` troca o endereço.
+- **Servidor:** um Worker na frente (`apps/worker/src/index.ts`) e Durable Objects com SQLite:
+  - `SalaDO`: uma sala por objeto (`idFromName(código)`). WebSockets hibernáveis, estado salvo a cada
+    mudança, e o alarme do objeto como relógio (bots, tempo da vez, pausas). A sala some sozinha
+    depois de 15 min sem ninguém conectado.
+  - `RankingDO`: um objeto só com as partidas valendo ranking (tabelas `jogadores`, `partidas`,
+    `resultados`). O nome do objeto está em `RANKING_NOME` (`apps/worker/src/ranking-do.ts`): trocar
+    o nome começa um ranking zerado.
+  - `AvisosDO`: assinaturas de Web Push por perfil (até 5 aparelhos por perfil).
+- O Worker publica pelo Workers Builds (Git): deploy com
+  `pnpm --filter @fodinha/worker exec wrangler deploy`; branches que não são a `main` sobem uma versão
+  de prévia (`wrangler versions upload`).
 
-```bash
-docker build -t fodinha .
-docker run -p 3001:3001 fodinha
-```
+## Variáveis e segredos do Worker
 
-A imagem (~180 MB) tem healthcheck em `/health`, roda como usuário `node` e não precisa de volume.
+| Nome | Tipo | Para quê |
+|---|---|---|
+| `ORIGENS` | variável | Sites que podem abrir salas (além de localhost, rede local, prévias `*.fazquantas.pages.dev` e o app nativo) |
+| `SITE` | variável | Link das notificações |
+| `VAPID_PUBLICO` / `VAPID_CONTATO` | variável | Web Push |
+| `VAPID_PRIVADO` | **segredo** (painel do Worker → Settings → Variables and secrets) | Assina o push. Cópia no Keychain: `pessoal/fazquantas/vapid-privado` |
+| `RAPIDO` | variável | `1` só nos testes E2E, com pausas curtas |
 
-## Onde hospedar
+Trocar o par VAPID: gerar um par P-256 novo, pôr a privada no segredo e a pública em `VAPID_PUBLICO`.
+Os aparelhos refazem a assinatura sozinhos ao abrir o jogo (o web compara a chave).
 
-O requisito é suportar WebSocket e manter **uma instância sempre ligada**: se a instância dorme ou
-reinicia, as salas em andamento somem (quem estava jogando volta ao início).
+## O que cabe no plano gratuito
 
-- **Fly.io:** `fly launch` com o Dockerfile, `internal_port = 3001`, `auto_stop_machines = "off"` e
-  `min_machines_running = 1`. WebSocket funciona sem configuração extra.
-- **Render / Railway:** serviço web a partir do Dockerfile, health check em `/health`, plano sem
-  hibernação.
-- **Google Cloud Run:** `--min-instances=1 --max-instances=1 --session-affinity --timeout=3600`.
-  O limite de 60 min por conexão não atrapalha: o cliente reconecta sozinho e volta ao mesmo assento.
+| Limite (por dia) | Quanto a mesa gasta |
+|---|---|
+| 100 mil requisições | Cada mensagem de WebSocket conta como requisição ao Durable Object; o ping de 20 s é respondido sem acordar a sala |
+| 13 mil GB-s de Durable Objects | A sala hiberna quando ninguém joga; partida de 4 pessoas fica bem abaixo de 1 GB-s |
+| 100 mil linhas escritas | Uma gravação por mudança de estado da sala e poucas por partida ranqueada |
+| 10 ms de CPU por invocação | O bot difícil tem teto de trabalho (`MC_WORK_BUDGET`) e fica em ~4 ms no p99; cada lance de bot roda num alarme próprio |
 
-Use HTTPS: instalar o PWA, compartilhar convite e copiar para a área de transferência exigem origem
-segura.
+Folga para centenas de partidas por dia. Se passar do limite, as requisições do dia falham até a
+virada (00:00 UTC, 21:00 BRT); nada é cobrado.
 
-## Limites e proteção
+## Operar
 
-- Até 5.000 salas simultâneas; salas sem ninguém conectado somem depois de 5 minutos.
-- Toda mensagem é validada (zod) e há limite de taxa por conexão (rajada de 20, 10 por segundo).
-- Cada jogador recebe só a própria visão da mesa; o servidor nunca manda a mão de outro jogador.
-
-## Para escalar depois
-
-Uma instância aguenta muitas salas (o jogo é por turnos e os bots decidem em milissegundos). Quando
-precisar de mais de uma instância, o estado das salas precisa ficar num lugar só por sala:
-
-1. **Fatiar por código de sala:** um roteador na frente manda cada código sempre para a mesma
-   instância (o código entra na URL do socket).
-2. **Trocar o transporte:** o `GameHost` é independente de transporte, então dá para mover cada sala
-   para um Durable Object (Cloudflare) ou para uma sala do Colyseus sem mexer nas regras.
-
-O adaptador Redis do socket.io sozinho **não** resolve: ele distribui mensagens, não o estado da
-partida.
+- **Logs:** painel do Worker → Observability (a sala loga `sala encerrada`, erros de ranking, push e
+  alarme).
+- **Saúde:** `curl https://fazquantas-api.fancy-night-938c.workers.dev/api/saude`.
+- **Testes contra a produção:** `E2E_BASE=https://fazquantas.pages.dev pnpm exec playwright test
+  e2e/amigos.spec.ts e2e/online-game.spec.ts` (três navegadores isolados, senha, série e ranking).
+  Esses testes jogam partidas valendo ranking: depois, troque `RANKING_NOME` para o ranking de verdade
+  não mostrar os jogadores de teste.
+- **Desenvolvimento:** `pnpm dev` sobe o web (5173) e o `wrangler dev` (8787), com os mesmos Durable
+  Objects em SQLite local (`apps/worker/.wrangler/`).

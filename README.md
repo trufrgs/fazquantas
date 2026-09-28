@@ -1,7 +1,8 @@
 # Faz quantas?
 
 A Fodinha com baralho espanhol e regra gaúcha: diz quantas faz, faz quantas disse. Dá para jogar contra
-bots no navegador ou com amigos online. É um webapp pronto para virar app Android e iOS com Capacitor.
+bots no navegador ou com amigos online em <https://fazquantas.pages.dev>. É um webapp pronto para
+virar app Android e iOS com Capacitor.
 
 <p>
   <img src="docs/img/inicio.webp" alt="Tela inicial" width="250" />
@@ -19,7 +20,8 @@ pnpm dev
 ```
 
 - Abra <http://localhost:5173> e toque em **Jogar agora**: começa uma partida contra 3 bots.
-- O `pnpm dev` também sobe o servidor multiplayer na porta 3001. Para jogar online na rede de casa,
+- O `pnpm dev` também sobe o servidor do jogo online (o Worker, no `wrangler dev`) na porta 8787.
+  Para jogar online na rede de casa,
   abra `http://<IP-do-computador>:5173` em outro navegador ou no celular (o Vite mostra o endereço
   "Network" no terminal), toque em **Jogar com a gurizada** e crie ou entre numa sala.
 
@@ -29,9 +31,14 @@ pnpm dev
   bastião, 7 de espadas e 7 de ouros). Detalhes, variantes e fontes em [docs/REGRAS.md](docs/REGRAS.md).
 - **Bots** em três níveis. O difícil simula a rodada centenas de vezes (Monte Carlo) e lê os palpites
   na rodada às cegas. Eles só enxergam o que um jogador enxergaria.
-- **Online:** salas com código de 4 letras e link de convite. O anfitrião completa a mesa com bots,
-  ajusta as regras e o tempo por jogada. Quem cai reconecta no mesmo lugar e, enquanto isso, o jogo
-  joga por ele. Tem revanche e volta para a sala.
+- **Online:** salas com código de 4 letras, link de convite e senha opcional. O anfitrião completa a
+  mesa com bots, ajusta as regras, o ritmo (calma, normal ou ligeira) e o tempo por jogada. Quem
+  estoura o tempo duas vezes fica ausente e a mesa joga por ele até ele voltar; quem cai ou recarrega
+  a página volta ao mesmo lugar. Aviso da vez pelo título da aba e por notificação (push, mesmo com o
+  jogo fechado).
+- **Séries e ranking:** melhor de 1, 3, 5 ou 7, com os palitos de cada partida escolhidos na sala. A
+  sala marcada "Valendo ranking" conta no ranking da semana, do mês, do ano e de sempre (horário de
+  Brasília), da tua turma ou de todo mundo. Cada partida dá um ponto por pessoa que terminou atrás.
 - **Mesa:** baralho Heraclio Fournier de 1878 (domínio público), mesa de madeira, vidas como palitos
   de fósforo que queimam, caderneta com o placar anotado à mão, reações rápidas, sons e vibração.
 - **Continua de onde parou:** a partida local é salva a cada jogada.
@@ -44,7 +51,8 @@ pnpm dev
 
 ```
 packages/engine/  regras puras (sem dependências), visões por jogador, bots, GameHost e protocolo
-apps/server/      servidor Node + socket.io (salas, reconexão, validação) que também serve o web
+packages/sala/    a sala online sem transporte: lobby, senha, série, ranking, reconexão, validação
+apps/worker/      servidor no Cloudflare Workers: um Durable Object por sala, ranking e push
 apps/web/         React + Vite + Tailwind + Motion; projetos Capacitor em android/ e ios/
 e2e/              testes de ponta a ponta com Playwright (partida local e online completas)
 scripts/          geração de assets (cartas, ícones, avatares) e screenshot para revisão visual
@@ -58,12 +66,12 @@ cada jogador só a visão dele, então nenhuma carta escondida sai do servidor.
 
 | Comando | O que faz |
 |---|---|
-| `pnpm dev` | web (5173) + servidor (3001) em modo desenvolvimento |
-| `pnpm test` | testes do engine (inclui fuzz de 150 partidas), do servidor, da geometria da mesa e da reconexão online |
-| `pnpm e2e` | Playwright: partida local e online inteiras pela interface |
+| `pnpm dev` | web (5173) + servidor (`wrangler dev`, 8787) em modo desenvolvimento |
+| `pnpm test` | testes do engine (inclui fuzz de 150 partidas), da sala online, do Worker e da geometria da mesa |
+| `pnpm e2e` | Playwright: partida local, online e três amigos em navegadores isolados, pela interface |
+| `E2E_BASE=https://fazquantas.pages.dev pnpm e2e e2e/amigos.spec.ts` | os mesmos testes contra a produção |
 | `pnpm lint` / `pnpm typecheck` | ESLint e TypeScript em todo o monorepo |
-| `pnpm build` | build do web (PWA) e do servidor |
-| `pnpm start` | produção: <http://localhost:3001> serve o jogo e o multiplayer |
+| `pnpm build` | build do web (PWA) |
 | `FUZZ_GAMES=3000 pnpm --filter @fodinha/engine test` | fuzz longo do engine |
 | `node scripts/adversarial-player.mjs` | com o `pnpm dev` no ar: joga partidas pela interface em 6 tamanhos de tela (gira, recarrega, abre folhas no meio) e aponta carta fora da tela, encavalada ou escondida |
 | `node scripts/scene-shots.mjs <pasta> 390x844,1436x809 cega,mao` | captura cenas de desenvolvimento em vários tamanhos, para revisão visual |
@@ -74,7 +82,8 @@ o baralho inteiro.
 
 ## Produção e apps
 
-- Deploy com Docker, Fly.io, Render ou Cloud Run: [docs/DEPLOY.md](docs/DEPLOY.md).
+- Publicação no Cloudflare (Pages + Workers, plano gratuito): [docs/DEPLOY.md](docs/DEPLOY.md).
+- Plano de lançamento (web e lojas): [docs/LANCAMENTO.md](docs/LANCAMENTO.md).
 - Apps Android e iOS com Capacitor: [docs/MOBILE.md](docs/MOBILE.md).
 
 ## Créditos

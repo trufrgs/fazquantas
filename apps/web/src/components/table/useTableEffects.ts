@@ -1,7 +1,7 @@
 import type { PlayerView } from '@fodinha/engine';
 import { useEffect, useRef } from 'react';
 import type { ViewUpdate } from '../../lib/connection';
-import { warnTurn } from '../../lib/avisos';
+import { setMyTurn, warnTurn } from '../../lib/avisos';
 import { haptic } from '../../lib/haptics';
 import { play } from '../../lib/sound';
 import { useSettings } from '../../stores/settings';
@@ -14,12 +14,16 @@ export function useTableEffects(update: ViewUpdate | null, online = false) {
   const prev = useRef<PlayerView | null>(null);
   const hapticsOn = useSettings((s) => s.haptics);
 
+  // Saiu da mesa: não é mais a vez de ninguém aqui.
+  useEffect(() => () => setMyTurn(false), []);
+
   useEffect(() => {
     const v = update?.view ?? null;
     const p = prev.current;
     prev.current = v;
     if (!v) return;
     const you = v.you;
+    if (online) setMyTurn(v.actor?.playerId === you);
     const newRound = !p || v.roundNumber !== p.roundNumber;
     if (newRound && v.phase === 'bidding') {
       play('shuffle');

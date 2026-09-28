@@ -18,15 +18,10 @@ O app é o próprio build web empacotado pelo Capacitor 8. Os projetos nativos j
 
 ## Gerar e abrir
 
-1. Publique o servidor (ver [DEPLOY.md](DEPLOY.md)) e aponte o app para ele. Dentro do app a origem é
-   `capacitor://localhost`/`https://localhost`, então o endereço do servidor precisa ir no build:
-
-   ```bash
-   cd apps/web
-   echo "VITE_SERVER_URL=https://seu-servidor.exemplo.com" > .env.native.local
-   ```
-
-   Sem isso, o app procura o servidor na porta 3001 do próprio aparelho, e o online não conecta.
+1. O app fala com o servidor de produção por padrão
+   (`https://fazquantas-api.fancy-night-938c.workers.dev`, ver [DEPLOY.md](DEPLOY.md)), e o servidor
+   já aceita as origens do app (`capacitor://localhost`, `https://localhost`). Para apontar para outro
+   servidor, ponha `VITE_SERVER_URL=...` em `apps/web/.env.native.local` antes do build.
 
 2. Gere o build nativo e sincronize:
 
