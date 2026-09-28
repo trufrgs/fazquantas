@@ -28,7 +28,7 @@ export interface RankingQuery {
  * Nome do objeto do ranking. Trocar o nome começa um ranking zerado (o antigo fica guardado, sem
  * uso): foi assim que os jogos de teste da produção ficaram fora do ranking de verdade.
  */
-export const RANKING_NOME = 'oficial';
+export const RANKING_NOME = 'lancamento';
 
 export function rankingStub(env: Env) {
   return env.RANKING.get(env.RANKING.idFromName(RANKING_NOME));

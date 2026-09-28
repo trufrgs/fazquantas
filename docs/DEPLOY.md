@@ -74,7 +74,8 @@ virada (00:00 UTC, 21:00 BRT); nada é cobrado.
 - **Saúde:** `curl https://fazquantas-api.fancy-night-938c.workers.dev/api/saude`.
 - **Testes contra a produção:** `E2E_BASE=https://fazquantas.pages.dev pnpm exec playwright test
   e2e/amigos.spec.ts e2e/online-game.spec.ts` (três navegadores isolados, senha, série e ranking).
-  Esses testes jogam partidas valendo ranking: depois, troque `RANKING_NOME` para o ranking de verdade
-  não mostrar os jogadores de teste.
+  Com `E2E_ADMIN_SENHA` definido, `e2e/perfil-admin.spec.ts` e `e2e/assincrono.spec.ts` também rodam
+  contra a produção. Esses testes deixam partidas no ranking, apelidos e acessos: depois, troque
+  `RANKING_NOME`, `CONTAS_NOME` e `PAINEL_NOME` para os dados de verdade começarem limpos.
 - **Desenvolvimento:** `pnpm dev` sobe o web (5173) e o `wrangler dev` (8787), com os mesmos Durable
   Objects em SQLite local (`apps/worker/.wrangler/`).

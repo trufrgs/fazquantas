@@ -65,7 +65,7 @@ test('apelido guardado com PIN, outro aparelho, apelido reservado e admin', asyn
   await adm.page.getByLabel('Senha do admin').fill('errada');
   await adm.page.getByRole('button', { name: 'Entrar' }).click();
   await expect(adm.page.getByRole('alert')).toContainText('Senha errada');
-  await adm.page.getByLabel('Senha do admin').fill('senha-do-teste-e2e');
+  await adm.page.getByLabel('Senha do admin').fill(process.env.E2E_ADMIN_SENHA ?? 'senha-do-teste-e2e');
   await adm.page.getByRole('button', { name: 'Entrar' }).click();
   await expect(adm.page.getByText('pessoas abriram o jogo')).toBeVisible();
   await adm.page.getByRole('radio', { name: /Salas/ }).click();

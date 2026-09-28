@@ -226,6 +226,9 @@ export class PainelDO extends DurableObject<Env> {
   }
 }
 
+/** Nome do objeto do painel: trocar começa do zero (os acessos dos testes ficaram para trás). */
+export const PAINEL_NOME = 'lancamento';
+
 export function painelStub(env: Env) {
-  return env.PAINEL.get(env.PAINEL.idFromName('painel'));
+  return env.PAINEL.get(env.PAINEL.idFromName(PAINEL_NOME));
 }

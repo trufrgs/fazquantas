@@ -266,6 +266,9 @@ export class ContasDO extends DurableObject<Env> {
   }
 }
 
+/** Nome do objeto das contas: trocar começa do zero (foi assim que os apelidos de teste ficaram para trás). */
+export const CONTAS_NOME = 'lancamento';
+
 export function contasStub(env: Env) {
-  return env.CONTAS.get(env.CONTAS.idFromName('contas'));
+  return env.CONTAS.get(env.CONTAS.idFromName(CONTAS_NOME));
 }
