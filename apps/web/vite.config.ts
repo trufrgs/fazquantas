@@ -24,8 +24,8 @@ export default defineConfig(({ mode }) => ({
         injectRegister: null,
         includeAssets: ['icon.svg', 'sounds/*', 'cards/*'],
         manifest: {
-          name: 'Fodinha',
-          short_name: 'Fodinha',
+          name: 'Faz Quantas?',
+          short_name: 'Faz Quantas?',
           description: 'Fodinha com baralho espanhol e regra gaúcha: diz quantas faz, faz quantas disse.',
           lang: 'pt-BR',
           theme_color: '#2a1a10',

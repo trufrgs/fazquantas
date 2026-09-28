@@ -5,6 +5,7 @@ import { Card } from '../components/cards/Card';
 import { ConfirmNewGame } from '../components/setup/ConfirmNewGame';
 import { ProfileEditor } from '../components/setup/ProfileEditor';
 import { Avatar } from '../components/ui/Avatar';
+import { Logo } from '../components/ui/Logo';
 import { Button, IconButton } from '../components/ui/Button';
 import { Sheet } from '../components/ui/Sheet';
 import { resumeLocalGame, startLocalGame } from '../lib/game-actions';
@@ -57,21 +58,17 @@ export function Home() {
         tabIndex={-1}
         className="sem-barra flex min-h-0 flex-1 flex-col overflow-y-auto px-6 py-4"
       >
-        {/* Centraliza quando cabe e rola quando não cabe; tela baixa (celular deitado): duas colunas. */}
-        <div className="m-auto flex w-full flex-col items-center gap-6 [@media(max-height:520px)]:flex-row [@media(max-height:520px)]:justify-center [@media(max-height:520px)]:gap-10">
+        {/* Centraliza quando cabe e rola quando não cabe; tela deitada e baixa (celular deitado, notebook): duas colunas. */}
+        <div className="m-auto flex w-full flex-col items-center gap-6 [@media(orientation:landscape)_and_(max-height:900px)]:flex-row [@media(orientation:landscape)_and_(max-height:900px)]:justify-center [@media(orientation:landscape)_and_(max-height:900px)]:gap-12">
           <div className="flex flex-col items-center gap-6">
             <div className="flex flex-col items-center text-center">
               <motion.h1
-                className="font-display font-extrabold leading-[0.9] text-papel texto-gravado"
-                style={{
-                  fontSize: 'clamp(3.2rem, min(19vw, 15vh), 6.5rem)',
-                  fontVariationSettings: '"SOFT" 100, "WONK" 1, "opsz" 144',
-                }}
+                className="m-0"
                 initial={{ opacity: 0, y: 14 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.6, ease: 'easeOut' }}
               >
-                Fodinha
+                <Logo size="clamp(3.1rem, min(17vw, 14vh), 6rem)" />
               </motion.h1>
               <motion.p
                 className="mt-3 max-w-72 text-balance text-lg leading-snug text-papel/85"

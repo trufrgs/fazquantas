@@ -6,8 +6,8 @@ import type { CapacitorConfig } from '@capacitor/cli';
  * Para o multiplayer no app, gere o build com VITE_SERVER_URL apontando para o servidor público.
  */
 const config: CapacitorConfig = {
-  appId: 'br.com.fodinha.app',
-  appName: 'Fodinha',
+  appId: 'br.com.fazquantas',
+  appName: 'Faz Quantas?',
   webDir: 'dist',
   backgroundColor: '#1d120b',
   android: { backgroundColor: '#1d120b' },

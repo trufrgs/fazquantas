@@ -1,6 +1,6 @@
 ---
 name: mobile-fodinha
-description: Como gerar e publicar os apps Android e iOS do Fodinha com Capacitor
+description: Como gerar e publicar os apps Android e iOS do Faz Quantas? com Capacitor
 owner: "@trufrgs"
 last_updated: 2026-09-28
 status: active
@@ -42,22 +42,24 @@ O modo contra bots funciona 100% offline no app. O online precisa do servidor pu
 
 ## Ícones e splash
 
-Gerados a partir das cartas (espadão na frente do bastião, sobre madeira):
+Desenhados em `brand/marca.html` (o "?" com a chama do palito, sobre o vermelho de copas) e
+fotografados em cada tamanho pelo gerador:
 
 ```bash
-python scripts/make-icons.py --native   # requer Pillow
+node scripts/make-brand.mjs   # desenha tudo a partir de brand/marca.html
 ```
 
-Isso atualiza os ícones do PWA (`apps/web/public/icons`), a entrada do `@capacitor/assets`
-(`apps/web/assets`) e os arquivos nativos de Android e iOS.
+Isso atualiza os ícones do PWA (`apps/web/public/icons`), os ícones e aberturas nativos de Android
+(inclusive o adaptativo e o monocromático do Android 13) e de iOS, e as peças de divulgação em
+`brand/pecas` (destaque da Play Store, prévia de link, logotipo).
 
 ## Antes de publicar nas lojas
 
-- **appId:** hoje é `br.com.fodinha.app` (em `apps/web/capacitor.config.ts`). Troque pelo definitivo
-  antes do primeiro envio; depois de publicado ele não muda.
-- **Nome:** "Fodinha" é o nome do jogo, mas tem palavrão. A Apple e o Google podem pedir classificação
-  etária mais alta ou recusar o nome de exibição. Tenha um nome alternativo pronto (por exemplo, com
-  subtítulo "carteado com baralho espanhol").
+- **appId:** `br.com.fazquantas` (em `apps/web/capacitor.config.ts`, no Android e no iOS). Depois do
+  primeiro envio a uma loja ele não muda mais.
+- **Nome:** nas lojas o app se chama **Faz Quantas?**. "Fodinha" (o nome tradicional do jogo, que tem
+  palavrão) fica fora do título e do ícone; a descrição pode citar "o jogo que o pessoal chama de
+  Fodinha".
 - **Assinatura:** keystore no Android e certificados/perfil no iOS (feitos no Android Studio/Xcode).
 - **Convites por link:** hoje o link `?sala=ABCD` abre o jogo no navegador. Para abrir direto no app,
   configure App Links (Android) e Universal Links (iOS) apontando para o domínio do servidor.

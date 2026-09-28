@@ -1,6 +1,6 @@
-# Fodinha
+# Faz Quantas?
 
-Fodinha com baralho espanhol e regra gaúcha: diz quantas faz, faz quantas disse. Dá para jogar contra
+A Fodinha com baralho espanhol e regra gaúcha: diz quantas faz, faz quantas disse. Dá para jogar contra
 bots no navegador ou com amigos online. É um webapp pronto para virar app Android e iOS com Capacitor.
 
 <p>

@@ -1,4 +1,4 @@
-package br.com.fodinha.app;
+package br.com.fazquantas;
 
 import com.getcapacitor.BridgeActivity;
 

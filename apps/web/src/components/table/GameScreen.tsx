@@ -215,6 +215,7 @@ function Table({
   );
   // Cartas à mostra (rodada às cegas; quem saiu vê tudo): na frente de cada assento, do maior
   // tamanho que não cobre ninguém nem fica atrás do painel de palpite ou do chip das manilhas.
+  const banner = useRoundBanner(view);
   const showing = view.phase === 'bidding' || view.phase === 'playing';
   const maxShown = showing
     ? Math.max(
@@ -381,10 +382,12 @@ function Table({
                     startingLives={view.rules.startingLives}
                     reaction={reactionFor(p.id)}
                     compact={compact}
+                    isMao={view.order[0] === p.id}
                   />
                 );
               })}
-          {reveal && <RevealCards players={view.players} you={you} layout={reveal} />}
+          {/* As cartas na testa entram depois da faixa da rodada (as duas ocupam o centro da mesa). */}
+        {reveal && !banner && <RevealCards players={view.players} you={you} layout={reveal} />}
           {table.width > 0 && (
             <TrickArea
               plays={trickPlays}
@@ -399,7 +402,7 @@ function Table({
               revealFrom={reveal ? { spots: reveal.spots, cardWidth: reveal.cardWidth } : null}
             />
           )}
-          <RoundBanner view={view} />
+          <RoundBanner view={view} shown={banner} />
           <CoachTip tip={bidding ? null : tip} />
           <BidPanel
             open={bidding}
@@ -410,6 +413,7 @@ function Table({
             suggested={suggestion.bid ?? null}
             blind={view.blind}
             isDealer={view.dealerId === you}
+            isMao={!!you && view.order[0] === you}
             onBid={(value) => void send({ type: 'bid', value })}
             tip={bidding ? tip : null}
             keyboard={!layerOpen}
@@ -453,6 +457,7 @@ function Table({
                 reaction={reactionFor(me.id)}
                 isTurn={myTurn && !(view.phase === 'playing' && view.handHidden)}
                 deadline={myTurn ? view.turnDeadline : null}
+                isMao={!!you && view.order[0] === you}
               />
             </div>
           )}
@@ -567,7 +572,8 @@ function Table({
 }
 
 /** Faixa no centro da mesa quando começa uma rodada ("Rodada 4 · 4 cartas"). */
-function RoundBanner({ view }: { view: PlayerView }) {
+/** Faixa do começo da rodada: aparece até o primeiro palpite ou por 1,5 s. */
+function useRoundBanner(view: PlayerView): boolean {
   const [hiddenRound, setHiddenRound] = useState<number | null>(null);
   const fresh = view.phase === 'bidding' && view.players.every((p) => p.bid === null);
   const shown = fresh && hiddenRound !== view.roundNumber ? view.roundNumber : null;
@@ -576,6 +582,12 @@ function RoundBanner({ view }: { view: PlayerView }) {
     const t = window.setTimeout(() => setHiddenRound(shown), 1500);
     return () => window.clearTimeout(t);
   }, [shown]);
+  return shown !== null;
+}
+
+function RoundBanner({ view, shown: visible }: { view: PlayerView; shown: boolean }) {
+  const shown = visible ? view.roundNumber : null;
+  const mao = view.players.find((p) => p.id === view.order[0]);
   return (
     <AnimatePresence>
       {shown === view.roundNumber && (
@@ -595,6 +607,11 @@ function RoundBanner({ view }: { view: PlayerView }) {
           </span>
           {view.blind && (
             <span className="mt-1 font-hand text-3xl text-luz texto-gravado">carta na testa!</span>
+          )}
+          {mao && (
+            <span className="mt-1.5 rounded-full bg-noite/55 px-3 py-0.5 text-sm font-semibold text-papel ring-1 ring-papel/15">
+              {mao.id === view.you ? 'Tu é mão: palpita e joga primeiro' : `${mao.name} é mão`}
+            </span>
           )}
         </motion.div>
       )}

@@ -28,11 +28,11 @@ export async function shareInvite(code: string): Promise<'shared' | 'copied' | '
   try {
     if (isNative) {
       const { Share } = await import('@capacitor/share');
-      await Share.share({ title: 'Fodinha', text, url });
+      await Share.share({ title: 'Faz Quantas?', text, url });
       return 'shared';
     }
     if (navigator.share) {
-      await navigator.share({ title: 'Fodinha', text, url });
+      await navigator.share({ title: 'Faz Quantas?', text, url });
       return 'shared';
     }
   } catch (err) {

@@ -1,6 +1,6 @@
 ---
 name: deploy-fodinha
-description: Como publicar o servidor do Fodinha (web + multiplayer) e o que muda para escalar
+description: Como publicar o servidor do Faz Quantas? (web + multiplayer) e o que muda para escalar
 owner: "@trufrgs"
 last_updated: 2026-09-28
 status: active

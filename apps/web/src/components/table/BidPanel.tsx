@@ -12,6 +12,8 @@ export interface BidPanelProps {
   suggested: number | null;
   blind: boolean;
   isDealer: boolean;
+  /** És mão: palpita (e depois joga) primeiro. */
+  isMao?: boolean;
   onBid: (value: number) => void;
   /** Dica de primeira partida mostrada no topo do painel. */
   tip?: TipId | null;
@@ -99,6 +101,8 @@ export function BidPanel(p: BidPanelProps) {
       <>Tua carta tá na testa: palpita olhando as dos outros.</>
     ) : p.isDealer ? (
       <>Tu é o pé: palpita por último.</>
+    ) : p.isMao ? (
+      <>Tu é mão: palpita e começa jogando.</>
     ) : null;
   // Na barra de uma linha o aviso vai ao lado dos números, se couber; nunca numa linha a mais.
   const hint =

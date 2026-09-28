@@ -116,7 +116,40 @@ function DealerChip({ size = 'md' }: { size?: 'sm' | 'md' }) {
   );
 }
 
-export { DealerChip };
+/** Quem é mão: palpita e joga primeiro na rodada (o par do pé). */
+function MaoChip({ size = 'md' }: { size?: 'sm' | 'md' }) {
+  return (
+    <span
+      className={`inline-flex items-center justify-center rounded-full bg-papel font-display font-bold text-tinta shadow-[0_2px_0_rgb(0_0_0/0.35)] ring-1 ring-black/20 ${
+        size === 'sm' ? 'h-5 px-1.5 text-[0.625rem]' : 'h-6 px-2 text-xs'
+      }`}
+      title="Mão: palpita e joga primeiro nesta rodada"
+    >
+      mão
+    </span>
+  );
+}
+
+/**
+ * Cartas que ainda estão na mão (fechadas): um versinho de carta com o número, no canto de baixo
+ * do avatar, espelhando o selo do palpite. Some quando não sobra carta.
+ */
+export function HandCount({ count }: { count: number }) {
+  if (count <= 0) return null;
+  const label = `${count} ${count === 1 ? 'carta' : 'cartas'} na mão`;
+  return (
+    <span className="relative inline-flex" role="img" aria-label={label} title={label}>
+      {count > 1 && (
+        <span className="absolute -left-[3px] -top-[2px] h-5 w-[0.875rem] rotate-[-10deg] rounded-[3px] bg-[#6d1c17] ring-1 ring-papel/70" />
+      )}
+      <span className="relative flex h-5 min-w-[0.875rem] items-center justify-center rounded-[3px] bg-gradient-to-b from-[#a52a22] to-[#7a1f1a] px-[3px] text-[0.625rem] font-bold leading-none tabular-nums text-papel shadow-[0_2px_3px_rgb(0_0_0/0.4)] ring-1 ring-papel/80">
+        {count}
+      </span>
+    </span>
+  );
+}
+
+export { DealerChip, MaoChip };
 
 /** Balão de reação sobre o assento. */
 export function ReactionBubble({ reaction, placement = 'above' }: { reaction: LiveReaction | undefined; placement?: 'above' | 'below' }) {
@@ -154,6 +187,8 @@ export interface SeatProps {
   startingLives: number;
   reaction: LiveReaction | undefined;
   compact: boolean;
+  /** É mão: palpita e joga primeiro na rodada. */
+  isMao: boolean;
 }
 
 /** Oponente ao redor da mesa. */
@@ -173,9 +208,12 @@ export const Seat = memo(function Seat(p: SeatProps) {
       <div className="relative">
         {p.isTurn && !out && <TurnRing size={avatarSize} deadline={p.deadline} />}
         <Avatar seed={info?.avatar ?? player.id} size={avatarSize} dim={out} />
-        {player.isDealer && !out && (
-          <span className="absolute -left-2 -top-1">
-            <DealerChip size="sm" />
+        {!out && (player.isDealer || p.isMao) && (
+          <span className="absolute -left-2 -top-1">{player.isDealer ? <DealerChip size="sm" /> : <MaoChip size="sm" />}</span>
+        )}
+        {!out && player.inRound && (
+          <span className="absolute -left-2.5 bottom-0">
+            <HandCount count={player.handCount - (player.visibleCards?.length ?? 0)} />
           </span>
         )}
         {!out && player.inRound && (
