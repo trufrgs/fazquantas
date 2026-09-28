@@ -9,7 +9,7 @@ export async function presetSettings(page: Page, overrides: Record<string, unkno
     haptics: false,
     speed: 'turbo',
     sortHand: 'forca',
-    hints: true,
+    hints: false,
     players: 4,
     difficulty: 'facil',
     rules: {

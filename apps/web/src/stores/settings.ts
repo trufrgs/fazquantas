@@ -46,7 +46,7 @@ export const useSettings = create<SettingsState>()(
       haptics: true,
       speed: 'normal',
       sortHand: 'forca',
-      hints: true,
+      hints: false,
       players: 4,
       difficulty: 'medio',
       rules: { ...DEFAULT_RULES },
@@ -59,12 +59,14 @@ export const useSettings = create<SettingsState>()(
     }),
     {
       name: 'fodinha:ajustes',
-      version: 2,
+      version: 3,
       storage: createJSONStorage(() => safeStateStorage),
       // v2: o padrão das cartas iguais virou "ninguém leva"; quem estava no padrão antigo acompanha.
       migrate: (persisted, version) => {
         const p = (persisted ?? {}) as Partial<SettingsState>;
         if (version < 2 && p.rules?.tieRule === 'cancel') p.rules = { ...p.rules, tieRule: 'nobody' };
+        // v3: a sugestão de palpite e carta passou a vir desligada (quem quiser liga nos ajustes).
+        if (version < 3) p.hints = false;
         return p as SettingsState;
       },
       merge: (persisted, current) => {
