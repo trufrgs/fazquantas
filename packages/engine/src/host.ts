@@ -87,7 +87,16 @@ export interface HostSnapshot {
   rngState: number;
   turnTimeoutMs: number | null;
   revealToEliminated: boolean;
+  /** Prazo da vez em curso: restaurar não dá tempo extra a quem estava pensando. */
+  turnClock?: { seq: number; playerId: string; deadline: number } | null;
+  /** Humanos que o host está jogando por eles (caíram ou estouraram o tempo seguidas vezes). */
+  away?: string[];
+  /** Tempos estourados seguidos, por jogador. */
+  timeouts?: Record<string, number>;
 }
+
+/** Tempos estourados seguidos até o jogador ser dado como ausente (o host joga por ele). */
+export const TIMEOUTS_UNTIL_AWAY = 2;
 
 export interface HostEvent {
   state: GameState;
@@ -123,6 +132,8 @@ export class GameHost {
   /** Relógio da vez atual; só reinicia quando a vez muda (cair e voltar não ganha tempo). */
   private turnClock: { seq: number; playerId: string; deadline: number } | null = null;
   private speed = 1;
+  /** Tempos estourados seguidos, por jogador (zera quando ele joga). */
+  private readonly timeouts = new Map<string, number>();
   private paused = false;
   private started = false;
   private disposed = false;
@@ -145,7 +156,7 @@ export class GameHost {
   }
 
   static restore(snapshot: HostSnapshot, opts: Partial<HostOptions> = {}): GameHost {
-    return new GameHost(
+    const host = new GameHost(
       {
         ...opts,
         seats: snapshot.seats,
@@ -155,6 +166,13 @@ export class GameHost {
       },
       { state: structuredClone(snapshot.state), rngState: snapshot.rngState },
     );
+    host.turnClock = snapshot.turnClock ? { ...snapshot.turnClock } : null;
+    for (const id of snapshot.away ?? []) {
+      const seat = host.seatMap.get(id);
+      if (seat) seat.away = true;
+    }
+    for (const [id, n] of Object.entries(snapshot.timeouts ?? {})) host.timeouts.set(id, n);
+    return host;
   }
 
   get state(): GameState {
@@ -177,6 +195,11 @@ export class GameHost {
     return this.seatMap.get(playerId)?.away ?? false;
   }
 
+  /** Humanos que o host está jogando por eles agora. */
+  awayPlayers(): string[] {
+    return [...this.seatMap.values()].filter((s) => s.kind === 'human' && s.away).map((s) => s.id);
+  }
+
   start(): void {
     if (this.started || this.disposed) return;
     this.started = true;
@@ -197,7 +220,17 @@ export class GameHost {
     if (!seat || seat.kind !== 'human' || this.disposed) {
       return { ok: false, error: { code: 'INVALID_ACTION', message: 'Ação inválida.' } };
     }
-    return this.apply({ ...action, playerId } as PlayerAction, null);
+    // Quem age está presente: para de jogar por ele e zera os tempos estourados.
+    const wasAway = seat.away;
+    seat.away = false;
+    this.timeouts.delete(playerId);
+    const result = this.apply({ ...action, playerId } as PlayerAction, null);
+    if (!result.ok && wasAway && currentActor(this.current)?.playerId === playerId) {
+      // Voltou, mas a jogada não valeu: a vez segue com o relógio normal, não com o automático.
+      this.scheduleNext();
+      this.emit(null, null);
+    }
+    return result;
   }
 
   subscribe(listener: (e: HostEvent) => void): () => void {
@@ -208,6 +241,7 @@ export class GameHost {
   /** Marca um humano como desconectado (o host joga por ele) ou de volta. */
   setAway(playerId: string, away: boolean): void {
     const seat = this.seatMap.get(playerId);
+    if (!away) this.timeouts.delete(playerId);
     if (!seat || seat.away === away) return;
     seat.away = away;
     if (currentActor(this.current)?.playerId === playerId) {
@@ -262,6 +296,9 @@ export class GameHost {
       rngState: this.rng.state,
       turnTimeoutMs: this.turnTimeoutMs,
       revealToEliminated: this.revealToEliminated,
+      turnClock: this.turnClock ? { ...this.turnClock } : null,
+      away: this.awayPlayers(),
+      timeouts: Object.fromEntries(this.timeouts),
     };
   }
 
@@ -292,6 +329,13 @@ export class GameHost {
     const state = this.current;
     const actor = currentActor(state);
     if (!actor || actor.playerId !== playerId) return;
+    if (reason === 'timeout') {
+      // Estourou o tempo de novo: dá como ausente e passa a jogar por ele sem esperar o prazo.
+      const n = (this.timeouts.get(playerId) ?? 0) + 1;
+      this.timeouts.set(playerId, n);
+      const seat = this.seatMap.get(playerId);
+      if (seat && n >= TIMEOUTS_UNTIL_AWAY) seat.away = true;
+    }
     let action = decideBot(getPlayerView(state, playerId), difficulty, this.rng);
     if (!action) {
       // Rodada às cegas: o dono não vê a carta, mas a jogada é forçada.

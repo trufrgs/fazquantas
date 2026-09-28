@@ -9,3 +9,6 @@ export * from './bots';
 export * from './host';
 export * from './names';
 export * from './protocol';
+export * from './series';
+export * from './ranking';
+export * from './profile';

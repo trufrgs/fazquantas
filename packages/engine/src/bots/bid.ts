@@ -98,13 +98,28 @@ export interface McOptions {
   spite: number;
 }
 
+/**
+ * Teto de trabalho por decisão, em cartas simuladas (amostras × candidatos × cartas × jogadores).
+ * Mãos grandes cortam amostras para a decisão caber em poucos milissegundos de CPU — o servidor
+ * roda cada jogada de bot numa invocação curta.
+ */
+export const MC_WORK_BUDGET = 10_000;
+const MC_MIN_SAMPLES = 10;
+
+/** Amostras de Monte Carlo que cabem no teto de trabalho, sem passar do pedido. */
+export function mcSamples(wanted: number, candidates: number, cards: number, players: number): number {
+  const perSample = Math.max(1, candidates * Math.max(1, cards) * Math.max(1, players));
+  return Math.max(Math.min(wanted, MC_MIN_SAMPLES), Math.min(wanted, Math.floor(MC_WORK_BUDGET / perSample)));
+}
+
 /** Aposta por Monte Carlo: para cada aposta legal, simula a rodada e mede as vidas perdidas. */
 export function monteCarloBid(b: BotCtx, rng: Rng, opts: McOptions): number {
   const legal = b.view.legalBids;
   if (legal.length <= 1) return legal[0] ?? 0;
   const penalty = b.view.rules.penalty;
   const scores = new Map<number, number>(legal.map((x) => [x, 0]));
-  for (let i = 0; i < opts.samples; i++) {
+  const samples = mcSamples(opts.samples, legal.length, b.view.cardsThisRound, b.order.length);
+  for (let i = 0; i < samples; i++) {
     const hands = sampleHands(b, rng);
     for (const candidate of legal) {
       const bids = estimateBids(b, hands, candidate);
@@ -123,7 +138,7 @@ export function monteCarloBid(b: BotCtx, rng: Rng, opts: McOptions): number {
   let best = legal[0]!;
   let bestScore = Number.POSITIVE_INFINITY;
   for (const candidate of legal) {
-    const sc = scores.get(candidate)! / opts.samples + Math.abs(candidate - e) * 1e-3;
+    const sc = scores.get(candidate)! / samples + Math.abs(candidate - e) * 1e-3;
     if (sc < bestScore) {
       best = candidate;
       bestScore = sc;

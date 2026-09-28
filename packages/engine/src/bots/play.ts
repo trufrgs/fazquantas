@@ -1,6 +1,6 @@
 import type { CardId } from '../cards';
 import type { Rng } from '../rng';
-import type { McOptions } from './bid';
+import { mcSamples, type McOptions } from './bid';
 import type { BotCtx } from './context';
 import { rolloutFrom, sampleHands } from './context';
 import { choosePlayIndex, lossFor, simulate, type Opponent } from './sim';
@@ -52,7 +52,9 @@ export function monteCarloPlay(b: BotCtx, rng: Rng, opts: McOptions): CardId {
   const penalty = b.view.rules.penalty;
   const bids = b.bids.map((x) => x ?? 0);
   const scores = new Map<number, number>([...reps.keys()].map((s) => [s, 0]));
-  for (let i = 0; i < opts.samples; i++) {
+  const cardsLeft = b.view.hand?.length ?? b.view.cardsThisRound;
+  const samples = mcSamples(opts.samples, reps.size, cardsLeft, b.order.length);
+  for (let i = 0; i < samples; i++) {
     const hands = sampleHands(b, rng);
     for (const s of reps.keys()) {
       const r = rolloutFrom(b, hands, bids);
@@ -70,7 +72,7 @@ export function monteCarloPlay(b: BotCtx, rng: Rng, opts: McOptions): CardId {
   let bestScore = Number.POSITIVE_INFINITY;
   for (const [s, id] of reps) {
     // Leve preferência pela escolha da política para desempatar ruído.
-    const sc = scores.get(s)! / opts.samples - (id === fallback ? 1e-3 : 0);
+    const sc = scores.get(s)! / samples - (id === fallback ? 1e-3 : 0);
     if (sc < bestScore) {
       best = id;
       bestScore = sc;
