@@ -1,6 +1,6 @@
 import { card as cardOf, cardName, type Play } from '@fodinha/engine';
 import { AnimatePresence, motion } from 'motion/react';
-import { Card } from '../cards/Card';
+import { Card, CARD_RATIO } from '../cards/Card';
 import { tossRotation, type Point, type TableGeometry } from './layout';
 
 export interface TrickAreaProps {
@@ -20,7 +20,7 @@ export interface TrickAreaProps {
 
 export function TrickArea(p: TrickAreaProps) {
   const cw = p.cardWidth;
-  const ch = cw * 1.5;
+  const ch = cw * CARD_RATIO;
   return (
     <div className="pointer-events-none absolute inset-0" aria-live="polite">
       <AnimatePresence custom={p.collectTo}>
@@ -63,8 +63,9 @@ export function TrickArea(p: TrickAreaProps) {
               aria-label={cardName(cardOf(play.cardId))}
             >
               <div
-                className="h-full w-full rounded-[8px] transition-[filter,box-shadow] duration-300"
+                className="h-full w-full transition-[filter,box-shadow] duration-300"
                 style={{
+                  borderRadius: cw * 0.06,
                   boxShadow: isWinner
                     ? '0 0 0 3px var(--color-luz), 0 0 26px 8px rgb(255 205 130 / 0.55), 0 12px 24px rgb(0 0 0 / 0.5)'
                     : '0 6px 14px rgb(0 0 0 / 0.45)',

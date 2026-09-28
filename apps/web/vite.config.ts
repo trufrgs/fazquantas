@@ -13,7 +13,7 @@ export default defineConfig(({ mode }) => ({
       VitePWA({
         registerType: 'autoUpdate',
         injectRegister: null,
-        includeAssets: ['icon.svg', 'sounds/*'],
+        includeAssets: ['icon.svg', 'sounds/*', 'cards/*'],
         manifest: {
           name: 'Fodinha',
           short_name: 'Fodinha',
@@ -30,7 +30,7 @@ export default defineConfig(({ mode }) => ({
           ],
         },
         workbox: {
-          globPatterns: ['**/*.{js,css,html,svg,png,woff2,mp3,wav}'],
+          globPatterns: ['**/*.{js,css,html,svg,png,webp,woff2,mp3,wav}'],
           navigateFallbackDenylist: [/^\/socket\.io/, /^\/health/],
         },
       }),

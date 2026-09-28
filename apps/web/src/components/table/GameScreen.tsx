@@ -126,12 +126,16 @@ function Table({ conn, update, seats, reactions }: { conn: GameConnection; updat
   }, [update, online, you]);
 
   const order = useMemo(() => view.players.map((p) => p.id), [view.players]);
-  const geometry = useMemo(() => tableGeometry(table.width, table.height, order, you), [table.width, table.height, order, you]);
   const vw = root.width || window.innerWidth;
   const vh = root.height || window.innerHeight;
-  const compact = view.players.length >= 6 || vw < 380 || vh < 640;
+  const crowd = view.players.length;
+  const compact = crowd >= 6 || vw < 380 || vh < 640;
   const handCardW = clamp(Math.min(vw * 0.19, vh * 0.125), 56, 108);
-  const trickCardW = clamp(Math.min(vw * 0.14, vh * 0.085), 40, 84);
+  const trickCardW = clamp(Math.min(vw * 0.14, vh * 0.085) * (crowd >= 7 ? 0.84 : crowd >= 5 ? 0.92 : 1), 38, 84);
+  const geometry = useMemo(
+    () => tableGeometry(table.width, table.height, order, you, trickCardW),
+    [table.width, table.height, order, you, trickCardW],
+  );
 
   const ctx = useMemo(() => ({ mode: view.rules.hierarchy, vira: view.vira ? card(view.vira) : null }), [view.rules.hierarchy, view.vira]);
   const hand = useMemo(() => {

@@ -1,7 +1,12 @@
 import { Panel, ScreenFrame } from '../components/ui/ScreenFrame';
 
 const CREDITS: { what: string; who: string; license: string; url: string }[] = [
-  { what: 'Figuras das cartas (coroa, cavalo, chapéu)', who: 'Lorc e Delapouite, game-icons.net', license: 'CC BY 3.0', url: 'https://game-icons.net' },
+  {
+    what: 'Cartas: baralho de Heraclio Fournier (1878)',
+    who: 'Ilustrações de Ignacio Díaz Olano e Emilio Soubrier; digitalização do Museo Fournier de Naipes de Álava',
+    license: 'domínio público',
+    url: 'https://commons.wikimedia.org/wiki/Category:Heraclio_Fournier%E2%80%99s_1878_card_deck',
+  },
   { what: 'Sons de cartas e de interface', who: 'Kenney (Casino Audio, Interface Sounds)', license: 'CC0', url: 'https://kenney.nl' },
   { what: 'Música de vitória (bandoneón)', who: 'Fupi, "Win Jingle"', license: 'CC0', url: 'https://opengameart.org/content/win-jingle' },
   { what: 'Trompete de eliminação', who: '0new4y, "Game Over Trumpet SFX"', license: 'CC0', url: 'https://opengameart.org/content/game-over-trumpet-sfx' },
@@ -15,8 +20,8 @@ export function Credits() {
     <ScreenFrame title="Créditos">
       <Panel>
         <p>
-          Cartas, mesa e interface desenhadas para este jogo. Baralho espanhol com a "pinta" tradicional: a moldura é contínua em
-          ouros e tem 1, 2 e 3 interrupções em copas, espadas e paus.
+          As cartas são o baralho espanhol que a Heraclio Fournier imprimiu em 1878, premiado na Exposição de Paris daquele ano,
+          com o papel limpo para a tela. Mesa, verso e interface foram desenhados para este jogo.
         </p>
       </Panel>
       <Panel title="Recursos de terceiros">

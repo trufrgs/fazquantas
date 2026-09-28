@@ -28,12 +28,12 @@ export function BidPanel(p: BidPanelProps) {
           exit={{ y: 30, opacity: 0, scale: 0.97, transition: { duration: 0.15 } }}
           transition={{ type: 'spring', stiffness: 420, damping: 32 }}
         >
-          <header className="mb-3 flex items-baseline justify-between gap-3">
-            <h2 className="font-display text-[1.4rem] font-bold leading-tight" style={{ fontVariationSettings: '"SOFT" 100, "WONK" 1' }}>
+          <header className="mb-2.5 flex items-baseline justify-between gap-3">
+            <h2 className="font-display text-[1.35rem] font-bold leading-tight" style={{ fontVariationSettings: '"SOFT" 100, "WONK" 1' }}>
               Quantas você faz?
             </h2>
             <span className="shrink-0 text-sm text-tinta-2">
-              Palpites: <strong className="tabular-nums text-tinta">{p.bidsSum}</strong> de {p.cards}
+              palpites <strong className="tabular-nums text-tinta">{p.bidsSum}</strong> de {p.cards}
             </span>
           </header>
           <div className={`grid gap-2 ${big ? 'grid-cols-6' : options.length > 5 ? 'grid-cols-5' : 'grid-flow-col auto-cols-fr'}`}>
@@ -48,7 +48,7 @@ export function BidPanel(p: BidPanelProps) {
                   disabled={!allowed}
                   onClick={() => p.onBid(n)}
                   aria-label={isForbidden ? `${n} (proibido para o pé)` : `Palpite ${n}`}
-                  className={`ficha relative h-13 font-display text-2xl font-bold ${
+                  className={`ficha relative h-12 font-display text-2xl font-bold ${
                     allowed ? 'ficha-ouro' : 'ficha-papel'
                   } ${hint ? 'ring-4 ring-luz/90' : ''}`}
                 >
@@ -65,18 +65,18 @@ export function BidPanel(p: BidPanelProps) {
               );
             })}
           </div>
-          {(p.forbidden !== null || p.blind) && (
-            <p className="mt-3 text-sm leading-snug text-tinta-2">
-              {p.forbidden !== null && (
+          {(p.forbidden !== null || p.blind || p.isDealer) && (
+            <p className="mt-2 text-[13px] leading-snug text-tinta-2">
+              {p.forbidden !== null ? (
                 <>
-                  Você é o <strong className="text-tinta">pé</strong>: pedir {p.forbidden} fecharia a soma em {p.cards}.{' '}
+                  Você é o <strong className="text-tinta">pé</strong>: pedir {p.forbidden} fecharia a soma em {p.cards}.
                 </>
+              ) : p.blind ? (
+                <>Sua carta está na testa: palpite lendo as cartas dos outros.</>
+              ) : (
+                <>Você é o pé e palpita por último.</>
               )}
-              {p.blind && <>Sua carta está na testa: palpite lendo as cartas dos outros.</>}
             </p>
-          )}
-          {p.forbidden === null && p.isDealer && !p.blind && (
-            <p className="mt-3 text-sm text-tinta-2">Você é o pé e palpita por último.</p>
           )}
         </motion.section>
       )}

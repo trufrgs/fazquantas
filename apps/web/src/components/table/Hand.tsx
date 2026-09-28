@@ -1,7 +1,7 @@
 import { card as cardOf, cardName, type CardId } from '@fodinha/engine';
 import { motion } from 'motion/react';
 import { useEffect, useMemo, useState } from 'react';
-import { Card } from '../cards/Card';
+import { Card, CARD_RATIO } from '../cards/Card';
 
 export interface HandProps {
   cards: CardId[];
@@ -67,7 +67,7 @@ export function Hand(p: HandProps) {
   );
   const slots = useMemo(() => layoutFan(ids, p.width, p.cardWidth), [ids, p.width, p.cardWidth]);
   const cw = p.cardWidth;
-  const ch = cw * 1.5;
+  const ch = cw * CARD_RATIO;
   const twoRows = slots.some((s) => s.row === 1);
 
   useEffect(() => {
@@ -130,8 +130,8 @@ export function Hand(p: HandProps) {
               onDragEnd={(_, info) => {
                 if (!hidden && p.canPlay && info.offset.y < -55) p.onPlay(id);
               }}
-              className="absolute bottom-2 origin-bottom touch-none rounded-[8px] outline-offset-4 disabled:cursor-default"
-              style={{ left: s.x, zIndex: (s.row + 1) * 100 + index, width: cw, height: ch }}
+              className="absolute bottom-2 origin-bottom touch-none outline-offset-4 disabled:cursor-default"
+              style={{ left: s.x, zIndex: (s.row + 1) * 100 + index, width: cw, height: ch, borderRadius: cw * 0.06 }}
               initial={{ x: p.dealFrom.x - (s.x + cw / 2 - p.width / 2), y: p.dealFrom.y, rotate: 0, scale: 0.5, opacity: 0 }}
               animate={{ x: 0, y: s.y + lift, rotate: s.rotate, scale: isSel ? 1.06 : 1, opacity: 1 }}
               transition={{
@@ -145,7 +145,8 @@ export function Hand(p: HandProps) {
               }}
             >
               <span
-                className={`block h-full w-full rounded-[8px] transition-shadow ${
+                style={{ borderRadius: cw * 0.06 }}
+                className={`block h-full w-full transition-shadow ${
                   isSel
                     ? 'shadow-[0_0_0_3px_var(--color-luz),0_14px_24px_rgb(0_0_0/0.5)]'
                     : !hidden && p.suggested === id && p.canPlay

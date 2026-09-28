@@ -1,4 +1,6 @@
 import { useEffect, useState } from 'react';
+import { fullDeck } from '@fodinha/engine';
+import { preloadCards } from './components/cards/Card';
 import { CardSprite } from './components/cards/sprite';
 import { GameScreen } from './components/table/GameScreen';
 import { isNative } from './lib/platform';
@@ -26,6 +28,12 @@ export function App() {
   const [code] = useState(inviteCode);
 
   useEffect(() => setSoundEnabled(sound), [sound]);
+
+  // Imagens das cartas no cache antes da primeira distribuição.
+  useEffect(() => {
+    const t = window.setTimeout(() => preloadCards(fullDeck().map((c) => c.id)), 300);
+    return () => window.clearTimeout(t);
+  }, []);
 
   // Áudio só destrava depois de um gesto no mobile.
   useEffect(() => {
@@ -58,6 +66,20 @@ export function App() {
     );
     void import('@capacitor/splash-screen').then(({ SplashScreen }) => SplashScreen.hide());
     return () => remove?.();
+  }, []);
+
+  // Cenas de desenvolvimento: `?cena=melou`, `?cena=mesa8`…
+  useEffect(() => {
+    const scene = new URLSearchParams(window.location.search).get('cena');
+    if (!import.meta.env.DEV || !scene) return;
+    void import('./dev/scenes').then(({ sceneConnection }) => {
+      const conn = sceneConnection(scene);
+      if (!conn) return;
+      void import('./stores/game').then(({ useGame }) => {
+        useGame.getState().attach(conn);
+        useApp.getState().reset('game');
+      });
+    });
   }, []);
 
   if (import.meta.env.DEV && new URLSearchParams(window.location.search).has('galeria')) {
