@@ -18,6 +18,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { GameConnection, SeatInfo, ViewUpdate } from '../../lib/connection';
 import { leaveTable, startLocalGame } from '../../lib/game-actions';
 import { untilLabel } from '../setup/TuasSalas';
+import { MyTurnClock } from './TurnClock';
 import { haptic } from '../../lib/haptics';
 import { play } from '../../lib/sound';
 import { useApp } from '../../stores/app';
@@ -374,6 +375,7 @@ function Table({
     leaveTable();
   };
   const asyncRoom = online && !!room && isAsyncTurn(room.turnTimeoutSec);
+  const turnTotalMs = online && room?.turnTimeoutSec ? room.turnTimeoutSec * 1000 : null;
   const park = () => {
     useOnline.getState().park();
     leaveTable();
@@ -400,6 +402,7 @@ function Table({
       <div className="mx-auto flex min-h-0 w-full max-w-[73.75rem] flex-1 flex-col">
         <div ref={tableRef} className="relative min-h-0 flex-1">
           <ForcaChip mode={view.rules.hierarchy} vira={view.vira} onOpen={() => setForca(true)} />
+
           {online && onlineStatus === 'reconnecting' && (
             <div className="absolute right-3 top-2 z-30 rounded-full bg-copas px-3 py-1 text-xs font-bold">
               Reconectando…
@@ -426,6 +429,7 @@ function Table({
                     reaction={reactionFor(p.id)}
                     compact={compact}
                     isMao={view.order[0] === p.id}
+                    turnTotalMs={turnTotalMs}
                   />
                 );
               })}
@@ -464,6 +468,11 @@ function Table({
             hintInline={vw >= 600 * s}
             deadline={myTurn ? view.turnDeadline : null}
             bottom={panelBottom}
+            clock={
+              myTurn && view.turnDeadline ? (
+                <MyTurnClock key={view.turnDeadline} deadline={view.turnDeadline} totalMs={turnTotalMs} />
+              ) : null
+            }
           />
           <AnimatePresence>
             {(toast ?? notice?.text) && (
@@ -484,6 +493,12 @@ function Table({
           className="relative z-20"
           style={{ paddingBottom: 'calc(0.25rem + var(--safe-bottom))' }}
         >
+          {/* Tua vez de jogar carta com tempo: o relógio fica logo acima da tua mão. */}
+          {myTurn && !bidding && view.turnDeadline && (
+            <div className="pointer-events-none absolute bottom-full left-1/2 z-30 mb-2 -translate-x-1/2">
+              <MyTurnClock key={view.turnDeadline} deadline={view.turnDeadline} totalMs={turnTotalMs} />
+            </div>
+          )}
           {me && (
             <div
               ref={mySeatRef}

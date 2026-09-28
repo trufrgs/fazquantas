@@ -1,5 +1,5 @@
 import { AnimatePresence, motion } from 'motion/react';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { Lightbulb } from 'lucide-react';
 import { CoachTip, type TipId } from './CoachTip';
 
@@ -30,6 +30,8 @@ export interface BidPanelProps {
   hintInline?: boolean;
   /** Prazo da tua vez (online com tempo por jogada): o painel cobre a tua faixa, então a conta vai nele. */
   deadline?: number | null;
+  /** Relógio da tua vez, flutuando logo acima do painel. */
+  clock?: ReactNode;
 }
 
 /** Tempo que falta para palpitar: uma linha fina no alto do painel, que esvazia até o prazo. */
@@ -130,6 +132,7 @@ export function BidPanel(p: BidPanelProps) {
           transition={{ type: 'spring', stiffness: 420, damping: 32 }}
         >
           {p.deadline ? <TimeLeft key={p.deadline} deadline={p.deadline} /> : null}
+          {p.clock && <div className="pointer-events-none absolute bottom-full left-1/2 mb-2 -translate-x-1/2">{p.clock}</div>}
           <CoachTip tip={p.tip ?? null} inline />
           {(!compact || !oneRow) && (
             <header

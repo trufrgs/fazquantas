@@ -6,6 +6,7 @@ import type { LiveReaction } from '../../stores/game';
 import { Avatar } from '../ui/Avatar';
 import { Matches } from '../ui/Matches';
 import { rem } from '../../lib/ui-scale';
+import { SeatClock } from './TurnClock';
 
 export type BidTone = 'none' | 'pending' | 'exact' | 'over' | 'doomed';
 
@@ -189,6 +190,8 @@ export interface SeatProps {
   compact: boolean;
   /** É mão: palpita e joga primeiro na rodada. */
   isMao: boolean;
+  /** Tempo total da vez (para o relógio saber quando o tempo aperta). */
+  turnTotalMs?: number | null;
 }
 
 /** Oponente ao redor da mesa. */
@@ -207,6 +210,11 @@ export const Seat = memo(function Seat(p: SeatProps) {
     >
       <div className="relative">
         {p.isTurn && !out && <TurnRing size={avatarSize} deadline={p.deadline} />}
+        {p.isTurn && !out && p.deadline && (
+          <span className="absolute -right-5 -top-3 z-20">
+            <SeatClock deadline={p.deadline} totalMs={p.turnTotalMs ?? null} />
+          </span>
+        )}
         <Avatar seed={info?.avatar ?? player.id} size={avatarSize} dim={out} />
         {!out && (player.isDealer || p.isMao) && (
           <span className="absolute -left-2 -top-1">{player.isDealer ? <DealerChip size="sm" /> : <MaoChip size="sm" />}</span>
