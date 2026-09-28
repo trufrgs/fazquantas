@@ -24,7 +24,7 @@ import { SPEED_MULTIPLIER, useSettings } from '../../stores/settings';
 import { Button } from '../ui/Button';
 import { Sheet } from '../ui/Sheet';
 import { BidPanel } from './BidPanel';
-import { CoachTip, type TipId } from './CoachTip';
+import { CoachTip, markTipSeen, type TipId } from './CoachTip';
 import { ForcaChip, Hierarchy } from './ForcaChip';
 import { GameOver } from './GameOver';
 import { Hand } from './Hand';
@@ -188,6 +188,7 @@ function Table({ conn, update, seats, reactions }: { conn: GameConnection; updat
       : null;
 
   const send = async (action: ClientAction) => {
+    markTipSeen(tip);
     setPendingAt(view.seq);
     const err = await conn.act(action);
     if (err) {
