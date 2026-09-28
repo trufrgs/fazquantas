@@ -4,10 +4,18 @@ import { defineConfig } from 'vite';
 import { VitePWA } from 'vite-plugin-pwa';
 import pkg from './package.json' with { type: 'json' };
 
+/** No build nativo não há PWA: o registro do service worker vira um no-op. */
+const nativePwaStub = {
+  name: 'fodinha-native-pwa-stub',
+  resolveId: (id: string) => (id === 'virtual:pwa-register' ? '\0pwa-stub' : null),
+  load: (id: string) => (id === '\0pwa-stub' ? 'export function registerSW() { return () => undefined; }' : null),
+};
+
 // `--mode native` gera o build do Capacitor (sem service worker: os assets já vão no app).
 export default defineConfig(({ mode }) => ({
   plugins: [
     react(),
+    mode === 'native' && nativePwaStub,
     tailwindcss(),
     mode !== 'native' &&
       VitePWA({
@@ -31,6 +39,9 @@ export default defineConfig(({ mode }) => ({
         },
         workbox: {
           globPatterns: ['**/*.{js,css,html,svg,png,webp,woff2,mp3,wav}'],
+          // Só o subconjunto latino das fontes vai para o cache offline.
+          globIgnores: ['**/*-cyrillic*', '**/*-vietnamese*', '**/*-greek*', '**/*-latin-ext*'],
+          maximumFileSizeToCacheInBytes: 3 * 1024 * 1024,
           navigateFallbackDenylist: [/^\/socket\.io/, /^\/health/],
         },
       }),

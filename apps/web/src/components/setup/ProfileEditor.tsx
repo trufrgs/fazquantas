@@ -1,7 +1,7 @@
 import { NAME_MAX_LENGTH } from '@fodinha/engine';
 import { Shuffle } from 'lucide-react';
 import { useMemo, useState } from 'react';
-import { randomAvatarSeed } from '../../lib/avatar';
+import { avatarChoices } from '../../lib/avatar';
 import { play } from '../../lib/sound';
 import { useSettings } from '../../stores/settings';
 import { Avatar } from '../ui/Avatar';
@@ -10,7 +10,7 @@ import { Avatar } from '../ui/Avatar';
 export function ProfileEditor() {
   const { name, avatar, set } = useSettings();
   const [batch, setBatch] = useState(0);
-  const options = useMemo(() => [avatar, ...Array.from({ length: 7 }, () => randomAvatarSeed())], [batch]); // eslint-disable-line react-hooks/exhaustive-deps
+  const options = useMemo(() => avatarChoices(avatar, 8), [batch]); // eslint-disable-line react-hooks/exhaustive-deps
   return (
     <div className="flex flex-col gap-3">
       <label className="flex flex-col gap-1">
