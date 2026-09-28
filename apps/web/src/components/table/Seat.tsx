@@ -1,11 +1,11 @@
-import { REACTIONS, type CardId, type Phase, type PublicPlayer } from '@fodinha/engine';
+import { REACTIONS, type Phase, type PublicPlayer } from '@fodinha/engine';
 import { AnimatePresence, motion } from 'motion/react';
 import { memo, useState } from 'react';
 import type { SeatInfo } from '../../lib/connection';
 import type { LiveReaction } from '../../stores/game';
-import { Card } from '../cards/Card';
 import { Avatar } from '../ui/Avatar';
 import { Matches } from '../ui/Matches';
+import { rem } from '../../lib/ui-scale';
 
 export type BidTone = 'none' | 'pending' | 'exact' | 'over' | 'doomed';
 
@@ -68,7 +68,7 @@ export function BidBadge({
   );
 }
 
-/** Anel de vez (pulsa) com contagem regressiva quando há tempo de jogada. */
+/** Anel de vez (pulsa) com contagem regressiva quando há tempo de jogada. `size` em px na escala 1. */
 export function TurnRing({ size, deadline }: { size: number; deadline: number | null }) {
   const [start] = useState(() => Date.now());
   const total = deadline ? Math.max(0, deadline - start) : 0;
@@ -78,12 +78,12 @@ export function TurnRing({ size, deadline }: { size: number; deadline: number | 
     <span className="pointer-events-none absolute inset-0 flex items-center justify-center" aria-hidden="true">
       <motion.span
         className="absolute rounded-full"
-        style={{ width: size + 12, height: size + 12, boxShadow: '0 0 0 3px var(--color-luz), 0 0 22px 6px rgb(255 205 130 / 0.55)' }}
+        style={{ width: rem(size + 12), height: rem(size + 12), boxShadow: '0 0 0 3px var(--color-luz), 0 0 22px 6px rgb(255 205 130 / 0.55)' }}
         animate={{ opacity: [0.65, 1, 0.65], scale: [1, 1.04, 1] }}
         transition={{ duration: 1.4, repeat: Infinity, ease: 'easeInOut' }}
       />
       {deadline && total > 0 && (
-        <svg width={size + 16} height={size + 16} className="absolute -rotate-90">
+        <svg width={rem(size + 16)} height={rem(size + 16)} viewBox={`0 0 ${size + 16} ${size + 16}`} className="absolute -rotate-90">
           <motion.circle
             cx={(size + 16) / 2}
             cy={(size + 16) / 2}
@@ -107,7 +107,7 @@ function DealerChip({ size = 'md' }: { size?: 'sm' | 'md' }) {
   return (
     <span
       className={`inline-flex items-center justify-center rounded-full bg-ouros font-display font-bold text-tinta shadow-[0_2px_0_var(--color-ouros-escuro)] ring-1 ring-black/20 ${
-        size === 'sm' ? 'h-5 px-1.5 text-[10px]' : 'h-6 px-2 text-xs'
+        size === 'sm' ? 'h-5 px-1.5 text-[0.625rem]' : 'h-6 px-2 text-xs'
       }`}
       title="Pé: deu as cartas e palpita por último"
     >
@@ -152,7 +152,6 @@ export interface SeatProps {
   phase: Phase;
   remaining: number;
   startingLives: number;
-  shownCards: CardId[] | null;
   reaction: LiveReaction | undefined;
   compact: boolean;
 }
@@ -166,26 +165,11 @@ export const Seat = memo(function Seat(p: SeatProps) {
 
   return (
     <div
-      className={`absolute z-10 flex flex-col items-center ${p.compact ? 'w-[72px]' : 'w-[84px]'}`}
+      className={`absolute z-10 flex flex-col items-center ${p.compact ? 'w-[4.5rem]' : 'w-[5.25rem]'}`}
       style={{ left: p.x, top: p.y, transform: 'translate(-50%, -50%)' }}
       role="group"
       aria-label={`${player.name}${out ? ', fora do jogo' : ''}`}
     >
-      {p.shownCards && p.shownCards.length > 0 && (
-        <div className="mb-1 flex justify-center" style={{ marginLeft: p.shownCards.length > 1 ? 12 : 0 }}>
-          {p.shownCards.map((id, i) => (
-            <motion.div
-              key={id}
-              initial={{ y: -8, opacity: 0, rotate: -6 }}
-              animate={{ y: 0, opacity: 1, rotate: p.shownCards!.length === 1 ? -6 : (i - (p.shownCards!.length - 1) / 2) * 5 }}
-              style={{ marginLeft: i === 0 ? 0 : -14 }}
-              className="drop-shadow-[0_4px_6px_rgb(0_0_0/0.45)]"
-            >
-              <Card id={id} width={p.shownCards!.length === 1 ? (p.compact ? 30 : 36) : 26} />
-            </motion.div>
-          ))}
-        </div>
-      )}
       <div className="relative">
         {p.isTurn && !out && <TurnRing size={avatarSize} deadline={p.deadline} />}
         <Avatar seed={info?.avatar ?? player.id} size={avatarSize} dim={out} />
@@ -205,7 +189,7 @@ export const Seat = memo(function Seat(p: SeatProps) {
           </motion.span>
         )}
         {info && info.kind === 'human' && !info.connected && !out && (
-          <span className="absolute -right-2 -top-1 rounded-full bg-noite px-1.5 text-[10px] font-bold text-papel ring-1 ring-papel/30">
+          <span className="absolute -right-2 -top-1 rounded-full bg-noite px-1.5 text-[0.625rem] font-bold text-papel ring-1 ring-papel/30">
             caiu
           </span>
         )}
@@ -217,7 +201,7 @@ export const Seat = memo(function Seat(p: SeatProps) {
         {player.name}
       </span>
       {out ? (
-        <span className="rounded-full bg-copas/85 px-2 text-[11px] font-bold text-papel">fora</span>
+        <span className="rounded-full bg-copas/85 px-2 text-[0.6875rem] font-bold text-papel">fora</span>
       ) : (
         <Matches lives={player.lives} starting={p.startingLives} size={p.compact ? 11 : 13} />
       )}

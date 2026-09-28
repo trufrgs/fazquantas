@@ -45,6 +45,11 @@ export const SCENES: Record<string, Scene> = {
     seed: 1,
     until: (s) => s.phase === 'bidding' && s.round.blind && currentActor(s)?.playerId === YOU && s.round.bidTurn >= 2,
   },
+  cega8: {
+    players: 8,
+    seed: 2,
+    until: (s) => s.phase === 'bidding' && s.round.blind && currentActor(s)?.playerId === YOU && s.round.bidTurn >= 3,
+  },
   mao: {
     players: 5,
     seed: 8,
@@ -73,6 +78,12 @@ export const SCENES: Record<string, Scene> = {
     revealAll: true,
     until: (s) =>
       (s.phase === 'playing' || s.phase === 'bidding') && s.players.find((p) => p.id === YOU)!.eliminatedRound !== null,
+  },
+  muitas: {
+    players: 2,
+    seed: 4,
+    rules: { startingLives: 12 },
+    until: (s) => s.phase === 'playing' && s.round.cards >= 10 && currentActor(s)?.playerId === YOU,
   },
   vira: {
     players: 4,

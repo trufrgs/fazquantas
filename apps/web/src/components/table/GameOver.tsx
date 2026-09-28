@@ -19,12 +19,48 @@ export interface GameOverProps {
 async function celebrate() {
   const { default: confetti } = await import('canvas-confetti');
   const colors = ['#e3a82b', '#c4372d', '#2e5c9c', '#3d7a3a', '#f7efde'];
-  confetti({ particleCount: 140, spread: 80, origin: { y: 0.35 }, colors, disableForReducedMotion: true });
-  window.setTimeout(() => confetti({ particleCount: 90, angle: 60, spread: 60, origin: { x: 0, y: 0.6 }, colors, disableForReducedMotion: true }), 250);
-  window.setTimeout(() => confetti({ particleCount: 90, angle: 120, spread: 60, origin: { x: 1, y: 0.6 }, colors, disableForReducedMotion: true }), 400);
+  confetti({
+    particleCount: 140,
+    spread: 80,
+    origin: { y: 0.35 },
+    colors,
+    disableForReducedMotion: true,
+  });
+  window.setTimeout(
+    () =>
+      confetti({
+        particleCount: 90,
+        angle: 60,
+        spread: 60,
+        origin: { x: 0, y: 0.6 },
+        colors,
+        disableForReducedMotion: true,
+      }),
+    250,
+  );
+  window.setTimeout(
+    () =>
+      confetti({
+        particleCount: 90,
+        angle: 120,
+        spread: 60,
+        origin: { x: 1, y: 0.6 },
+        colors,
+        disableForReducedMotion: true,
+      }),
+    400,
+  );
 }
 
-export function GameOver({ view, seats, onAgain, againLabel = 'Mais uma?', onExit, onLobby, waitingText }: GameOverProps) {
+export function GameOver({
+  view,
+  seats,
+  onAgain,
+  againLabel = 'Mais uma?',
+  onExit,
+  onLobby,
+  waitingText,
+}: GameOverProps) {
   const result = view.result;
   const youWon = !!result && !!view.you && result.winners.includes(view.you);
   const draw = (result?.winners.length ?? 0) > 1;
@@ -41,15 +77,13 @@ export function GameOver({ view, seats, onAgain, againLabel = 'Mais uma?', onExi
       ? 'Bah, tu ganhou!'
       : `${name(result.winners[0]!)} ganhou`;
 
-  const mine = view.you
-    ? view.history.filter((r) => r.bids[view.you!] !== undefined)
-    : [];
+  const mine = view.you ? view.history.filter((r) => r.bids[view.you!] !== undefined) : [];
   const exact = mine.filter((r) => r.bids[view.you!] === r.tricks[view.you!]).length;
 
   return (
     <AnimatePresence>
       <motion.div
-        className="fixed inset-0 z-50 flex items-center justify-center bg-noite/70 p-4"
+        className="fixed inset-0 z-50 flex overflow-y-auto bg-noite/70 p-4"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         role="dialog"
@@ -57,7 +91,7 @@ export function GameOver({ view, seats, onAgain, againLabel = 'Mais uma?', onExi
         aria-label="Fim de jogo"
       >
         <motion.div
-          className="papel w-full max-w-sm rounded-[28px] p-5 shadow-2xl"
+          className="papel m-auto w-full max-w-sm rounded-[1.75rem] p-5 shadow-2xl"
           initial={{ y: 40, scale: 0.9, opacity: 0 }}
           animate={{ y: 0, scale: 1, opacity: 1 }}
           transition={{ type: 'spring', stiffness: 260, damping: 22, delay: 0.1 }}
@@ -79,12 +113,11 @@ export function GameOver({ view, seats, onAgain, againLabel = 'Mais uma?', onExi
                   key={id}
                   className={`flex items-center gap-3 rounded-2xl px-3 py-2 ${winner ? 'bg-ouros/35 ring-1 ring-ouros-escuro/40' : 'bg-tinta/5'} ${id === view.you ? 'font-bold' : ''}`}
                 >
-                  <span className="w-5 text-center font-display text-lg font-bold tabular-nums">{i + 1}</span>
-                  <Avatar seed={seat?.avatar ?? id} size={32} />
-                  <span className="min-w-0 flex-1 truncate font-semibold">
-                    {p?.name ?? id}
-
+                  <span className="w-5 text-center font-display text-lg font-bold tabular-nums">
+                    {i + 1}
                   </span>
+                  <Avatar seed={seat?.avatar ?? id} size={32} />
+                  <span className="min-w-0 flex-1 truncate font-semibold">{p?.name ?? id}</span>
                   <span className="text-sm text-tinta-2">
                     {winner ? '🏆' : p?.eliminatedRound ? `saiu na ${p.eliminatedRound}ª` : ''}
                   </span>

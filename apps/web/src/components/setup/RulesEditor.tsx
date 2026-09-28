@@ -79,7 +79,7 @@ export function RulesEditor({ value, onChange, dark }: RulesEditorProps) {
         aria-expanded={open}
       >
         {open ? 'Esconder regras' : 'Ajustar regras'}
-        <ChevronDown size={16} className={`transition ${open ? 'rotate-180' : ''}`} />
+        <ChevronDown size="1rem" className={`transition ${open ? 'rotate-180' : ''}`} />
       </button>
       {open && (
         <div className={`mt-2 divide-y ${dark ? 'divide-papel/10' : 'divide-tinta/10'}`}>

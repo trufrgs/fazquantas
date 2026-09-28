@@ -75,7 +75,7 @@ export function Toggle({ checked, onChange, label, description }: ToggleProps) {
         aria-hidden="true"
       >
         <span
-          className={`absolute top-0.5 h-6 w-6 rounded-full bg-white shadow transition-all ${checked ? 'left-[22px]' : 'left-0.5'}`}
+          className={`absolute top-0.5 h-6 w-6 rounded-full bg-white shadow transition-all ${checked ? 'left-[1.375rem]' : 'left-0.5'}`}
         />
       </span>
     </button>

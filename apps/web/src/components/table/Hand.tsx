@@ -30,10 +30,16 @@ interface Slot {
   row: number;
 }
 
+/** Inclinação (graus) entre cartas vizinhas do leque. */
+const tiltStep = (m: number) => Math.min(3.2, 26 / Math.max(m, 1));
+
 function layoutFan(ids: Slot['id'][], width: number, cw: number): Slot[] {
   const n = ids.length;
   if (n === 0) return [];
-  const avail = Math.max(cw, width - 20);
+  // As cartas das pontas inclinam e o canto de cima sai para fora: a margem cobre isso.
+  const tilt = (tiltStep(n) * (n - 1)) / 2;
+  const edge = cw * CARD_RATIO * Math.sin((tilt * Math.PI) / 180) + cw * 0.08 + 6;
+  const avail = Math.max(cw, width - 2 * edge);
   const maxSpacing = (m: number) => cw * (m <= 3 ? 1.04 : m <= 5 ? 0.8 : 0.7);
   const oneRowSpacing = n > 1 ? Math.min(maxSpacing(n), (avail - cw) / (n - 1)) : 0;
   const rows = n > 8 && oneRowSpacing < cw * 0.34 ? 2 : 1;
@@ -45,7 +51,7 @@ function layoutFan(ids: Slot['id'][], width: number, cw: number): Slot[] {
     const spacing = m > 1 ? Math.min(maxSpacing(m), (avail - cw) / (m - 1)) : 0;
     const total = cw + spacing * (m - 1);
     const start = (width - total) / 2;
-    const step = Math.min(3.2, 26 / Math.max(m, 1));
+    const step = tiltStep(m);
     rowIds.forEach((id, i) => {
       const off = i - (m - 1) / 2;
       slots.push({
@@ -163,7 +169,7 @@ export function Hand(p: HandProps) {
               )}
               {!hidden && p.starred.has(id) && (
                 <span
-                  className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-ouros text-[11px] text-tinta shadow ring-1 ring-black/25"
+                  className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-ouros text-[0.6875rem] text-tinta shadow ring-1 ring-black/25"
                   title="Manilha"
                   aria-hidden="true"
                 >

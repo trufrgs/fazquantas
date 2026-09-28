@@ -36,8 +36,9 @@ pnpm dev
   de fósforo que queimam, caderneta com o placar anotado à mão, reações rápidas, sons e vibração.
 - **Continua de onde parou:** a partida local é salva a cada jogada.
 - **PWA:** dá para instalar pelo navegador e jogar contra bots offline.
-- Funciona no celular em pé e deitado e no desktop. Aceita teclado: 0–9 palpitam, ←/→ escolhem a
-  carta, Enter joga, Esc abre o menu.
+- Funciona no celular em pé e deitado, no tablet e no desktop: a interface cresce com a tela, e as
+  cartas na testa (rodada de 1 carta) ficam grandes, na frente de cada jogador. Aceita teclado: 0–9
+  palpitam, ←/→ escolhem a carta, Enter joga, Esc abre o menu.
 
 ## Estrutura
 
@@ -64,9 +65,12 @@ cada jogador só a visão dele, então nenhuma carta escondida sai do servidor.
 | `pnpm build` | build do web (PWA) e do servidor |
 | `pnpm start` | produção: <http://localhost:3001> serve o jogo e o multiplayer |
 | `FUZZ_GAMES=3000 pnpm --filter @fodinha/engine test` | fuzz longo do engine |
+| `node scripts/adversarial-player.mjs` | com o `pnpm dev` no ar: joga partidas pela interface em 6 tamanhos de tela (gira, recarrega, abre folhas no meio) e aponta carta fora da tela, encavalada ou escondida |
+| `node scripts/scene-shots.mjs <pasta> 390x844,1436x809 cega,mao` | captura cenas de desenvolvimento em vários tamanhos, para revisão visual |
 
 Cenas de desenvolvimento para revisar o visual: `http://localhost:5173/?cena=empardou` (também `mesa8`,
-`palpite`, `mao`, `cega`, `fimrodada`, `fimjogo`, `espectador`, `vira`) e `?galeria` com o baralho inteiro.
+`palpite`, `mao`, `cega`, `cega8`, `muitas`, `fimrodada`, `fimjogo`, `espectador`, `vira`) e `?galeria` com
+o baralho inteiro.
 
 ## Produção e apps
 

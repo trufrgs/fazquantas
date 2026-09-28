@@ -50,7 +50,7 @@ export function ScreenFrame({
 /** Painel de papel para agrupar conteúdo nas telas de menu. */
 export function Panel({ title, children, className }: { title?: string; children: ReactNode; className?: string }) {
   return (
-    <section className={`papel rounded-[24px] p-4 shadow-[0_10px_28px_rgb(0_0_0/0.35)] ${className ?? ''}`}>
+    <section className={`papel rounded-3xl p-4 shadow-[0_10px_28px_rgb(0_0_0/0.35)] ${className ?? ''}`}>
       {title && (
         <h2 className="mb-2 font-display text-xl font-bold" style={{ fontVariationSettings: '"SOFT" 100' }}>
           {title}

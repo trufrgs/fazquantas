@@ -71,7 +71,7 @@ export function Rules() {
           <li>O selo 1/2 mostra mãos feitas e palpite: verde tá certinho, vermelho já errou.</li>
           <li>A lâmpada é uma dica do jogo. Dá pra desligar nos ajustes.</li>
           <li>O chip no canto da mesa mostra as manilhas. Toca nele pra ver a força de todas as cartas.</li>
-          <li>A caderneta, lá em cima, guarda os palpites de todas as rodadas.</li>
+          <li>A caderneta, lá em cima, anota quanto cada um pediu e fez em cada rodada (✓ é na mosca).</li>
         </ul>
       </Panel>
     </ScreenFrame>

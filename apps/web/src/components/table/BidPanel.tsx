@@ -17,6 +17,15 @@ export interface BidPanelProps {
   tip?: TipId | null;
   /** Atalhos 0–9 ligados (desligados com menu/folha aberta por cima). */
   keyboard?: boolean;
+  /**
+   * Mesa baixa (celular deitado): uma linha só, para não cobrir a fileira de cima nem as cartas
+   * na testa dos outros.
+   */
+  compact?: boolean;
+  /** Distância (px) do pé da mesa até a base do painel; negativa desce por cima da tua faixa. */
+  bottom?: number;
+  /** Na barra de uma linha, há largura para o aviso ao lado dos números. */
+  hintInline?: boolean;
 }
 
 /** Painel "Quantas tu faz?" — toque no número confirma o palpite. */
@@ -41,68 +50,110 @@ export function BidPanel(p: BidPanelProps) {
     return () => window.removeEventListener('keydown', onKey);
   }, [open, keyboard, legal, onBid]);
   const big = options.length > 8;
+  const compact = p.compact ?? false;
+  const title = (
+    <h2
+      className={`font-display font-bold leading-tight ${compact ? 'text-lg' : 'text-[1.35rem]'}`}
+      style={{ fontVariationSettings: '"SOFT" 100, "WONK" 1' }}
+    >
+      Quantas tu faz?
+    </h2>
+  );
+  const sum = (
+    <span className={`shrink-0 text-tinta-2 ${compact ? 'text-xs' : 'text-sm'}`}>
+      palpites <strong className="tabular-nums text-tinta">{p.bidsSum}</strong> de {p.cards}
+    </span>
+  );
+  const note =
+    p.forbidden !== null ? (
+      <>
+        Tu é o <strong className="text-tinta">pé</strong>: não pode pedir {p.forbidden}, senão a
+        soma bate {p.cards}.
+      </>
+    ) : p.blind ? (
+      <>Tua carta tá na testa: palpita olhando as dos outros.</>
+    ) : p.isDealer ? (
+      <>Tu é o pé: palpita por último.</>
+    ) : null;
+  // Na barra de uma linha o aviso vai ao lado dos números, se couber; nunca numa linha a mais.
+  const hint =
+    note &&
+    (compact ? (
+      p.hintInline &&
+      options.length <= 6 && (
+        <p className="w-[13rem] shrink-0 text-xs leading-snug text-tinta-2">{note}</p>
+      )
+    ) : (
+      <p className="mt-2 text-[0.8125rem] leading-snug text-tinta-2">{note}</p>
+    ));
   return (
     <AnimatePresence>
       {p.open && (
         <motion.section
           aria-label="Teu palpite"
-          className="papel absolute inset-x-3 bottom-2 z-40 mx-auto max-w-md rounded-[24px] px-4 pb-3.5 pt-3 shadow-[0_18px_40px_rgb(0_0_0/0.55)] ring-1 ring-black/10"
+          className={`papel absolute z-40 mx-auto rounded-3xl shadow-[0_18px_40px_rgb(0_0_0/0.55)] ring-1 ring-black/10 ${
+            compact ? 'inset-x-2 px-3 py-2' : 'inset-x-3 max-w-md px-4 pb-3.5 pt-3'
+          }`}
+          style={{ bottom: p.bottom ?? 8 }}
           initial={{ y: 40, opacity: 0, scale: 0.96 }}
           animate={{ y: 0, opacity: 1, scale: 1 }}
           exit={{ y: 30, opacity: 0, scale: 0.97, transition: { duration: 0.15 } }}
           transition={{ type: 'spring', stiffness: 420, damping: 32 }}
         >
           <CoachTip tip={p.tip ?? null} inline />
-          <header className="mb-2.5 flex items-baseline justify-between gap-3">
-            <h2 className="font-display text-[1.35rem] font-bold leading-tight" style={{ fontVariationSettings: '"SOFT" 100, "WONK" 1' }}>
-              Quantas tu faz?
-            </h2>
-            <span className="shrink-0 text-sm text-tinta-2">
-              palpites <strong className="tabular-nums text-tinta">{p.bidsSum}</strong> de {p.cards}
-            </span>
-          </header>
-          <div className={`grid gap-2 ${big ? 'grid-cols-6' : options.length > 5 ? 'grid-cols-5' : 'grid-flow-col auto-cols-fr'}`}>
-            {options.map((n) => {
-              const allowed = p.legal.includes(n);
-              const isForbidden = p.forbidden === n;
-              const hint = p.suggested === n && allowed;
-              return (
-                <button
-                  key={n}
-                  type="button"
-                  disabled={!allowed}
-                  onClick={() => p.onBid(n)}
-                  aria-label={isForbidden ? `${n} (proibido para o pé)` : `Palpite ${n}`}
-                  className={`ficha relative h-12 font-display text-2xl font-bold ${
-                    allowed ? 'ficha-ouro' : 'ficha-papel'
-                  } ${hint ? 'ring-4 ring-luz/90' : ''}`}
-                >
-                  {n}
-                  {isForbidden && (
-                    <span className="absolute inset-2 rotate-[-35deg] border-t-[3px] border-copas" aria-hidden="true" />
-                  )}
-                  {hint && (
-                    <span className="absolute -right-1.5 -top-1.5 flex h-6 w-6 items-center justify-center rounded-full bg-tinta text-luz shadow" title="Sugestão">
-                      <Lightbulb size={14} strokeWidth={2.5} />
-                    </span>
-                  )}
-                </button>
-              );
-            })}
-          </div>
-          {(p.forbidden !== null || p.blind || p.isDealer) && (
-            <p className="mt-2 text-[13px] leading-snug text-tinta-2">
-              {p.forbidden !== null ? (
-                <>
-                  Tu é o <strong className="text-tinta">pé</strong>: não pode pedir {p.forbidden}, senão a soma bate {p.cards}.
-                </>
-              ) : p.blind ? (
-                <>Tua carta tá na testa: palpita olhando as dos outros.</>
-              ) : (
-                <>Tu é o pé: palpita por último.</>
-              )}
-            </p>
+          {!compact && (
+            <header className="mb-2.5 flex items-baseline justify-between gap-3">
+              {title}
+              {sum}
+            </header>
           )}
+          <div className={compact ? 'flex items-center gap-3' : undefined}>
+            {compact && (
+              <div className="flex shrink-0 flex-col">
+                {title}
+                {sum}
+              </div>
+            )}
+            <div
+              className={`grid ${compact ? 'flex-1 grid-flow-col auto-cols-fr gap-1.5' : `gap-2 ${big ? 'grid-cols-6' : options.length > 5 ? 'grid-cols-5' : 'grid-flow-col auto-cols-fr'}`}`}
+            >
+              {options.map((n) => {
+                const allowed = p.legal.includes(n);
+                const isForbidden = p.forbidden === n;
+                const hint = p.suggested === n && allowed;
+                return (
+                  <button
+                    key={n}
+                    type="button"
+                    disabled={!allowed}
+                    onClick={() => p.onBid(n)}
+                    aria-label={isForbidden ? `${n} (proibido para o pé)` : `Palpite ${n}`}
+                    className={`ficha relative font-display font-bold ${compact ? 'h-11 text-xl' : 'h-12 text-2xl'} ${
+                      allowed ? 'ficha-ouro' : 'ficha-papel'
+                    } ${hint ? 'ring-4 ring-luz/90' : ''}`}
+                  >
+                    {n}
+                    {isForbidden && (
+                      <span
+                        className="absolute inset-2 rotate-[-35deg] border-t-[3px] border-copas"
+                        aria-hidden="true"
+                      />
+                    )}
+                    {hint && (
+                      <span
+                        className="absolute -right-1.5 -top-1.5 flex h-6 w-6 items-center justify-center rounded-full bg-tinta text-luz shadow"
+                        title="Sugestão"
+                      >
+                        <Lightbulb size="0.875rem" strokeWidth={2.5} />
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+            {compact && hint}
+          </div>
+          {!compact && hint}
         </motion.section>
       )}
     </AnimatePresence>

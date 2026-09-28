@@ -1,5 +1,6 @@
 import { motion } from 'motion/react';
 import { memo, useEffect, useRef, useState } from 'react';
+import { rem } from '../../lib/ui-scale';
 
 /** Um palito de fósforo. Ao virar `burnt`, acende e queima de cima para baixo. */
 const Match = memo(function Match({ burnt, height }: { burnt: boolean; height: number }) {
@@ -19,7 +20,7 @@ const Match = memo(function Match({ burnt, height }: { burnt: boolean; height: n
 
   const w = height * 0.26;
   return (
-    <svg width={w} height={height} viewBox="0 0 6 24" style={{ overflow: 'visible' }} aria-hidden="true">
+    <svg width={rem(w)} height={rem(height)} viewBox="0 0 6 24" style={{ overflow: 'visible' }} aria-hidden="true">
       <g opacity={burnt && !burning ? 0.38 : 1}>
         <rect x="1.8" y="4" width="2.4" height="19" rx="0.8" fill={burnt && !burning ? '#3a2a20' : 'url(#palito)'} />
         {!burnt || burning ? (
@@ -57,20 +58,22 @@ const Match = memo(function Match({ burnt, height }: { burnt: boolean; height: n
 export interface MatchesProps {
   lives: number;
   starting: number;
-  /** Altura de cada palito em px. */
+  /** Altura de cada palito em px na escala 1. */
   size?: number;
+  /** Um palito só com o número (pouco espaço). */
+  compact?: boolean;
   className?: string;
 }
 
 /** Vidas como palitos de fósforo (inteiros = vidas; queimados = perdidas). */
-export function Matches({ lives, starting, size = 16, className }: MatchesProps) {
+export function Matches({ lives, starting, size = 16, compact = false, className }: MatchesProps) {
   const alive = Math.max(0, lives);
   const label = `${alive} ${alive === 1 ? 'vida' : 'vidas'}`;
-  if (starting > 6) {
+  if (compact || starting > 6) {
     return (
       <span role="img" className={`inline-flex items-center gap-1 ${className ?? ''}`} aria-label={label} title={label}>
         <Match burnt={alive === 0} height={size} />
-        <span className="font-bold tabular-nums" style={{ fontSize: size * 0.8 }}>
+        <span className="font-bold tabular-nums" style={{ fontSize: rem(size * 0.8) }}>
           {alive}
         </span>
       </span>
@@ -80,7 +83,7 @@ export function Matches({ lives, starting, size = 16, className }: MatchesProps)
     <span
       role="img"
       className={`inline-flex items-end ${className ?? ''}`}
-      style={{ gap: size * 0.12 }}
+      style={{ gap: rem(size * 0.12) }}
       aria-label={label}
       title={label}
     >

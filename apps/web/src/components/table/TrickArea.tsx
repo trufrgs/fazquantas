@@ -1,7 +1,7 @@
 import { card as cardOf, cardName, type Play } from '@fodinha/engine';
 import { AnimatePresence, motion } from 'motion/react';
 import { Card, CARD_RATIO } from '../cards/Card';
-import { tossRotation, type Point, type TableGeometry } from './layout';
+import { tossRotation, trickStacking, type Point, type TableGeometry } from './layout';
 
 export interface TrickAreaProps {
   plays: Play[];
@@ -16,17 +16,22 @@ export interface TrickAreaProps {
   collectTo: Point;
   /** Sua carta chega da mão (layoutId); na rodada às cegas vem do assento. */
   youFromHand: boolean;
+  /** Rodada às cegas: a carta de cada um sai de onde estava à mostra, no mesmo tamanho. */
+  revealFrom?: { spots: ReadonlyMap<string, Point>; cardWidth: number } | null;
 }
 
 export function TrickArea(p: TrickAreaProps) {
   const cw = p.cardWidth;
   const ch = cw * CARD_RATIO;
+  const stack = trickStacking(p.plays.map((play) => p.geometry.tricks.get(play.playerId) ?? p.geometry.center));
   return (
     <div className="pointer-events-none absolute inset-0" aria-live="polite">
       <AnimatePresence custom={p.collectTo}>
         {p.plays.map((play, i) => {
           const at = p.geometry.tricks.get(play.playerId) ?? p.geometry.center;
-          const from = p.geometry.seats.get(play.playerId) ?? p.geometry.center;
+          const shown = p.revealFrom?.spots.get(play.playerId);
+          const from = shown ?? p.geometry.seats.get(play.playerId) ?? p.geometry.center;
+          const fromScale = shown ? p.revealFrom!.cardWidth / cw : 0.45;
           const mine = play.playerId === p.youId && p.youFromHand;
           const isWinner = p.resolved && play.playerId === p.winnerId;
           const isCancelled = p.resolved && p.cancelled.includes(play.playerId);
@@ -37,9 +42,9 @@ export function TrickArea(p: TrickAreaProps) {
               layoutId={mine ? `card-${play.cardId}` : undefined}
               custom={p.collectTo}
               className="absolute"
-              style={{ left: at.x - cw / 2, top: at.y - ch / 2, width: cw, height: ch, zIndex: isWinner ? 50 : 10 + i }}
+              style={{ left: at.x - cw / 2, top: at.y - ch / 2, width: cw, height: ch, zIndex: isWinner ? 50 : 10 + (stack[i] ?? i) }}
               initial={
-                mine ? { rotate: 0 } : { x: from.x - at.x, y: from.y - at.y, scale: 0.45, opacity: 0, rotate: 0 }
+                mine ? { rotate: 0 } : { x: from.x - at.x, y: from.y - at.y, scale: fromScale, opacity: shown ? 1 : 0, rotate: 0 }
               }
               animate={{
                 x: 0,

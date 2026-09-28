@@ -47,7 +47,7 @@ export function CoachTip({ tip, inline = false }: { tip: TipId | null; inline?: 
           exit={{ opacity: 0, y: -8, scale: 0.97 }}
           transition={{ type: 'spring', stiffness: 380, damping: 30 }}
         >
-          <p className="flex-1 text-[15px] leading-snug">{TIPS[tip]}</p>
+          <p className="flex-1 text-[0.9375rem] leading-snug">{TIPS[tip]}</p>
           <button
             type="button"
             onClick={() => set({ seenTips: [...seen, tip] })}

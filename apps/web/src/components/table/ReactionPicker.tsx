@@ -29,10 +29,10 @@ export function ReactionPicker({ open, onPick, onClose }: { open: boolean; onPic
                 type="button"
                 role="menuitem"
                 onClick={() => onPick(r.id)}
-                className="flex w-[72px] flex-col items-center gap-0.5 rounded-2xl px-1 py-2 transition active:scale-95 active:bg-tinta/10"
+                className="flex w-[4.5rem] flex-col items-center gap-0.5 rounded-2xl px-1 py-2 transition active:scale-95 active:bg-tinta/10"
               >
                 <span className="text-2xl leading-none">{r.emoji}</span>
-                <span className="text-[11px] font-semibold text-tinta-2">{r.label}</span>
+                <span className="text-[0.6875rem] font-semibold text-tinta-2">{r.label}</span>
               </button>
             ))}
           </motion.div>

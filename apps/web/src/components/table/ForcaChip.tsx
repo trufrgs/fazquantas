@@ -10,6 +10,7 @@ import {
   type Rank,
   type StrengthCtx,
 } from '@fodinha/engine';
+import { useUiScale } from '../../lib/ui-scale';
 import { Card } from '../cards/Card';
 
 const FIXED_MANILHAS: Record<Exclude<HierarchyMode, 'vira'>, CardId[]> = {
@@ -21,6 +22,7 @@ const RANK_LABEL: Record<Rank, string> = { 1: 'ás', 2: '2', 3: '3', 4: '4', 5: 
 
 /** Chip no canto da mesa: as manilhas (fixas) ou a vira e a manilha da rodada. Toque abre a força das cartas. */
 export function ForcaChip({ mode, vira, onOpen }: { mode: HierarchyMode; vira: CardId | null; onOpen: () => void }) {
+  const s = useUiScale();
   return (
     <button
       type="button"
@@ -31,7 +33,7 @@ export function ForcaChip({ mode, vira, onOpen }: { mode: HierarchyMode; vira: C
       {mode === 'vira' ? (
         vira ? (
           <>
-            <Card id={vira} width={24} />
+            <Card id={vira} width={24 * s} />
             <span className="text-xs leading-tight">
               <span className="block text-papel/70">vira</span>
               <span className="block font-bold">manilha: {RANK_LABEL[manilhaRank(card(vira))]}</span>
@@ -42,7 +44,7 @@ export function ForcaChip({ mode, vira, onOpen }: { mode: HierarchyMode; vira: C
         <>
           <span className="flex -space-x-2">
             {FIXED_MANILHAS[mode].map((id) => (
-              <Card key={id} id={id} width={20} />
+              <Card key={id} id={id} width={20 * s} />
             ))}
           </span>
           <span className="text-xs font-bold leading-tight">manilhas</span>
@@ -84,6 +86,7 @@ function groupLabel(ids: CardId[], ctx: StrengthCtx): string {
 
 /** Lista completa da força das cartas (do mais forte para o mais fraco). */
 export function Hierarchy({ mode, vira }: { mode: HierarchyMode; vira: CardId | null }) {
+  const s = useUiScale();
   const ctx: StrengthCtx = { mode, vira: vira ? card(vira) : null };
   const groups = hierarchyGroups(ctx);
   return (
@@ -93,10 +96,10 @@ export function Hierarchy({ mode, vira }: { mode: HierarchyMode; vira: CardId | 
           <span className="w-6 shrink-0 text-right font-display text-lg font-bold text-tinta-2 tabular-nums">{i + 1}</span>
           <span className="flex shrink-0 -space-x-6" style={{ width: 44 + (ids.length - 1) * 20 }}>
             {ids.map((id) => (
-              <Card key={id} id={id} width={44} className="shadow-[0_2px_6px_rgb(0_0_0/0.25)]" />
+              <Card key={id} id={id} width={44 * s} className="shadow-[0_2px_6px_rgb(0_0_0/0.25)]" />
             ))}
           </span>
-          <span className="min-w-0 text-[15px] font-semibold leading-tight">{groupLabel(ids, ctx)}</span>
+          <span className="min-w-0 text-[0.9375rem] font-semibold leading-tight">{groupLabel(ids, ctx)}</span>
         </li>
       ))}
     </ol>

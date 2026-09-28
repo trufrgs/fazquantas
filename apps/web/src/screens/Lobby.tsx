@@ -110,7 +110,7 @@ export function Lobby() {
               <span className="min-w-0 flex-1">
                 <span className="flex items-center gap-1.5 font-semibold">
                   <span className="truncate">{s.name}</span>
-                  {s.playerId === room.hostId && <Crown size={16} className="shrink-0 text-ouros-escuro" aria-label="anfitrião" />}
+                  {s.playerId === room.hostId && <Crown size="1rem" className="shrink-0 text-ouros-escuro" aria-label="anfitrião" />}
                 </span>
                 <span className="text-sm text-tinta-2">
                   {s.playerId === room.youId
@@ -143,7 +143,7 @@ export function Lobby() {
                   className="flex h-9 w-9 items-center justify-center rounded-full bg-tinta/8 text-tinta-2"
                   aria-label={`Tirar ${s.name} da sala`}
                 >
-                  <X size={18} />
+                  <X size="1.125rem" />
                 </button>
               )}
             </li>

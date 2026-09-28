@@ -1,5 +1,17 @@
 import { describe, expect, it } from 'vitest';
-import { BID_PANEL, isCompact, SEAT_BOX, tableGeometry } from './layout';
+import { CARD_RATIO } from '../cards/Card';
+import {
+  BID_PANEL,
+  cardSizes,
+  compactBidPanel,
+  isCompact,
+  rectAround,
+  SEAT_BOX,
+  tableGeometry,
+  tableRevealLayout,
+  trickStacking,
+  type Rect,
+} from './layout';
 
 const SCREENS = [
   // Área da mesa (entre a barra de cima e a mão) em telas reais.
@@ -81,5 +93,90 @@ describe('tableGeometry', () => {
     const g = tableGeometry(390, 560, ['a', 'b', 'eu', 'c'], 'eu', 48);
     expect(g.seats.get('eu')!.y).toBeGreaterThan(560);
     expect(g.seats.get('c')!.x).toBeGreaterThan(195); // depois de mim vem o "c"
+  });
+});
+
+describe('cartas à mostra e cartas da vaza', () => {
+  // Área da mesa medida no navegador, tela inteira e escala da interface de cada aparelho.
+  const TABLES = [
+    // `roomy`: há espaço para a carta não encostar em nada do assento (nem no nome).
+    { name: 'celular em pé', w: 390, h: 608, vw: 390, vh: 844, s: 1, compactPanel: false, roomy: true },
+    { name: 'celular pequeno', w: 360, h: 414, vw: 360, vh: 640, s: 1, compactPanel: false, roomy: false },
+    { name: 'celular deitado', w: 844, h: 183, vw: 844, vh: 390, s: 1, compactPanel: true, roomy: false },
+    { name: 'celular pequeno deitado', w: 667, h: 168, vw: 667, vh: 375, s: 1, compactPanel: true, roomy: false },
+    { name: 'tablet em pé', w: 768, h: 640, vw: 768, vh: 1024, s: 1.4, compactPanel: false, roomy: true },
+    { name: 'desktop', w: 1436, h: 485, vw: 1436, vh: 809, s: 1.26, compactPanel: false, roomy: true },
+  ];
+  // Encostar (até 2 px) não conta.
+  const overlap = (a: Rect, b: Rect) => a.l < b.r - 2 && b.l < a.r - 2 && a.t < b.b - 2 && b.t < a.b - 2;
+
+  for (const t of TABLES) {
+    for (let n = 2; n <= 8; n++) {
+      const order = Array.from({ length: n }, (_, i) => `p${i}`);
+      const others = order.slice(1);
+      const box = SEAT_BOX[isCompact(n, t.vw / t.s, t.vh / t.s) ? 'compact' : 'normal'];
+      const { trick } = cardSizes(t.vw, t.vh, n, t.s);
+      const g = tableGeometry(t.w, t.h, order, 'p0', trick, box, t.s);
+
+      it(`${t.name}, ${n} jogadores: carta na testa de todos à vista, sem cobrir ninguém`, () => {
+        const compactPanel = compactBidPanel(g, 'p0', t.s, 47 * t.s);
+        if (t.compactPanel) expect(compactPanel).toBe(true);
+        const r = tableRevealLayout(g, others, { scale: t.s, trickCard: trick, compactPanel, mySeatH: 47 * t.s });
+        const cards = others.map((id) => rectAround(r.spots.get(id)!, r.cardWidth, r.cardWidth * CARD_RATIO));
+        const seats = others.map((id) => rectAround(g.seats.get(id)!, g.seatBox.w, g.seatBox.h));
+        const box = g.seatBox;
+        const faces = others.map((id) => {
+          const p = g.seats.get(id)!;
+          return { l: p.x - box.w * 0.35, t: p.y - box.h / 2, r: p.x + box.w * 0.35, b: p.y + box.h * 0.06 };
+        });
+        expect(r.cardWidth).toBeGreaterThanOrEqual(30 * t.s);
+        cards.forEach((c, i) => {
+          expect(c.l, `p${i + 1} fora da mesa`).toBeGreaterThanOrEqual(0);
+          expect(c.r).toBeLessThanOrEqual(t.w);
+          expect(c.t).toBeGreaterThanOrEqual(0);
+          expect(c.b).toBeLessThanOrEqual(t.h);
+          faces.forEach((face, j) => expect(overlap(c, face), `carta de p${i + 1} × rosto de p${j + 1}`).toBe(false));
+          if (t.roomy) seats.forEach((seat, j) => expect(overlap(c, seat), `carta de p${i + 1} × assento de p${j + 1}`).toBe(false));
+          cards.forEach((other, j) => j > i && expect(overlap(c, other), `cartas de p${i + 1} e p${j + 1}`).toBe(false));
+          // Nunca acima do próprio assento (encostaria na barra de cima).
+          expect(r.spots.get(others[i]!)!.y).toBeGreaterThanOrEqual(g.seats.get(others[i]!)!.y - 1);
+        });
+      });
+
+      it(`${t.name}, ${n} jogadores: na vaza, o número de cada carta fica à mostra`, () => {
+        const spots = order.map((id) => g.tricks.get(id)!);
+        const w = trick;
+        const h = trick * CARD_RATIO;
+        const rank = trickStacking(spots);
+        spots.forEach((a, i) => {
+          const corner = { l: a.x - w / 2, t: a.y - h / 2, r: a.x - w / 2 + w * 0.26, b: a.y - h / 2 + h * 0.2 };
+          spots.forEach((b, j) => {
+            if (i === j || rank[j]! < rank[i]!) return; // só quem vai por cima pode cobrir
+            const card = rectAround(b, w, h);
+            expect(overlap(corner, card), `número de p${i} coberto por p${j}`).toBe(false);
+          });
+          expect(a.y - h / 2).toBeGreaterThanOrEqual(-1);
+          expect(a.y + h / 2).toBeLessThanOrEqual(t.h + 1);
+        });
+      });
+    }
+  }
+
+  it('no celular em pé, com até 6 jogadores, as cartas na testa passam de 60 px', () => {
+    for (let n = 2; n <= 6; n++) {
+      const order = Array.from({ length: n }, (_, i) => `p${i}`);
+      const box = SEAT_BOX[isCompact(n, 390, 844) ? 'compact' : 'normal'];
+      const { trick } = cardSizes(390, 844, n, 1);
+      const g = tableGeometry(390, 608, order, 'p0', trick, box, 1);
+      const r = tableRevealLayout(g, order.slice(1), { scale: 1, trickCard: trick, compactPanel: false, mySeatH: 47 });
+      expect(r.cardWidth, `${n} jogadores`).toBeGreaterThanOrEqual(60);
+    }
+  });
+
+  it('no desktop as cartas crescem com a escala da interface', () => {
+    const phone = cardSizes(390, 844, 4, 1);
+    const desk = cardSizes(1436, 809, 4, 1.26);
+    expect(desk.hand).toBeGreaterThan(phone.hand * 1.4);
+    expect(desk.trick).toBeGreaterThan(phone.trick * 1.6);
   });
 });

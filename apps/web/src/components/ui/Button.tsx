@@ -24,7 +24,7 @@ export function Button({ variant = 'papel', size = 'md', icon, className, onClic
     <button
       type="button"
       {...rest}
-      className={`ficha ficha-${variant} ${SIZES[size]} ${className ?? ''}`}
+      className={`ficha ficha-${variant} ${SIZES[size]} [&>svg]:size-[1.2em] [&>svg]:shrink-0 ${className ?? ''}`}
       onClick={(e) => {
         play('click');
         void haptic('tap', hapticsOn);
@@ -51,7 +51,7 @@ export function IconButton({
       aria-label={label}
       title={label}
       {...rest}
-      className={`inline-flex h-11 w-11 items-center justify-center rounded-full bg-noite/45 text-papel ring-1 ring-papel/15 backdrop-blur-sm transition active:scale-95 ${className ?? ''}`}
+      className={`inline-flex h-11 w-11 items-center justify-center rounded-full bg-noite/45 text-papel ring-1 ring-papel/15 backdrop-blur-sm transition active:scale-95 [&>svg]:size-[1.35rem] ${className ?? ''}`}
       onClick={(e) => {
         play('click');
         onClick?.(e);

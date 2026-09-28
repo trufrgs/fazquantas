@@ -60,7 +60,7 @@ export function Sheet({ open, onClose, children, label, className, backdrop = tr
           <motion.div
             ref={panel}
             tabIndex={-1}
-            className={`papel pointer-events-auto relative max-h-[88dvh] w-full max-w-lg overflow-y-auto rounded-t-[28px] px-5 pt-3 shadow-[0_-12px_40px_rgb(0_0_0/0.45)] outline-none ${className ?? ''}`}
+            className={`papel pointer-events-auto relative max-h-[88dvh] w-full max-w-lg overflow-y-auto rounded-t-[1.75rem] px-5 pt-3 shadow-[0_-12px_40px_rgb(0_0_0/0.45)] outline-none ${className ?? ''}`}
             style={{ paddingBottom: 'calc(1.25rem + var(--safe-bottom))' }}
             initial={{ y: '100%' }}
             animate={{ y: 0 }}
@@ -75,7 +75,7 @@ export function Sheet({ open, onClose, children, label, className, backdrop = tr
                 aria-label="Fechar"
                 className="absolute right-3 top-3 flex h-10 w-10 items-center justify-center rounded-full bg-tinta/8 text-tinta-2 transition active:scale-95"
               >
-                <X size={20} />
+                <X size="1.25rem" />
               </button>
             )}
             {children}

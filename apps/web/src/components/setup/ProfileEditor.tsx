@@ -35,7 +35,7 @@ export function ProfileEditor() {
             }}
             className="flex items-center gap-1 text-sm font-bold text-espadas"
           >
-            <Shuffle size={16} /> Outros
+            <Shuffle size="1rem" /> Outros
           </button>
         </div>
         <div className="grid grid-cols-4 gap-2" role="radiogroup" aria-label="Avatar">
