@@ -46,7 +46,7 @@ export function Credits() {
       </Panel>
       <Panel title="Privacidade">
         <p className="text-sm text-tinta-2">
-          Sem conta, sem anúncio, sem rastreamento. O que o jogo online guarda, e por quanto tempo:{' '}
+          Sem conta obrigatória, sem anúncio, sem rastreamento. O que o jogo online guarda, e por quanto tempo:{' '}
           <a href="/privacidade" target="_blank" rel="noreferrer" className="font-semibold text-espadas underline underline-offset-2">
             política de privacidade
           </a>
