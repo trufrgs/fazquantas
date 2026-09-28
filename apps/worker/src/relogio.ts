@@ -7,6 +7,12 @@ export interface AlarmStorage {
 }
 
 /**
+ * Alarme que chega um pouco antes do horário (o relógio do Worker só anda entre eventos de I/O,
+ * e o horário do alarme não bate no milissegundo) ainda roda o timer.
+ */
+export const FIRE_EARLY_MS = 1500;
+
+/**
  * Relógio de uma sala num Durable Object. Os timers ficam na memória e o mais próximo vira o
  * alarme do objeto: nada de `setTimeout` segurando a sala acordada, e cada disparo roda numa
  * invocação própria (um lance de bot por vez, com CPU curto).
@@ -50,7 +56,7 @@ export class AlarmClock implements Clock {
    * Chamado pelo `alarm()` do objeto: roda só o timer vencido mais antigo e reagenda o próximo.
    * Se outro já venceu, o alarme novo dispara em seguida, numa invocação nova.
    */
-  fire(): void {
+  fire(): { ran: boolean; pending: number; nextIn: number | null } {
     this.armedAt = null;
     const now = this.clock();
     let nextId: number | null = null;
@@ -61,9 +67,10 @@ export class AlarmClock implements Clock {
         nextDue = t.due;
       }
     }
-    if (nextId !== null && nextDue <= now) {
-      const timer = this.timers.get(nextId)!;
-      this.timers.delete(nextId);
+    const ran = nextId !== null && nextDue <= now + FIRE_EARLY_MS;
+    if (ran) {
+      const timer = this.timers.get(nextId!)!;
+      this.timers.delete(nextId!);
       try {
         timer.fn();
       } catch (error) {
@@ -71,6 +78,7 @@ export class AlarmClock implements Clock {
       }
     }
     this.arm();
+    return { ran, pending: this.timers.size, nextIn: nextId === null ? null : nextDue - now };
   }
 
   /** Esquece tudo (a sala acabou). */

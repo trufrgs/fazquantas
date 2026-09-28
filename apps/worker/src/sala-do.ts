@@ -152,7 +152,8 @@ export class SalaDO extends DurableObject<Env> {
   }
 
   override async alarm(): Promise<void> {
-    this.relogio.fire();
+    const r = this.relogio.fire();
+    if (!r.ran) console.log(`[${this.code}] alarme sem timer vencido`, JSON.stringify(r));
     if (this.rankingPendente) await this.retomarRanking();
   }
 
