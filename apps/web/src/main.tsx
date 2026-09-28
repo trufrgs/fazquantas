@@ -5,9 +5,12 @@ import { isNative } from './lib/platform';
 import { startUiScale } from './lib/ui-scale';
 import './styles/index.css';
 
-// PWA: instala e deixa jogar contra bots offline (só no build web de produção).
+// PWA: instala e deixa jogar contra bots offline (só no build web de produção); versão nova
+// entra sozinha (ver lib/atualizacao.ts).
 if (import.meta.env.PROD && !isNative) {
-  void import('virtual:pwa-register').then(({ registerSW }) => registerSW({ immediate: true }));
+  void Promise.all([import('virtual:pwa-register'), import('./lib/atualizacao')]).then(([{ registerSW }, { startUpdates }]) =>
+    startUpdates(registerSW),
+  );
 }
 
 startUiScale();

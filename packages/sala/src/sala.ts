@@ -3,6 +3,7 @@ import {
   DEFAULT_RULES,
   DEFAULT_TURN_TIMEOUT_SEC,
   isAsyncTurn,
+  randomGauchoAvatar,
   GameHost,
   NAME_MAX_LENGTH,
   RANKED_MIN_HUMANS,
@@ -46,7 +47,6 @@ import { randomToken, sameSecret } from './perfil';
 export const REACTION_INTERVAL_MS = 1500;
 /** Sala assíncrona parada (sem lance e sem ninguém conectado) por uma semana acaba. */
 export const ASYNC_IDLE_MS = 7 * 24 * 60 * 60_000;
-const AVATAR_ALPHABET = 'abcdefghijklmnopqrstuvwxyz0123456789';
 
 /**
  * Uma conexão de cliente (um WebSocket). `jogadorId` é o assento a que está ligada; `vincular`
@@ -736,12 +736,9 @@ export class Sala {
     }
   }
 
+  /** Bots e quem chega sem avatar ganham um da turma do Gaudério. */
   private randomAvatar(): string {
-    let seed = '';
-    for (let i = 0; i < 10; i++) {
-      seed += AVATAR_ALPHABET[Math.floor(this.deps.aleatorio() * AVATAR_ALPHABET.length)] ?? 'a';
-    }
-    return seed;
+    return randomGauchoAvatar(this.deps.aleatorio);
   }
 
   private bind(seat: HumanSeat, conexao: Conexao): void {

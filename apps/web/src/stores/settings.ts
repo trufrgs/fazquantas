@@ -1,5 +1,6 @@
 import {
   DEFAULT_RULES,
+  GAUCHO_AVATARS,
   PROFILE_KEY_PATTERN,
   normalizeRules,
   randomToken,
@@ -59,7 +60,7 @@ export const useSettings = create<SettingsState>()(
     }),
     {
       name: 'fodinha:ajustes',
-      version: 3,
+      version: 4,
       storage: createJSONStorage(() => safeStateStorage),
       // v2: o padrão das cartas iguais virou "ninguém leva"; quem estava no padrão antigo acompanha.
       migrate: (persisted, version) => {
@@ -67,6 +68,9 @@ export const useSettings = create<SettingsState>()(
         if (version < 2 && p.rules?.tieRule === 'cancel') p.rules = { ...p.rules, tieRule: 'nobody' };
         // v3: a sugestão de palpite e carta passou a vir desligada (quem quiser liga nos ajustes).
         if (version < 3) p.hints = false;
+        // v4: os avatares antigos (DiceBear) deram lugar à turma do Gaudério.
+        const antigo = typeof p.avatar === 'string' ? /^av-(\d+)$/.exec(p.avatar) : null;
+        if (version < 4 && antigo) p.avatar = GAUCHO_AVATARS[Number(antigo[1]) % GAUCHO_AVATARS.length]!.id;
         return p as SettingsState;
       },
       merge: (persisted, current) => {

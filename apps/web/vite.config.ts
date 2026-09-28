@@ -19,7 +19,9 @@ export default defineConfig(({ mode }) => ({
     tailwindcss(),
     mode !== 'native' &&
       VitePWA({
-        // Atualização silenciosa: a versão nova entra na próxima abertura (não recarrega no meio da partida).
+        // O service worker novo assume na hora (skipWaiting/clientsClaim abaixo) e a página recarrega
+        // sozinha fora da mesa (lib/atualizacao.ts). "prompt" aqui só evita o recarregar automático
+        // do plugin, que cairia no meio da partida.
         registerType: 'prompt',
         injectRegister: null,
         includeAssets: ['icon.svg', 'sounds/*', 'cards/*'],
@@ -46,6 +48,9 @@ export default defineConfig(({ mode }) => ({
           navigateFallbackDenylist: [/^\/api\//, /^\/privacidade/],
           // Tocar na notificação traz o jogo para a frente; push do servidor vira notificação.
           importScripts: ['sw-avisos.js'],
+          skipWaiting: true,
+          clientsClaim: true,
+          cleanupOutdatedCaches: true,
         },
       }),
   ],

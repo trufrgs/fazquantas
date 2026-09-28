@@ -1,4 +1,4 @@
-import { BOT_NAMES, DEFAULT_RULES, ROOM_CAPACITY, normalizeRules, type JoinResult } from '@fodinha/engine';
+import { BOT_NAMES, DEFAULT_RULES, GAUCHO_AVATARS, ROOM_CAPACITY, normalizeRules, type JoinResult } from '@fodinha/engine';
 import { describe, expect, it } from 'vitest';
 import { MESSAGES } from '../src/erros';
 import { connect, createRoom, joinRoom, ok, startWorld, waitUntil } from './helpers';
@@ -39,12 +39,12 @@ describe('criar e entrar', () => {
     expect(mundo.rooms.size()).toBe(1);
   });
 
-  it('avatar vazio ganha uma semente sorteada', async () => {
+  it('avatar vazio ganha um da turma do Gaudério', async () => {
     const mundo = startWorld();
     const ana = connect(mundo);
     const res = ok(await ana.call<JoinResult>('room:create', { name: 'Ana', avatar: '' }));
     const state = await ana.waitForState((s) => s.youId === res.playerId);
-    expect(state.seats[0]?.avatar).toMatch(/^[a-z0-9]{10}$/);
+    expect(GAUCHO_AVATARS.map((a) => a.id)).toContain(state.seats[0]?.avatar);
   });
 
   it('entra pelo código, inclusive em minúsculas; todos recebem o estado com o próprio youId', async () => {
@@ -193,7 +193,7 @@ describe('anfitrião', () => {
     const bot = state.seats[1]!;
     expect(bot).toMatchObject({ kind: 'bot', difficulty: 'dificil' });
     expect(BOT_NAMES).toContain(bot.name);
-    expect(bot.avatar).toMatch(/^[a-z0-9]{10}$/);
+    expect(GAUCHO_AVATARS.map((a) => a.id)).toContain(bot.avatar);
 
     ok(
       await ana.call('room:update', {

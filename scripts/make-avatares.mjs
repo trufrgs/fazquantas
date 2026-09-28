@@ -1,6 +1,6 @@
 // Gera os avatares gaúchos a partir de brand/avatares.js (fonte única): um SVG estático por
 // personagem em apps/web/public/avatars/g/<slug>.svg e a lista de ids e nomes em
-// apps/web/src/lib/avatares-gauchos.ts. Não precisa de navegador: o script da marca monta as strings.
+// packages/engine/src/avatares.ts. Não precisa de navegador: o script da marca monta as strings.
 //
 // Uso: node scripts/make-avatares.mjs   (a prévia fica em brand/avatares.html)
 import { mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
@@ -34,15 +34,21 @@ const linhas = AVATARES.map(
   ({ slug, label }) => `  { id: 'g-${slug}', label: '${label.replace(/'/g, "\\'")}' },`,
 );
 writeFileSync(
-  path.join(root, 'apps/web/src/lib/avatares-gauchos.ts'),
+  path.join(root, 'packages/engine/src/avatares.ts'),
   `/**
- * Avatares gaúchos desenhados à mão (a turma do Gaudério), em \`public/avatars/g/<slug>.svg\`.
+ * Avatares gaúchos desenhados à mão (a turma do Gaudério); os SVGs ficam no web, em
+ * \`apps/web/public/avatars/g/<slug>.svg\`. O servidor usa a lista para os bots.
  * Gerado por \`scripts/make-avatares.mjs\` a partir de \`brand/avatares.js\` — edite lá.
  * O id é \`g-<slug>\`; a ordem é a da escolha no perfil, os mais carismáticos primeiro.
  */
 export const GAUCHO_AVATARS: readonly { id: string; label: string }[] = [
 ${linhas.join('\n')}
 ];
+
+/** Um avatar da turma sorteado com o \`random\` dado (bots e quem chega sem avatar). */
+export function randomGauchoAvatar(random: () => number): string {
+  return GAUCHO_AVATARS[Math.floor(random() * GAUCHO_AVATARS.length)]?.id ?? 'g-gauderio';
+}
 `,
 );
 console.log(`${AVATARES.length} avatares gaúchos, ${(total / 1024).toFixed(0)} KB`);

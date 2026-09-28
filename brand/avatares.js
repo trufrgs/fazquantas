@@ -7,7 +7,7 @@
 //
 // Script comum (sem módulos), como gauderio.js: abre direto do disco em brand/avatares.html e é
 // avaliado por scripts/make-avatares.mjs, que escreve apps/web/public/avatars/g/<slug>.svg e a
-// lista apps/web/src/lib/avatares-gauchos.ts. Sem ids nem gradientes: vários convivem na mesma página.
+// lista packages/engine/src/avatares.ts. Sem ids nem gradientes: vários convivem na mesma página.
 
 (() => {
   const T = '#2B1D14';

@@ -12,3 +12,4 @@ export * from './protocol';
 export * from './series';
 export * from './ranking';
 export * from './profile';
+export * from './avatares';

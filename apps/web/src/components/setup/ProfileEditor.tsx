@@ -1,6 +1,5 @@
-import { NAME_MAX_LENGTH } from '@fodinha/engine';
+import { GAUCHO_AVATARS, NAME_MAX_LENGTH } from '@fodinha/engine';
 import { avatarLabel } from '../../lib/avatar';
-import { GAUCHO_AVATARS } from '../../lib/avatares-gauchos';
 import { play } from '../../lib/sound';
 import { useSettings } from '../../stores/settings';
 import { Avatar } from '../ui/Avatar';

@@ -1,4 +1,4 @@
-import { GAUCHO_AVATARS } from './avatares-gauchos';
+import { GAUCHO_AVATARS } from '@fodinha/engine';
 
 /**
  * Duas turmas de avatar: a do Gaudério (`g-<slug>`, desenhada à mão, em `public/avatars/g`) e a
