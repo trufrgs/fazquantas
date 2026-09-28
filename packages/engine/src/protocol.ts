@@ -32,7 +32,7 @@ export const PASSWORD_MAX_LENGTH = 24;
 /** Ritmo da mesa: quanto os bots pensam e quanto a vaza e o resumo da rodada ficam na tela. */
 export type Pace = 'calma' | 'normal' | 'rapida';
 export const PACES: readonly { id: Pace; label: string; description: string; multiplier: number }[] = [
-  { id: 'calma', label: 'Calma', description: 'Mais tempo para ver cada vaza.', multiplier: 0.7 },
+  { id: 'calma', label: 'Calma', description: 'Mais tempo para ver cada mão.', multiplier: 0.7 },
   { id: 'normal', label: 'Normal', description: 'O ritmo de sempre.', multiplier: 1 },
   { id: 'rapida', label: 'Ligeira', description: 'Para quem já conhece o jogo.', multiplier: 1.5 },
 ];

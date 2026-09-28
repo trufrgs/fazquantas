@@ -36,7 +36,7 @@ export function Settings() {
           )}
           <div className="py-3">
             <span className="mb-2 block font-semibold">Ritmo do jogo</span>
-            <span className="mb-2 block text-sm opacity-70">Quanto os bots pensam e quanto cada vaza fica na mesa.</span>
+            <span className="mb-2 block text-sm opacity-70">Quanto os bots pensam e quanto cada mão fica na mesa.</span>
             <Segmented<Speed>
               label="Ritmo do jogo"
               value={s.speed}
