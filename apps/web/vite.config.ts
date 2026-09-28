@@ -2,6 +2,7 @@ import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
 import { defineConfig } from 'vite';
 import { VitePWA } from 'vite-plugin-pwa';
+import pkg from './package.json' with { type: 'json' };
 
 // `--mode native` gera o build do Capacitor (sem service worker: os assets já vão no app).
 export default defineConfig(({ mode }) => ({
@@ -34,6 +35,7 @@ export default defineConfig(({ mode }) => ({
         },
       }),
   ],
+  define: { __APP_VERSION__: JSON.stringify(pkg.version) },
   server: { host: true, port: 5173 },
   preview: { host: true, port: 4173 },
   build: { target: 'es2022', chunkSizeWarningLimit: 900 },

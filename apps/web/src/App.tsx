@@ -1,0 +1,85 @@
+import { useEffect, useState } from 'react';
+import { CardSprite } from './components/cards/sprite';
+import { GameScreen } from './components/table/GameScreen';
+import { isNative } from './lib/platform';
+import { preloadSounds, setSoundEnabled } from './lib/sound';
+import { useApp } from './stores/app';
+import { useSettings } from './stores/settings';
+import { Credits } from './screens/Credits';
+import { Gallery } from './screens/Gallery';
+import { Home } from './screens/Home';
+import { Lobby } from './screens/Lobby';
+import { NewGame } from './screens/NewGame';
+import { Online } from './screens/Online';
+import { Rules } from './screens/Rules';
+import { Settings } from './screens/Settings';
+
+/** Código de sala vindo de um link de convite (`?sala=ABCD`). */
+function inviteCode(): string | undefined {
+  const code = new URLSearchParams(window.location.search).get('sala');
+  return code ? code.toUpperCase() : undefined;
+}
+
+export function App() {
+  const screen = useApp((s) => s.screen);
+  const sound = useSettings((s) => s.sound);
+  const [code] = useState(inviteCode);
+
+  useEffect(() => setSoundEnabled(sound), [sound]);
+
+  // Áudio só destrava depois de um gesto no mobile.
+  useEffect(() => {
+    const unlock = () => {
+      preloadSounds();
+      window.removeEventListener('pointerdown', unlock);
+    };
+    window.addEventListener('pointerdown', unlock);
+    return () => window.removeEventListener('pointerdown', unlock);
+  }, []);
+
+  // Link de convite: vai direto para a tela online com o código.
+  useEffect(() => {
+    if (code) {
+      useApp.getState().reset('online');
+      window.history.replaceState(null, '', window.location.pathname);
+    }
+  }, [code]);
+
+  // Botão voltar do Android.
+  useEffect(() => {
+    if (!isNative) return undefined;
+    let remove: (() => void) | undefined;
+    void import('@capacitor/app').then(({ App: CapApp }) =>
+      CapApp.addListener('backButton', () => {
+        const app = useApp.getState();
+        if (app.screen === 'home') void CapApp.exitApp();
+        else if (app.screen !== 'game') app.back();
+      }).then((h) => (remove = () => void h.remove())),
+    );
+    void import('@capacitor/splash-screen').then(({ SplashScreen }) => SplashScreen.hide());
+    return () => remove?.();
+  }, []);
+
+  if (import.meta.env.DEV && new URLSearchParams(window.location.search).has('galeria')) {
+    return (
+      <>
+        <CardSprite />
+        <Gallery />
+      </>
+    );
+  }
+
+  return (
+    <>
+      <CardSprite />
+      {screen === 'home' && <Home />}
+      {screen === 'setup' && <NewGame />}
+      {screen === 'online' && <Online initialCode={code} />}
+      {screen === 'lobby' && <Lobby />}
+      {screen === 'game' && <GameScreen />}
+      {screen === 'rules' && <Rules />}
+      {screen === 'settings' && <Settings />}
+      {screen === 'credits' && <Credits />}
+    </>
+  );
+}

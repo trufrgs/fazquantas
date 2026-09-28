@@ -1,0 +1,183 @@
+import {
+  MAX_CARDS_OPTIONS,
+  MAX_LIVES,
+  MIN_LIVES,
+  PRESETS,
+  presetOf,
+  type BlindRound,
+  type HierarchyMode,
+  type PenaltyMode,
+  type PresetId,
+  type Progression,
+  type Rules,
+  type TieRule,
+} from '@fodinha/engine';
+import { ChevronDown } from 'lucide-react';
+import { useState } from 'react';
+import { Segmented, Stepper, Toggle } from '../ui/Controls';
+
+const HIERARCHY_LABEL: Record<HierarchyMode, string> = { gaucha: 'Gaúcha', vira: 'Com vira', mineira: 'Mineira' };
+const TIE_LABEL: Record<TieRule, string> = { cancel: 'melam', nobody: 'ninguém leva', suit: 'naipe desempata' };
+
+/** Resumo em uma linha, para quem só lê as regras (convidados da sala). */
+export function rulesSummary(r: Rules): string {
+  const parts = [
+    HIERARCHY_LABEL[r.hierarchy],
+    `${r.startingLives} ${r.startingLives === 1 ? 'vida' : 'vidas'}`,
+    `iguais ${TIE_LABEL[r.tieRule]}`,
+    r.progression === 'up' ? 'serrote' : 'pirâmide',
+  ];
+  if (r.maxCards) parts.push(`máx. ${r.maxCards} cartas`);
+  if (r.penalty === 'fixed') parts.push('1 vida por erro');
+  if (r.blindRound === 'off') parts.push('sem rodada cega');
+  if (!r.dealerRestriction) parts.push('sem regra do pé');
+  return parts.join(', ');
+}
+
+function Field({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
+  return (
+    <div className="py-3">
+      <span className="block font-semibold">{label}</span>
+      {hint && <span className="mb-2 block text-sm opacity-70">{hint}</span>}
+      <div className={hint ? '' : 'mt-2'}>{children}</div>
+    </div>
+  );
+}
+
+export interface RulesEditorProps {
+  value: Rules;
+  onChange: (rules: Rules) => void;
+  /** Estilo claro (sobre papel) ou escuro (sobre a mesa). */
+  dark?: boolean;
+}
+
+export function RulesEditor({ value, onChange, dark }: RulesEditorProps) {
+  const [open, setOpen] = useState(false);
+  const preset = presetOf(value);
+  const set = <K extends keyof Rules>(k: K, v: Rules[K]) => onChange({ ...value, [k]: v });
+
+  return (
+    <div>
+      <Segmented<PresetId | 'custom'>
+        label="Conjunto de regras"
+        dark={dark}
+        value={preset ?? 'custom'}
+        onChange={(id) => {
+          const p = PRESETS.find((x) => x.id === id);
+          if (p) onChange({ ...p.rules });
+          else setOpen(true);
+        }}
+        options={[...PRESETS.map((p) => ({ value: p.id as PresetId | 'custom', label: p.name })), { value: 'custom', label: 'Minha' }]}
+      />
+      <p className={`mt-2 text-sm ${dark ? 'text-papel/75' : 'text-tinta-2'}`}>
+        {PRESETS.find((p) => p.id === preset)?.description ?? rulesSummary(value)}
+      </p>
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        className={`mt-2 flex items-center gap-1 text-sm font-bold underline-offset-4 hover:underline ${dark ? 'text-luz' : 'text-espadas'}`}
+        aria-expanded={open}
+      >
+        {open ? 'Esconder regras' : 'Ajustar regras'}
+        <ChevronDown size={16} className={`transition ${open ? 'rotate-180' : ''}`} />
+      </button>
+      {open && (
+        <div className={`mt-2 divide-y ${dark ? 'divide-papel/10' : 'divide-tinta/10'}`}>
+          <Field label="Força das cartas" hint="Gaúcha: espadão, bastião, 7 de espadas e 7 de ouros são manilhas fixas.">
+            <Segmented<HierarchyMode>
+              label="Força das cartas"
+              dark={dark}
+              value={value.hierarchy}
+              onChange={(v) => set('hierarchy', v)}
+              options={[
+                { value: 'gaucha', label: 'Gaúcha' },
+                { value: 'vira', label: 'Com vira' },
+                { value: 'mineira', label: 'Mineira' },
+              ]}
+            />
+          </Field>
+          <Field label="Vidas (palitos)">
+            <Stepper label="vidas" dark={dark} value={value.startingLives} min={MIN_LIVES} max={MAX_LIVES} onChange={(v) => set('startingLives', v)} />
+          </Field>
+          <Field label="Quem erra perde">
+            <Segmented<PenaltyMode>
+              label="Penalidade"
+              dark={dark}
+              value={value.penalty}
+              onChange={(v) => set('penalty', v)}
+              options={[
+                { value: 'difference', label: 'A diferença' },
+                { value: 'fixed', label: '1 vida' },
+              ]}
+            />
+          </Field>
+          <Field label="Cartas iguais na vaza">
+            <Segmented<TieRule>
+              label="Empate"
+              dark={dark}
+              value={value.tieRule}
+              onChange={(v) => set('tieRule', v)}
+              options={[
+                { value: 'cancel', label: 'Melam' },
+                { value: 'nobody', label: 'Ninguém leva' },
+                { value: 'suit', label: 'Naipe desempata' },
+              ]}
+            />
+          </Field>
+          <Field label="Rodada às cegas (carta na testa)">
+            <Segmented<BlindRound>
+              label="Rodada às cegas"
+              dark={dark}
+              value={value.blindRound}
+              onChange={(v) => set('blindRound', v)}
+              options={[
+                { value: 'all', label: 'Toda de 1 carta' },
+                { value: 'first', label: 'Só a primeira' },
+                { value: 'off', label: 'Nunca' },
+              ]}
+            />
+          </Field>
+          <Toggle
+            checked={value.dealerRestriction}
+            onChange={(v) => set('dealerRestriction', v)}
+            label="Regra do pé"
+            description="Quem palpita por último não pode fechar a soma no número de cartas."
+          />
+          {value.dealerRestriction && value.blindRound !== 'off' && (
+            <Toggle
+              checked={value.dealerRestrictionInBlind}
+              onChange={(v) => set('dealerRestrictionInBlind', v)}
+              label="Regra do pé na rodada às cegas"
+            />
+          )}
+          <Field label="Cartas por rodada">
+            <Segmented<Progression>
+              label="Progressão"
+              dark={dark}
+              value={value.progression}
+              onChange={(v) => set('progression', v)}
+              options={[
+                { value: 'up', label: 'Serrote (1…máx, volta a 1)' },
+                { value: 'upDown', label: 'Pirâmide (sobe e desce)' },
+              ]}
+            />
+          </Field>
+          <Toggle
+            checked={value.restartOnElimination}
+            onChange={(v) => set('restartOnElimination', v)}
+            label="Recomeçar em 1 carta quando alguém sai"
+          />
+          <Field label="Máximo de cartas por rodada">
+            <Segmented<number | null>
+              label="Máximo de cartas"
+              dark={dark}
+              value={value.maxCards}
+              onChange={(v) => set('maxCards', v)}
+              options={[{ value: null, label: 'Auto' }, ...MAX_CARDS_OPTIONS.map((n) => ({ value: n as number | null, label: String(n) }))]}
+            />
+          </Field>
+        </div>
+      )}
+    </div>
+  );
+}
