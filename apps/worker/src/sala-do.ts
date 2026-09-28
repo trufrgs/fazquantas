@@ -28,7 +28,7 @@ export const LOBBY_GRACE_MS = 3 * 60_000;
 /** Sem nenhum humano conectado por esse tempo, a sala acaba e o código fica livre. */
 export const IDLE_ROOM_MS = 15 * 60_000;
 /** `RAPIDO=1` (só nos testes E2E): pausas curtas para a partida acabar em segundos. */
-const FAST_TIMING = { botThinkMs: [60, 140] as [number, number], trickPauseMs: 300, roundPauseMs: 500, forcedPlayMs: 80, dealMs: 120, awayActMs: 250 };
+const FAST_TIMING = { botThinkMs: [60, 140] as [number, number], trickPauseMs: 300, roundPauseMs: 500, bidsRevealMs: 150, forcedPlayMs: 80, dealMs: 120, awayActMs: 250 };
 
 /** O que fica preso a cada WebSocket e sobrevive à hibernação. */
 interface Anexo {

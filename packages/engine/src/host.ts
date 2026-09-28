@@ -39,8 +39,13 @@ export interface HostTiming {
   botThinkMs: [number, number];
   /** Pausa mostrando a vaza completa antes de recolher. */
   trickPauseMs: number;
-  /** Pausa no resumo do fim da rodada. */
+  /** Pausa no resumo do fim da rodada (dá tempo de ler o placar). */
   roundPauseMs: number;
+  /**
+   * Pausa depois da última cantada, antes da primeira carta: a mesa inteira vê quanto cada um
+   * cantou (o "pré-flop" da Fodinha).
+   */
+  bidsRevealMs: number;
   /** Jogada forçada (uma carta só) feita automaticamente. */
   forcedPlayMs: number;
   /** Espera extra no começo de cada rodada (animação de distribuir). */
@@ -52,7 +57,8 @@ export interface HostTiming {
 export const DEFAULT_TIMING: Readonly<HostTiming> = Object.freeze({
   botThinkMs: [650, 1250] as [number, number],
   trickPauseMs: 1300,
-  roundPauseMs: 4500,
+  roundPauseMs: 7500,
+  bidsRevealMs: 2600,
   forcedPlayMs: 650,
   dealMs: 900,
   awayActMs: 1200,
@@ -62,6 +68,7 @@ export const INSTANT_TIMING: Readonly<HostTiming> = Object.freeze({
   botThinkMs: [0, 0] as [number, number],
   trickPauseMs: 0,
   roundPauseMs: 0,
+  bidsRevealMs: 0,
   forcedPlayMs: 0,
   dealMs: 0,
   awayActMs: 0,
@@ -316,7 +323,9 @@ export class GameHost {
     if (!result.ok) return result;
     this.current = result.state;
     const newRound = before === 'roundEnd' && this.current.phase === 'bidding';
-    this.scheduleNext(newRound ? this.timing.dealMs : 0);
+    // Todo mundo cantou: um respiro para a mesa ver as cantadas antes da primeira carta.
+    const bidsDone = before === 'bidding' && this.current.phase === 'playing';
+    this.scheduleNext(newRound ? this.timing.dealMs : bidsDone ? this.timing.bidsRevealMs : 0);
     this.emit(action, reason);
     return result;
   }

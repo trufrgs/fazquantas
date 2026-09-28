@@ -90,7 +90,7 @@ export function BidPanel(p: BidPanelProps) {
   );
   const sum = (
     <span className={`shrink-0 text-tinta-2 ${compact ? 'text-xs' : 'text-sm'}`}>
-      palpites <strong className="tabular-nums text-tinta">{p.bidsSum}</strong> de {p.cards}
+      cantaram <strong className="tabular-nums text-tinta">{p.bidsSum}</strong> de {p.cards}
     </span>
   );
   const note =

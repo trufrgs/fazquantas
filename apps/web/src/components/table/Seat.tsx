@@ -42,7 +42,7 @@ export function BidBadge({
 }) {
   if (bid === null) return null;
   const tone = showTricks ? bidTone(bid, tricks, remaining) : 'pending';
-  const label = showTricks ? `Fez ${tricks} de ${bid}` : `Palpitou ${bid}`;
+  const label = showTricks ? `Fez ${tricks} de ${bid}` : `Cantou ${bid}`;
   return (
     <motion.span
       key={`${bid}`}
@@ -53,7 +53,13 @@ export function BidBadge({
       aria-label={label}
       title={label}
       className={`inline-flex items-baseline justify-center rounded-full font-bold tabular-nums shadow-[0_2px_0_rgb(0_0_0/0.35)] ring-1 ring-black/15 ${TONE_CLASS[tone]} ${
-        size === 'sm' ? 'min-w-7 px-1.5 py-0.5 text-xs' : 'min-w-9 px-2 py-0.5 text-sm'
+        showTricks
+          ? size === 'sm'
+            ? 'min-w-7 px-1.5 py-0.5 text-xs'
+            : 'min-w-9 px-2 py-0.5 text-sm'
+          : size === 'sm'
+            ? 'min-w-8 px-2 py-0.5 text-sm'
+            : 'min-w-10 px-2.5 py-0.5 text-base'
       }`}
     >
       {showTricks ? (
@@ -63,7 +69,10 @@ export function BidBadge({
           {bid}
         </>
       ) : (
-        bid
+        <>
+          <span className="mr-0.5 text-[0.7em] font-semibold opacity-75">faz</span>
+          {bid}
+        </>
       )}
     </motion.span>
   );
@@ -153,14 +162,30 @@ export function HandCount({ count }: { count: number }) {
 export { DealerChip, MaoChip };
 
 /** Balão de reação sobre o assento. */
-export function ReactionBubble({ reaction, placement = 'above' }: { reaction: LiveReaction | undefined; placement?: 'above' | 'below' }) {
+/** Onde o balão ancora: no meio do avatar, ou puxado para dentro quando o assento está na borda. */
+export type BubbleEdge = 'left' | 'right' | null;
+const EDGE_CLASS: Record<'left' | 'right' | 'center', string> = {
+  left: 'left-0',
+  right: 'right-0',
+  center: 'left-1/2 -translate-x-1/2',
+};
+
+export function ReactionBubble({
+  reaction,
+  placement = 'above',
+  edge = null,
+}: {
+  reaction: LiveReaction | undefined;
+  placement?: 'above' | 'below';
+  edge?: BubbleEdge;
+}) {
   const info = reaction ? REACTIONS.find((r) => r.id === reaction.reaction) : undefined;
   return (
     <AnimatePresence>
       {info && reaction && (
         <motion.span
           key={reaction.key}
-          className={`pointer-events-none absolute left-1/2 z-30 flex -translate-x-1/2 items-center gap-1 whitespace-nowrap rounded-2xl bg-papel px-2.5 py-1 text-sm font-bold text-tinta shadow-lg ${
+          className={`pointer-events-none absolute z-30 flex items-center gap-1 whitespace-nowrap rounded-2xl bg-papel px-2.5 py-1 text-sm font-bold text-tinta shadow-lg ${EDGE_CLASS[edge ?? 'center']} ${
             placement === 'above' ? 'bottom-full mb-2' : 'top-full mt-2'
           }`}
           initial={{ opacity: 0, y: 8, scale: 0.6 }}
@@ -173,6 +198,44 @@ export function ReactionBubble({ reaction, placement = 'above' }: { reaction: Li
         </motion.span>
       )}
     </AnimatePresence>
+  );
+}
+
+/** Como a cantada sai da boca: "Nenhuma!", "Faço 1!", "Faço 3!". */
+export function cantadaText(bid: number): string {
+  return bid === 0 ? 'Nenhuma!' : `Faço ${bid}!`;
+}
+
+/**
+ * Balão da cantada: aparece quando o jogador canta e some sozinho (a animação termina invisível;
+ * a chave por rodada faz tocar uma vez só por cantada).
+ */
+export function CantadaBubble({
+  bid,
+  round,
+  placement = 'above',
+  edge = null,
+}: {
+  bid: number | null;
+  round: number;
+  placement?: 'above' | 'below';
+  edge?: BubbleEdge;
+}) {
+  if (bid === null) return null;
+  return (
+    <motion.span
+      key={`${round}-${bid}`}
+      aria-hidden="true"
+      className={`pointer-events-none absolute z-30 whitespace-nowrap rounded-2xl bg-papel px-3 py-1 font-display text-lg font-bold text-tinta shadow-[0_6px_16px_rgb(0_0_0/0.45)] ring-2 ring-ouros ${EDGE_CLASS[edge ?? 'center']} ${
+        placement === 'above' ? 'bottom-full mb-2' : 'top-full mt-2'
+      }`}
+      style={{ fontVariationSettings: '"SOFT" 100' }}
+      initial={{ opacity: 0, scale: 0.4, y: placement === 'above' ? 10 : -10 }}
+      animate={{ opacity: [0, 1, 1, 0], scale: [0.4, 1.1, 1, 0.9], y: 0 }}
+      transition={{ duration: 3.2, times: [0, 0.12, 0.85, 1], ease: 'easeOut' }}
+    >
+      {cantadaText(bid)}
+    </motion.span>
   );
 }
 
@@ -192,6 +255,10 @@ export interface SeatProps {
   isMao: boolean;
   /** Tempo total da vez (para o relógio saber quando o tempo aperta). */
   turnTotalMs?: number | null;
+  /** Rodada atual (o balão da cantada toca uma vez por rodada). */
+  round: number;
+  /** Assento colado na borda da mesa: os balões abrem para dentro. */
+  edge?: BubbleEdge;
 }
 
 /** Oponente ao redor da mesa. */
@@ -208,11 +275,7 @@ export const Seat = memo(function Seat(p: SeatProps) {
       role="group"
       aria-label={`${player.name}${out ? ', fora do jogo' : ''}`}
     >
-      <motion.div
-        className="relative"
-        animate={{ scale: p.isTurn && !out ? 1.12 : 1 }}
-        transition={{ type: 'spring', stiffness: 300, damping: 18 }}
-      >
+      <div className="relative">
         {p.isTurn && !out && <TurnRing size={avatarSize} deadline={p.deadline} />}
         {p.isTurn && !out && p.deadline && (
           <span className="absolute -right-5 -top-3 z-20">
@@ -246,15 +309,14 @@ export const Seat = memo(function Seat(p: SeatProps) {
             {info.connected ? 'ausente' : 'caiu'}
           </span>
         )}
-        <ReactionBubble reaction={p.reaction} placement={p.y < 90 ? 'below' : 'above'} />
-      </motion.div>
+        {p.phase === 'bidding' && (
+          <CantadaBubble bid={player.bid} round={p.round} placement={p.y < 90 ? 'below' : 'above'} edge={p.edge} />
+        )}
+        <ReactionBubble reaction={p.reaction} placement={p.y < 90 ? 'below' : 'above'} edge={p.edge} />
+      </div>
       <span
-        className={`max-w-full truncate px-1 text-center text-xs font-bold ${p.isTurn && !out ? 'mt-2' : 'mt-1'} ${
-          out
-            ? 'text-papel/50 line-through texto-gravado'
-            : p.isTurn
-              ? 'rounded-full bg-ouros px-2 text-tinta shadow-[0_2px_0_var(--color-ouros-escuro)]'
-              : 'text-papel texto-gravado'
+        className={`mt-1 max-w-full truncate px-1 text-center text-xs font-bold texto-gravado transition-colors ${
+          out ? 'text-papel/50 line-through' : p.isTurn ? 'text-ouros' : 'text-papel'
         }`}
       >
         {player.name}

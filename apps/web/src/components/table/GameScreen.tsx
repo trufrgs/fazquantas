@@ -26,6 +26,7 @@ import { useApp } from '../../stores/app';
 import { useGame, type LiveReaction } from '../../stores/game';
 import { isHost, useOnline } from '../../stores/online';
 import { SPEED_MULTIPLIER, useSettings } from '../../stores/settings';
+import { Avatar } from '../ui/Avatar';
 import { Button } from '../ui/Button';
 import { Sheet } from '../ui/Sheet';
 import { BidPanel } from './BidPanel';
@@ -79,12 +80,12 @@ function statusLine(
     return {
       text:
         actor.kind === 'bid'
-          ? `${name(actor.playerId)} palpitando…`
+          ? `${name(actor.playerId)} cantando…`
           : `Vez de ${name(actor.playerId)}`,
       tone: 'info',
     };
   }
-  if (actor.kind === 'bid') return { text: 'Tua vez de palpitar', tone: 'turn' };
+  if (actor.kind === 'bid') return { text: 'Tua vez de cantar', tone: 'turn' };
   if (view.handHidden) return { text: 'Revelando tua carta…', tone: 'turn' };
   const need = (me?.bid ?? 0) - (me?.tricks ?? 0);
   if (need > 0) return { text: `Tua vez: falta${need > 1 ? 'm' : ''} ${need}`, tone: 'turn' };
@@ -444,6 +445,8 @@ function Table({
                     compact={compact}
                     isMao={view.order[0] === p.id}
                     turnTotalMs={turnTotalMs}
+                    round={view.roundNumber}
+                    edge={at.x < 80 ? 'left' : at.x > table.width - 80 ? 'right' : null}
                   />
                 );
               })}
@@ -464,6 +467,7 @@ function Table({
             />
           )}
           <RoundBanner view={view} shown={banner} />
+          <CantadasBanner view={view} seatOf={seatOf} />
           <CoachTip tip={bidding ? null : tip} />
           <BidPanel
             open={bidding}
@@ -530,6 +534,7 @@ function Table({
                 isTurn={myTurn && !(view.phase === 'playing' && view.handHidden)}
                 deadline={myTurn ? view.turnDeadline : null}
                 isMao={!!you && view.order[0] === you}
+                round={view.roundNumber}
               />
             </div>
           )}
@@ -664,6 +669,60 @@ function useRoundBanner(view: PlayerView): boolean {
     return () => window.clearTimeout(t);
   }, [shown]);
   return shown !== null;
+}
+
+/**
+ * As cantadas na mesa, antes da primeira carta (o "pré-flop" da Fodinha): quanto cada um cantou e se
+ * a mesa está pesada (cantaram mais que as cartas) ou leve. Fica enquanto ninguém jogou carta.
+ */
+function CantadasBanner({ view, seatOf }: { view: PlayerView; seatOf: (id: string) => { avatar: string } | undefined }) {
+  const inRound = view.players.filter((p) => p.inRound);
+  const allBid = inRound.length > 0 && inRound.every((p) => p.bid !== null);
+  const beforeFirstCard =
+    view.phase === 'playing' && inRound.every((p) => p.tricks === 0) && (view.trick?.plays.length ?? 0) === 0;
+  const shown = allBid && beforeFirstCard;
+  const sum = inRound.reduce((n, p) => n + (p.bid ?? 0), 0);
+  const cards = view.cardsThisRound;
+  const tone =
+    sum > cards
+      ? 'Mesa pesada: alguém vai ficar sem.'
+      : sum < cards
+        ? 'Mesa leve: vai sobrar mão.'
+        : 'Certinho: quem errar, perde.';
+  return (
+    <AnimatePresence>
+      {shown && (
+        <motion.div
+          key={view.roundNumber}
+          className="pointer-events-none absolute inset-x-3 top-[30%] z-30 mx-auto flex max-w-md flex-col items-center"
+          initial={{ opacity: 0, y: 16, scale: 0.92 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          exit={{ opacity: 0, y: -12, transition: { duration: 0.25 } }}
+          transition={{ type: 'spring', stiffness: 320, damping: 24 }}
+          role="status"
+          aria-label={`As cantadas: ${inRound.map((p) => `${p.name} ${p.bid}`).join(', ')}. Cantaram ${sum} pra ${cards}.`}
+        >
+          <div className="papel flex w-full flex-col items-center gap-2 rounded-3xl px-4 py-3 shadow-[0_18px_40px_rgb(0_0_0/0.55)] ring-1 ring-black/10">
+            <span className="font-display text-2xl font-bold" style={{ fontVariationSettings: '"SOFT" 100, "WONK" 1' }}>
+              As cantadas
+            </span>
+            <ul className="flex flex-wrap justify-center gap-x-3 gap-y-2">
+              {inRound.map((p) => (
+                <li key={p.id} className="flex items-center gap-1.5">
+                  <Avatar seed={seatOf(p.id)?.avatar ?? p.id} size={26} />
+                  <span className="max-w-20 truncate text-sm font-semibold">{p.id === view.you ? 'Tu' : p.name}</span>
+                  <span className="rounded-full bg-tinta px-2 py-0.5 font-display text-base font-bold tabular-nums text-papel">{p.bid}</span>
+                </li>
+              ))}
+            </ul>
+            <span className="text-center text-sm text-tinta-2">
+              Cantaram <strong className="text-tinta">{sum}</strong> pra {cards} {cards === 1 ? 'carta' : 'cartas'}. {tone}
+            </span>
+          </div>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
 }
 
 function RoundBanner({ view, shown: visible }: { view: PlayerView; shown: boolean }) {

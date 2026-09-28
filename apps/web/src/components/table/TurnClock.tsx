@@ -89,26 +89,30 @@ export function MyTurnClock({ deadline, totalMs }: { deadline: number | null; to
 export function TurnSpotlight({ at, urgent }: { at: { x: number; y: number } | null; urgent?: boolean }) {
   const reduce = useReducedMotion();
   if (!at) return null;
-  const size = 300;
+  // Uma poça de luz no pano da mesa, mais larga que alta, como a do lampião.
+  const w = 380;
+  const h = 250;
   return (
     <motion.div
       aria-hidden="true"
-      className="pointer-events-none absolute z-0 rounded-full"
+      className="pointer-events-none absolute z-0"
       style={{
-        width: size,
-        height: size,
-        marginLeft: -size / 2,
-        marginTop: -size / 2,
+        width: w,
+        height: h,
+        marginLeft: -w / 2,
+        marginTop: -h / 2,
+        borderRadius: '50%',
         background: urgent
-          ? 'radial-gradient(circle, rgb(230 80 60 / 0.34) 0%, rgb(230 80 60 / 0.12) 40%, transparent 70%)'
-          : 'radial-gradient(circle, rgb(255 214 150 / 0.32) 0%, rgb(255 214 150 / 0.11) 40%, transparent 70%)',
+          ? 'radial-gradient(ellipse at center, rgb(235 95 70 / 0.42) 0%, rgb(235 95 70 / 0.16) 45%, transparent 72%)'
+          : 'radial-gradient(ellipse at center, rgb(255 216 150 / 0.4) 0%, rgb(255 216 150 / 0.14) 45%, transparent 72%)',
+        mixBlendMode: 'screen',
       }}
       initial={false}
-      animate={{ left: at.x, top: at.y, opacity: reduce ? 1 : [0.75, 1, 0.75] }}
+      animate={{ left: at.x, top: at.y, opacity: reduce ? 1 : [0.85, 1, 0.85] }}
       transition={{
-        left: { type: 'spring', stiffness: 120, damping: 20 },
-        top: { type: 'spring', stiffness: 120, damping: 20 },
-        opacity: { duration: 1.8, repeat: Infinity, ease: 'easeInOut' },
+        left: { type: 'spring', stiffness: 90, damping: 18 },
+        top: { type: 'spring', stiffness: 90, damping: 18 },
+        opacity: { duration: 2.4, repeat: Infinity, ease: 'easeInOut' },
       }}
     />
   );

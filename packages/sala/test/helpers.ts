@@ -21,6 +21,7 @@ import { SalaServidor, type RateLimitOptions } from '../src/servidor';
 export const FAST_TIMING: Partial<HostTiming> = {
   botThinkMs: [0, 5],
   trickPauseMs: 5,
+  bidsRevealMs: 5,
   roundPauseMs: 5,
   forcedPlayMs: 5,
   dealMs: 0,

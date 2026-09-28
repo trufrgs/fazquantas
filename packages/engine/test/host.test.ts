@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { currentActor } from '../src/game';
-import { GameHost, type HostEvent, type SeatConfig } from '../src/host';
+import { DEFAULT_TIMING, GameHost, type HostEvent, type SeatConfig } from '../src/host';
 import { FakeClock } from './fake-clock';
 
 const bots = (n: number): SeatConfig[] =>
@@ -91,7 +91,10 @@ describe('GameHost', () => {
     expect(host.state.phase).toBe('playing');
     expect(currentActor(host.state)?.playerId).toBe('eu');
     expect(host.view('eu').legalCards).toEqual([]);
-    clock.advance(700);
+    // Depois das cantadas a mesa respira (todo mundo vê as cantadas) e aí a carta sai sozinha.
+    clock.advance(DEFAULT_TIMING.bidsRevealMs - 100);
+    expect(host.state.round.hands.eu).toHaveLength(1);
+    clock.advance(100 + DEFAULT_TIMING.forcedPlayMs + 50);
     expect(host.state.round.hands.eu).toHaveLength(0);
   });
 
