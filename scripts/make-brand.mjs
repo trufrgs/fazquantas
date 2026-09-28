@@ -36,7 +36,7 @@ await sq('icone', 192, join(ICONS, 'icon-192.png'));
 await sq('icone', 180, join(ICONS, 'apple-touch-icon.png'));
 await sq('icone', 64, join(ICONS, 'favicon-64.png'));
 await sq('icone', 32, join(ICONS, 'favicon-32.png'));
-// Maskable: o sistema recorta um círculo de 80%; o símbolo encolhe para caber.
+// Maskable: o sistema recorta um círculo de 80%; o personagem encolhe para caber.
 await shot({ peca: 'maskable', tam: '512' }, 512, 512, join(ICONS, 'icon-maskable-512.png'));
 
 // Android: ícone clássico, redondo e adaptativo (fundo + frente + monocromático do Android 13).
@@ -47,9 +47,9 @@ for (const [d, k] of Object.entries(DENS)) {
   await sq('legado', Math.round(48 * k), join(dir, 'ic_launcher.png'), {}, { transparente: true });
   await sq('icone', Math.round(48 * k), join(dir, 'ic_launcher_round.png'), {}, { redondo: true });
   const fg = Math.round(108 * k);
-  await sq('simbolo', fg, join(dir, 'ic_launcher_foreground.png'), { escala: '0.6' }, { transparente: true });
+  await sq('simbolo', fg, join(dir, 'ic_launcher_foreground.png'), { escala: '0.66' }, { transparente: true });
   await sq('fundo', fg, join(dir, 'ic_launcher_background.png'));
-  await sq('simbolo', fg, join(dir, 'ic_launcher_monochrome.png'), { escala: '0.6', cor: 'mono' }, { transparente: true });
+  await sq('mono', fg, join(dir, 'ic_launcher_monochrome.png'), { escala: '0.66' }, { transparente: true });
 }
 const ADAPTIVE = `<?xml version="1.0" encoding="utf-8"?>
 <adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">

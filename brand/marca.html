@@ -2,11 +2,12 @@
 <html lang="pt-BR">
   <head>
     <meta charset="utf-8" />
-    <title>Faz Quantas? — marca</title>
+    <title>Faz quantas? — marca</title>
     <!--
       Fonte única da marca. Cada peça é desenhada aqui e fotografada por `scripts/make-brand.mjs`:
         marca.html?peca=icone&tam=1024          ícone do app (quadrado cheio; o sistema arredonda)
-        marca.html?peca=simbolo&tam=432&escala=.62&cor=papel|tinta|mono   só o "?" com a chama (fundo transparente)
+        marca.html?peca=simbolo&tam=432&escala=.66    só o Gaudério (fundo transparente, frente do ícone adaptativo)
+        marca.html?peca=mono&tam=432&escala=.66       Gaudério de uma cor só (ícone temático do Android 13+)
         marca.html?peca=fundo&tam=432           só o fundo vermelho (camada de trás do ícone adaptativo)
         marca.html?peca=maskable&tam=512        ícone do PWA com respiro para o recorte do sistema
         marca.html?peca=legado&tam=192          ícone do Android antigo (quadrado arredondado, com margem)
@@ -79,11 +80,6 @@
         font-weight: 700;
         line-height: 0.8;
       }
-      .carta {
-        position: absolute;
-        border-radius: 6%;
-        box-shadow: 0 18px 30px rgb(0 0 0 / 0.45);
-      }
       /* quadro da marca */
       .quadro {
         padding: 48px;
@@ -129,63 +125,26 @@
     </style>
   </head>
   <body>
-    <svg width="0" height="0" style="position: absolute" aria-hidden="true">
-      <defs>
-        <linearGradient id="fundo-vermelho" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0" stop-color="#cf4034" />
-          <stop offset="1" stop-color="#9a281f" />
-        </linearGradient>
-        <radialGradient id="luz" cx="50%" cy="10%" r="65%">
-          <stop offset="0" stop-color="#ffd2a0" stop-opacity=".18" />
-          <stop offset="1" stop-color="#ffd2a0" stop-opacity="0" />
-        </radialGradient>
-        <radialGradient id="chama-cor" cx="50%" cy="80%" r="70%">
-          <stop offset="0" stop-color="#fff6d6" />
-          <stop offset=".3" stop-color="#ffd257" />
-          <stop offset=".68" stop-color="#ff812c" />
-          <stop offset="1" stop-color="#e9482b" />
-        </radialGradient>
-        <filter id="brilho" x="-60%" y="-60%" width="220%" height="220%">
-          <feGaussianBlur stdDeviation="20" result="b" />
-          <feColorMatrix in="b" type="matrix" values="1 0 0 0 0  0 .55 0 0 0  0 0 .2 0 0  0 0 0 .8 0" result="c" />
-          <feMerge><feMergeNode in="c" /><feMergeNode in="SourceGraphic" /></feMerge>
-        </filter>
-        <clipPath id="gancho"><rect x="0" y="0" width="1024" height="556" /></clipPath>
-        <path id="chama" d="M512 548 C548 610 606 650 612 736 C618 812 566 858 500 858 C434 858 388 814 390 752 C392 700 424 676 452 642 C462 684 480 700 498 704 C484 650 492 596 512 548 Z" />
-        <path id="miolo" d="M503 690 C522 724 548 742 548 780 C548 810 528 830 501 830 C474 830 454 812 454 786 C454 762 468 748 480 734 C486 752 494 760 503 762 C498 740 498 712 503 690 Z" />
-      </defs>
-    </svg>
     <div id="app"></div>
+    <script src="gauderio.js"></script>
     <script>
       const q = new URLSearchParams(location.search);
       const peca = q.get('peca');
-      const COR = { papel: '#fbf2df', tinta: '#2b1d14', copas: '#c4372d', mono: '#ffffff' };
 
-      /** O "?" com a chama no lugar do ponto (1024×1024). `mono`: tudo numa cor só (ícone temático). */
-      function simbolo({ cor = COR.papel, mono = false, escala = 1 } = {}) {
-        const s = escala;
-        const t = (1024 * (1 - s)) / 2;
-        const chama = mono
-          ? `<use href="#chama" fill="${cor}"/>`
-          : `<g filter="url(#brilho)"><use href="#chama" fill="url(#chama-cor)"/></g><use href="#miolo" fill="#fff8de" opacity=".85"/>`;
-        return `<g transform="translate(${t} ${t + 8 * s}) scale(${s})">
-          <text clip-path="url(#gancho)" x="512" y="742" text-anchor="middle" font-family="Fraunces" font-weight="900" font-size="860"
-            style="font-variation-settings:'SOFT' 50,'WONK' 1,'opsz' 144" fill="${cor}">?</text>${chama}</g>`;
-      }
-      const fundo = () => `<rect width="1024" height="1024" fill="url(#fundo-vermelho)"/><rect width="1024" height="1024" fill="url(#luz)"/>`;
-      const icone = (tam, extra = '') =>
-        `<svg width="${tam}" height="${tam}" viewBox="0 0 1024 1024" ${extra}>${fundo()}${simbolo()}</svg>`;
+      /** Só o personagem, sem fundo, encolhido em volta do centro (camada da frente do ícone adaptativo). */
+      const soGauderio = (escala = 1) => {
+        const d = (1024 * (1 - escala)) / 2;
+        return `<g transform="translate(${d} ${d}) scale(${escala})">${gauderio({ fundo: false })}</g>`;
+      };
+      const svgQuadrado = (tam, miolo, extra = '') => `<svg width="${tam}" height="${tam}" viewBox="0 0 1024 1024" ${extra}>${miolo}</svg>`;
+      const icone = (tam, extra = '') => svgQuadrado(tam, gauderio(), extra);
 
-      /** O "?" da marca em linha com o texto (mesmo recorte do componente Logo do app). */
-      function interrogacao(cor) {
-        return `<svg viewBox="270 120 510 760" style="display:inline-block;width:.593em;height:.884em;vertical-align:-.151em;margin-left:.02em;overflow:visible">${simbolo({ cor })}</svg>`;
-      }
-      /** Logotipo: "faz" escrito à mão sobre "Quantas", impresso, com o "?" da chama. */
+      /** Logotipo: "Faz" escrito à mão sobre "quantas?", impresso, como a pergunta feita na mesa. */
       function nome(px, { claro = false, mao = 'var(--copas)' } = {}) {
-        const cor = claro ? COR.papel : COR.tinta;
+        const cor = claro ? PALETA.papel : PALETA.tinta;
         return `<div style="display:flex;flex-direction:column;align-items:flex-start;font-size:${px}px">
-          <div class="mao" style="font-size:.56em;color:${mao};transform:rotate(-4deg);transform-origin:left;margin:0 0 -.18em .09em">faz</div>
-          <div class="nome" style="white-space:nowrap;color:${cor}">Quantas${interrogacao(cor)}</div>
+          <div class="mao" style="font-size:.56em;color:${mao};transform:rotate(-4deg);transform-origin:left;margin:0 0 -.14em .09em">Faz</div>
+          <div class="nome" style="white-space:nowrap;color:${cor}">quantas?</div>
         </div>`;
       }
       function logo(px, tema) {
@@ -195,17 +154,10 @@
           ${nome(px, { claro: escuro, mao: escuro ? '#ffcf7a' : 'var(--copas)' })}
         </div>`;
       }
-      const carta = (id, w, x, y, r) =>
-        `<img class="carta" src="../apps/web/public/cards/${id}.webp" style="width:${w}px;left:${x}px;top:${y}px;transform:rotate(${r}deg)">`;
-      function palitos(n, h, x, y) {
-        let out = '';
-        for (let i = 0; i < n; i++) {
-          const queimado = i === n - 1;
-          out += `<svg width="${h * 0.26}" height="${h}" viewBox="0 0 6 24" style="position:absolute;left:${x + i * h * 0.42}px;top:${y}px;overflow:visible">
-            <rect x="1.8" y="4" width="2.4" height="19" rx=".8" fill="${queimado ? '#3a2a20' : '#e8c78d'}" opacity="${queimado ? 0.6 : 1}"/>
-            <ellipse cx="3" cy="4.4" rx="2.3" ry="3" fill="${queimado ? '#1c1410' : '#c0392b'}"/></svg>`;
-        }
-        return out;
+      /** O Gaudério em pé na mesa, com um halo vermelho atrás (artes de loja e de link). */
+      function gauderioNaMesa(tam, x, y) {
+        return `<div style="position:absolute;left:${x - tam * 0.1}px;top:${y - tam * 0.08}px;width:${tam * 1.2}px;height:${tam * 1.2}px;border-radius:50%;background:radial-gradient(circle at 50% 42%, rgb(214 72 58 / .95), rgb(160 40 30 / .75) 42%, rgb(120 30 20 / 0) 70%)"></div>
+          <svg width="${tam}" height="${tam}" viewBox="0 0 1024 1024" style="position:absolute;left:${x}px;top:${y}px;overflow:visible">${gauderio({ fundo: false })}</svg>`;
       }
 
       function render() {
@@ -214,17 +166,19 @@
         if (peca === 'icone') {
           app.innerHTML = `<div class="peca" style="width:${tam}px;height:${tam}px">${icone(tam)}</div>`;
         } else if (peca === 'simbolo') {
-          const cor = COR[q.get('cor') ?? 'papel'] ?? COR.papel;
-          const mono = q.get('cor') === 'mono';
-          app.innerHTML = `<div class="peca" style="width:${tam}px;height:${tam}px"><svg width="${tam}" height="${tam}" viewBox="0 0 1024 1024">${simbolo({ cor, mono, escala: Number(q.get('escala') ?? 1) })}</svg></div>`;
+          // Frente do ícone adaptativo do Android: só o personagem, fundo transparente.
+          app.innerHTML = `<div class="peca" style="width:${tam}px;height:${tam}px">${svgQuadrado(tam, soGauderio(Number(q.get('escala') ?? 1)))}</div>`;
+        } else if (peca === 'mono') {
+          // Ícone temático do Android 13+: uma cor só, o sistema pinta.
+          app.innerHTML = `<div class="peca" style="width:${tam}px;height:${tam}px">${svgQuadrado(tam, gauderioMono({ escala: Number(q.get('escala') ?? 1) }))}</div>`;
         } else if (peca === 'maskable') {
-          // PWA "maskable": o sistema recorta até um círculo de 80% — o símbolo encolhe para caber.
-          app.innerHTML = `<div class="peca" style="width:${tam}px;height:${tam}px"><svg width="${tam}" height="${tam}" viewBox="0 0 1024 1024">${fundo()}${simbolo({ escala: 0.72 })}</svg></div>`;
+          // PWA "maskable": o sistema recorta até um círculo de 80%; o personagem encolhe para caber.
+          app.innerHTML = `<div class="peca" style="width:${tam}px;height:${tam}px">${svgQuadrado(tam, fundoCopas() + soGauderio(0.8))}</div>`;
         } else if (peca === 'legado') {
           // Android antigo (sem ícone adaptativo): quadrado arredondado com respiro, fundo transparente.
           app.innerHTML = `<div class="peca" style="width:${tam}px;height:${tam}px;padding:${tam * 0.06}px">${icone(tam * 0.88, 'style="border-radius:20%;display:block"')}</div>`;
         } else if (peca === 'fundo') {
-          app.innerHTML = `<div class="peca" style="width:${tam}px;height:${tam}px"><svg width="${tam}" height="${tam}" viewBox="0 0 1024 1024">${fundo()}</svg></div>`;
+          app.innerHTML = `<div class="peca" style="width:${tam}px;height:${tam}px">${svgQuadrado(tam, fundoCopas())}</div>`;
         } else if (peca === 'splash') {
           const w = Number(q.get('w') ?? 2732);
           const h = Number(q.get('h') ?? 2732);
@@ -243,17 +197,15 @@
           app.innerHTML = `<div class="peca" style="display:inline-block;padding:${px * 0.3}px;${tema === 'escuro' ? 'background:var(--madeira-escura);' : ''}">${logo(px, tema)}</div>`;
         } else if (peca === 'destaque') {
           app.innerHTML = `<div class="peca mesa" style="width:1024px;height:500px">
-            <div style="position:absolute;left:64px;top:128px">${logo(88, 'escuro')}</div>
-            <div style="position:absolute;left:68px;top:362px;color:#fbe3cc;font-size:25px;font-weight:600">Diz quantas faz. Faz quantas disse.</div>
-            ${carta('O7', 138, 700, 112, -14)}${carta('E7', 138, 790, 92, -2)}${carta('E1', 146, 872, 106, 11)}
-            ${palitos(5, 54, 772, 392)}
+            ${gauderioNaMesa(500, 512, -36)}
+            <div style="position:absolute;left:72px;top:118px">${nome(118, { claro: true, mao: '#ffcf7a' })}</div>
+            <div style="position:absolute;left:76px;top:338px;color:#fbe3cc;font-size:27px;font-weight:600">Diz quantas faz. Faz quantas disse.</div>
           </div>`;
         } else if (peca === 'og') {
           app.innerHTML = `<div class="peca mesa" style="width:1200px;height:630px">
-            <div style="position:absolute;left:76px;top:160px">${logo(104, 'escuro')}</div>
-            <div style="position:absolute;left:80px;top:452px;color:#fbe3cc;font-size:30px;font-weight:600">Fodinha com baralho espanhol, do jeito do Sul.</div>
-            ${carta('O7', 168, 800, 140, -14)}${carta('E7', 168, 906, 116, -2)}${carta('E1', 178, 1004, 132, 11)}
-            ${palitos(5, 60, 890, 492)}
+            ${gauderioNaMesa(620, 556, -40)}
+            <div style="position:absolute;left:84px;top:150px">${nome(140, { claro: true, mao: '#ffcf7a' })}</div>
+            <div style="position:absolute;left:88px;top:414px;color:#fbe3cc;font-size:31px;font-weight:600;max-width:560px;line-height:1.3">Fodinha com baralho espanhol, do jeito do Sul.</div>
           </div>`;
         } else {
           const cores = [
@@ -264,26 +216,30 @@
             ['Noite', '#1d120b', 'fundo escuro'],
             ['Ouro', '#e3a82b', 'destaque'],
           ];
+          const mascara = (forma, s) => `<div style="width:${s}px;height:${s}px;border-radius:${forma};overflow:hidden;box-shadow:0 3px 10px rgb(0 0 0/.25)">${svgQuadrado(s, fundoCopas() + soGauderio(0.66))}</div>`;
           app.innerHTML = `<div class="quadro">
             <div class="linha" style="align-items:center;gap:40px">${logo(120, 'claro')}<div style="max-width:520px;font-size:18px;line-height:1.5">
-              <b>Faz Quantas?</b> é a pergunta de toda rodada na mesa de Fodinha. O símbolo é o próprio “?”, com a chama do
-              palito de fósforo no lugar do ponto: quem erra o palpite queima palito.</div></div>
+              <b>Faz quantas?</b> é a pergunta de toda rodada na mesa de Fodinha. O símbolo é o Gaudério na rodada de uma
+              carta: a mesa toda vê a carta na testa dele; só ele não.</div></div>
             <div><h2>Ícone</h2><div class="linha">${[240, 120, 60, 40, 29].map((s) => icone(s, 'class="mini"')).join('')}
               <div style="background:#141010;padding:12px;border-radius:14px" class="linha">${[60, 40, 29].map((s) => icone(s, 'class="mini"')).join('')}</div></div></div>
+            <div><h2>Android</h2><div class="linha">${mascara('50%', 120)}${mascara('30%', 120)}${mascara('22%', 120)}
+              <div style="width:120px;height:120px;border-radius:50%;background:#1f2a30;display:flex">${svgQuadrado(120, gauderioMono({ escala: 0.66 }), 'style="filter:invert(88%) sepia(8%) hue-rotate(160deg)"')}</div></div>
+              <p style="max-width:760px;font-size:16px;line-height:1.5">Ícone adaptativo em três recortes do sistema e o temático do Android 13+, de uma cor só.</p></div>
             <div><h2>Cores</h2><div class="linha">${cores.map(([n, c, u]) => `<div class="cor"><div style="background:${c}"></div><div>${n}<br><span style="font-weight:500">${c} · ${u}</span></div></div>`).join('')}</div></div>
             <div><h2>Tipos</h2><div class="linha" style="gap:48px;align-items:baseline">
               <div class="nome" style="font-size:64px">Fraunces</div><div class="mao" style="font-size:64px;color:var(--copas)">Caveat</div>
               <div style="font-size:40px;font-weight:700">Figtree</div></div>
               <p style="max-width:760px;font-size:16px;line-height:1.5">Fraunces imprime o nome, como a tipografia das cartas de 1878. Caveat é a caneta da
-              caderneta (“faz”, “na mosca!”). Figtree cuida da interface.</p></div>
+              caderneta ("Faz", "na mosca!"). Figtree cuida da interface.</p></div>
           </div>`;
         }
       }
-      // Carrega as fontes antes de desenhar e espera as imagens das cartas: o gerador só fotografa
-      // quando `data-pronto` aparece.
+      // Carrega as fontes antes de desenhar e espera as imagens: o gerador só fotografa quando
+      // `data-pronto` aparece.
       Promise.all([
-        document.fonts.load("900 100px 'Fraunces'", '?Q'),
-        document.fonts.load("700 100px 'Caveat'", 'faz'),
+        document.fonts.load("900 100px 'Fraunces'", 'quantas?'),
+        document.fonts.load("700 100px 'Caveat'", 'Faz'),
         document.fonts.load("600 20px 'Figtree'", 'Diz'),
       ]).then(async () => {
         render();
