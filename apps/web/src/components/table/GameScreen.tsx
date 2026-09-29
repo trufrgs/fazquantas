@@ -545,6 +545,7 @@ function Table({
               youFromHand={!view.blind}
               revealFrom={reveal ? { spots: reveal.spots, cardWidth: reveal.cardWidth } : null}
               ctx={contextoDaRodada(view.rules, view.vira)}
+              rodada={view.roundNumber}
             />
           )}
           <RoundBanner view={view} shown={banner} />

@@ -23,17 +23,21 @@ export interface TrickAreaProps {
   revealFrom?: { spots: ReadonlyMap<string, Point>; cardWidth: number } | null;
   /** Força das cartas da rodada: manilha que cai na mesa ganha efeito e grito. */
   ctx?: StrengthCtx | null;
+  /** Número da rodada (a mesma carta volta em outra rodada e tem direito ao efeito de novo). */
+  rodada?: number;
 }
 
 export function TrickArea(p: TrickAreaProps) {
   const cw = p.cardWidth;
   const ch = cw * CARD_RATIO;
   const stack = trickStacking(p.plays.map((play) => p.geometry.tricks.get(play.playerId) ?? p.geometry.center));
-  // Cartas que já estavam na mesa quando ela apareceu (voltou para a sala, recarregou) não repetem o efeito.
-  const [jaNaMesa] = useState(() => new Set(p.plays.map((play) => play.cardId)));
+  // Cartas que já estavam na mesa quando ela apareceu (voltou para a sala, recarregou) não repetem o
+  // efeito, só naquela mão: a mão é a rodada mais a primeira carta jogada.
+  const chaveDaMao = `${p.rodada ?? 0}:${p.plays[0]?.cardId ?? ''}`;
+  const [naAbertura] = useState(() => ({ chave: chaveDaMao, ids: new Set(p.plays.map((play) => play.cardId)) }));
   const ctx = p.ctx ?? null;
   const manilha = (play: Play) => (ctx ? manilhaDe(play.cardId, ctx) : null);
-  const fresca = (play: Play) => !jaNaMesa.has(play.cardId) && manilha(play) !== null;
+  const fresca = (play: Play) => !(naAbertura.chave === chaveDaMao && naAbertura.ids.has(play.cardId)) && manilha(play) !== null;
   const queimadas =
     p.resolved && ctx && p.winnerId ? manilhasQueimadas({ plays: p.plays, winnerId: p.winnerId, cancelled: [...p.cancelled] }, ctx) : [];
   return (
