@@ -41,6 +41,9 @@ estão no [CONTRIBUTING](../CONTRIBUTING.md#publicação).
     salas barradas), histórico do que o admin e a automação fizeram, regras da automação,
     manutenção e o limite de salas por endereço (guardado só como resumo do IP, por 24 h). Guarda
     90 dias (o histórico, 180).
+- **Rotas da sala:** `GET /api/salas/<código>` (WebSocket da mesa), `GET /api/salas/<código>/info`
+  (situação, para "Tuas salas") e `POST /api/salas/<código>/sair` (sair pelo token, sem WebSocket: o app
+  manda junto com o `room:leave`, com `keepalive`).
 - **Crons do Worker** (`triggers.crons` no `wrangler.jsonc`, horário UTC):
   - `*/15 * * * *` — automação (`apps/worker/src/automacao.ts`): confere as salas paradas há mais de
     20 min; fecha no painel as que sumiram; encerra lobby parado (12 h), partida terminada parada

@@ -59,6 +59,22 @@ export interface Conexao {
   responder(id: number, resposta: Ack<object>): void;
   fechar(codigo: number, motivo: string): void;
   vincular(jogadorId: string | null): void;
+  /**
+   * Há quanto tempo a conexão deu sinal de vida (mensagem ou ping), em ms; `null`/ausente = não se
+   * sabe (conta como viva). Decide se uma volta automática pode tomar o lugar dela.
+   */
+  vivaHa?(): number | null;
+}
+
+/** Conexão que deu sinal de vida há menos que isso está em uso (o app pinga a cada 10 s parado). */
+export const CONEXAO_VIVA_MS = 30_000;
+/** Tokens de quem o anfitrião tirou, guardados para responder "te tiraram" na volta automática. */
+const EXPULSOS_GUARDADOS = 50;
+
+/** A conexão deu sinal de vida há pouco (sem a informação, conta como viva). */
+function conexaoViva(c: Conexao): boolean {
+  const ha = c.vivaHa?.() ?? null;
+  return ha === null || ha < CONEXAO_VIVA_MS;
 }
 
 export interface Perfil {
@@ -67,6 +83,8 @@ export interface Perfil {
   avatar: string;
   /** Id público do perfil de ranking (derivado da chave), ou `null`. */
   profileId: string | null;
+  /** A aba de onde veio o pedido (ver `ProfilePayload.aba`). */
+  aba?: string | null;
 }
 
 export interface AjustesSala {
@@ -143,6 +161,8 @@ interface HumanSeat {
   graceTimer: unknown;
   /** A página do jogador está à vista (senão, a vez dele vira notificação). */
   visivel: boolean;
+  /** A aba que sentou por último (a volta automática dela sempre assume o lugar). */
+  aba?: string | null;
 }
 
 interface BotSeat {
@@ -183,6 +203,8 @@ export interface SalaSalva {
   series: SeriesState | null;
   partida: (PartidaMeta & { host: HostSnapshot }) | null;
   idleSince: number | null;
+  /** Tokens de quem foi tirado pelo anfitrião (salas salvas antes de 29/09/2026 não têm). */
+  expulsos?: string[];
 }
 
 /**
@@ -206,6 +228,7 @@ export class Sala {
   private partida: PartidaMeta | null = null;
   private unsubscribeGame: (() => void) | null = null;
   private idleSinceMs: number | null = null;
+  private expulsos: string[] = [];
   private idleTimer: unknown = null;
   private lastAway = '';
   private lastActorKey = '';
@@ -332,6 +355,35 @@ export class Sala {
     return this.humans().find((seat) => sameSecret(seat.token, token))?.playerId ?? null;
   }
 
+  /** O token era de alguém que o anfitrião tirou da sala. */
+  wasKicked(token: string): boolean {
+    return this.expulsos.some((t) => sameSecret(t, token));
+  }
+
+  /**
+   * O lugar está em uso por outra conexão viva (outro aparelho ou aba jogando agora)? A volta
+   * automática não toma esse lugar; quem toca para entrar, sim.
+   */
+  seatInUse(playerId: string, conexao: Conexao, aba?: string | null): boolean {
+    const seat = this.human(playerId);
+    const atual = seat?.conexao;
+    if (!seat || !atual || atual === conexao) return false;
+    // A mesma aba voltando: a conexão velha é dela e morreu (ainda que o servidor não saiba).
+    if (aba && seat.aba === aba) return false;
+    return conexaoViva(atual);
+  }
+
+  /** Saída pelo token, sem conexão (o app sai pela internet comum quando o WebSocket caiu). */
+  leaveByToken(token: string): boolean {
+    const playerId = this.playerIdForToken(token);
+    const seat = playerId ? this.human(playerId) : undefined;
+    if (!seat) return false;
+    const conexao = seat.conexao;
+    this.leave(seat.playerId);
+    conexao?.fechar(WS_CLOSE.left, 'saiu da sala');
+    return true;
+  }
+
   /** Confere a senha de quem entra sem token. */
   checkPassword(given: string | undefined): void {
     if (this.password === null) return;
@@ -354,13 +406,26 @@ export class Sala {
    * mesmo perfil, ou mesmo apelido (sem diferença de acento ou maiúscula). Apelido guardado com PIN
    * já chega aqui trocado ("Joao 2") para quem não é o dono, então não dá para tomar o lugar dele.
    */
-  reclaimableSeat(perfil: Perfil): string | null {
+  reclaimableSeat(perfil: Perfil, { soPerfil = false } = {}): string | null {
     const key = (name: string) => name.normalize('NFD').replace(/\p{M}/gu, '').toLocaleLowerCase('pt-BR').trim();
-    const livres = this.humans().filter((seat) => seat.conexao === null);
+    // Conexão muda há mais de 30 s (celular que morreu em silêncio) também libera o lugar: a pessoa
+    // pode seguir em outro aparelho sem esperar o servidor perceber a queda.
+    const livres = this.humans().filter((seat) => seat.conexao === null || !conexaoViva(seat.conexao));
     const seat =
       livres.find((s) => perfil.profileId !== null && s.profileId === perfil.profileId) ??
-      livres.find((s) => key(s.name) === key(perfil.name));
+      (soPerfil ? undefined : livres.find((s) => key(s.name) === key(perfil.name)));
     return seat?.playerId ?? null;
+  }
+
+  /** Tem um lugar desta pessoa (mesmo perfil ou apelido) com a conexão viva: ela está jogando em outro lugar. */
+  seatBusyFor(perfil: Perfil): boolean {
+    const key = (name: string) => name.normalize('NFD').replace(/\p{M}/gu, '').toLocaleLowerCase('pt-BR').trim();
+    return this.humans().some(
+      (seat) =>
+        seat.conexao !== null &&
+        conexaoViva(seat.conexao) &&
+        ((perfil.profileId !== null && seat.profileId === perfil.profileId) || key(seat.name) === key(perfil.name)),
+    );
   }
 
   addHuman(conexao: Conexao, perfil: Perfil): JoinResult {
@@ -376,6 +441,7 @@ export class Sala {
       desconectadoEm: null,
       graceTimer: null,
       visivel: true,
+      aba: perfil.aba ?? null,
     };
     this.seats.push(seat);
     this.bind(seat, conexao);
@@ -402,6 +468,7 @@ export class Sala {
       if (perfil.avatar) seat.avatar = perfil.avatar;
     }
     if (perfil.profileId) seat.profileId = perfil.profileId;
+    if (perfil.aba) seat.aba = perfil.aba;
     this.bind(seat, conexao);
     if (this.currentStatus === 'playing') this.gameHost?.setAway(playerId, false);
     this.touch();
@@ -561,6 +628,8 @@ export class Sala {
       return;
     }
     const conexao = seat.conexao;
+    // Quem estava sem conexão fica sabendo na volta ("te tiraram"), em vez de sentar como gente nova.
+    this.expulsos = [seat.token, ...this.expulsos].slice(0, EXPULSOS_GUARDADOS);
     if (this.currentStatus === 'playing') this.replaceWithBot(index, seat);
     else this.removeAt(index);
     conexao?.enviar('room:kicked');
@@ -655,6 +724,7 @@ export class Sala {
       // Depois do fim, a última partida também vai: quem volta ainda vê a mesa final.
       partida: this.partida && this.gameHost ? { ...this.partida, host: this.gameHost.snapshot() } : null,
       idleSince: this.idleSinceMs,
+      expulsos: this.expulsos,
     };
   }
 
@@ -673,6 +743,7 @@ export class Sala {
     sala.ranked = saved.ranked;
     sala.password = saved.password;
     sala.series = saved.series;
+    sala.expulsos = saved.expulsos ?? [];
     sala.seats = saved.seats.map((seat) =>
       seat.kind === 'bot' ? { ...seat } : { ...seat, conexao: null, graceTimer: null },
     );

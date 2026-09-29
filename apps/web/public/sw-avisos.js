@@ -11,6 +11,8 @@ self.addEventListener('notificationclick', (event) => {
       const open = windows.find((w) => w.url.startsWith(self.registration.scope));
       if (open) {
         await open.focus();
+        // O app decide se vai para a sala do aviso (sem recarregar e sem tirar ninguém de uma mesa).
+        open.postMessage({ tipo: 'abrir', url });
         return;
       }
       await self.clients.openWindow(url);

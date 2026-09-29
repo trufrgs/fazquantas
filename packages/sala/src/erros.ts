@@ -7,6 +7,12 @@ export type ServerErrorCode = ErrorCode | 'INTERNAL_ERROR';
 export const MESSAGES = {
   roomNotFound: 'Sala não encontrada. Confere o código.',
   roomGone: 'Essa sala já acabou: ficou um tempo sem ninguém. Cria uma sala nova e manda o convite de novo.',
+  roomGoneAdmin: 'Essa sala foi encerrada pela administração do jogo. Cria uma sala nova e manda o convite de novo.',
+  roomGoneParada: 'Essa sala foi encerrada por ficar parada. Cria uma sala nova e manda o convite de novo.',
+  seatTaken: 'Tu estás nessa sala em outro aparelho ou aba. Segue por lá, ou toca em "Voltar pra sala" pra jogar aqui.',
+  seatLost: 'Teu lugar nessa sala não vale mais (tu saiu ou demorou pra voltar). Entra de novo pelo código.',
+  kicked: 'O anfitrião te tirou da sala.',
+  seatBusy: 'Tem alguém com teu apelido jogando nessa mesa agora. Se és tu em outro aparelho, segue por lá, ou fecha lá e tenta de novo daqui a 30 segundos.',
   roomFull: 'A sala está cheia.',
   roomTaken: 'Esse código acabou de ser usado. Tenta criar de novo.',
   // No meio da partida ninguém senta; depois do fim, o anfitrião pode voltar a sala para o lobby.
@@ -24,7 +30,7 @@ export const MESSAGES = {
   kickSelf: 'Pra sair da sala, usa o botão de sair.',
   passwordRequired: 'Essa sala tem senha.',
   wrongPassword: 'Senha errada. Confere com quem te convidou.',
-  tooManyAttempts: 'Muitas senhas erradas. Espera um minuto e tenta de novo.',
+  tooManyAttempts: 'Muitas senhas erradas seguidas. Confere a senha com quem te convidou e tenta de novo.',
   rateLimited: 'Muitas ações seguidas. Espera um pouquinho.',
   blocked: 'Esse perfil está bloqueado no jogo online.',
   internal: 'Deu um erro no servidor. Tenta de novo.',

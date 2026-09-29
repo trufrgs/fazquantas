@@ -7,7 +7,7 @@ import { aoAbrir } from './lib/conta';
 import { isNative, multiplayer } from './lib/platform';
 import { preloadSounds, setSoundEnabled } from './lib/sound';
 import { useApp } from './stores/app';
-import { savedSession, useOnline } from './stores/online';
+import { abaSubstituida, savedSession, useOnline } from './stores/online';
 import { useSettings } from './stores/settings';
 import { Credits } from './screens/Credits';
 import { Gallery } from './screens/Gallery';
@@ -63,16 +63,37 @@ export function App() {
   // apaga a sessão). Sala que sumiu só deixa a pessoa no início, sem erro.
   useEffect(() => {
     const session = multiplayer ? savedSession() : null;
-    if (!session || code || isAdminPath) return;
+    // Esta aba perdeu o lugar para outro aparelho ou aba: não toma de volta sozinha ao recarregar.
+    if (!session || code || isAdminPath || abaSubstituida(session.code)) return;
     void useOnline
       .getState()
-      .join(session.code)
+      .join(session.code, { auto: true })
       .then((ok) => {
-        if (ok && useApp.getState().screen === 'home') useApp.getState().reset('lobby');
+        const screen = useApp.getState().screen;
+        if (ok && screen !== 'lobby' && screen !== 'game') useApp.getState().reset('lobby');
         // Não deu para voltar: mostra o porquê (sala acabou, lugar perdido) em vez de largar calado.
-        else if (!ok && useOnline.getState().error && useApp.getState().screen === 'home') useApp.getState().reset('online');
+        else if (!ok && useOnline.getState().error && screen === 'home') useApp.getState().reset('online');
       });
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Tocou numa notificação com o jogo aberto: vai para a sala do aviso, se não estiver em nenhuma.
+  useEffect(() => {
+    const sw = typeof navigator !== 'undefined' ? navigator.serviceWorker : undefined;
+    if (!multiplayer || !sw) return undefined;
+    const onMessage = (e: MessageEvent) => {
+      const data = e.data as { tipo?: string; url?: string } | null;
+      if (data?.tipo !== 'abrir' || !data.url) return;
+      const sala = new URL(data.url, window.location.origin).searchParams.get('sala')?.toUpperCase();
+      const online = useOnline.getState();
+      if (!sala || online.room || online.status !== 'idle') return;
+      void online.join(sala).then((ok) => {
+        if (ok) useApp.getState().reset('lobby');
+        else useApp.getState().reset('online');
+      });
+    };
+    sw.addEventListener('message', onMessage);
+    return () => sw.removeEventListener('message', onMessage);
+  }, []);
 
   // Link de convite: vai direto para a tela online com o código.
   useEffect(() => {

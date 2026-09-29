@@ -36,12 +36,12 @@ export default tseslint.config(
     },
   },
   {
-    files: ['apps/server/**/*.ts', 'scripts/**/*.{js,mjs}', 'e2e/**/*.ts', '*.config.{js,ts}', '**/vite.config.ts'],
+    files: ['apps/server/**/*.ts', 'scripts/**/*.{js,mjs}', 'e2e/**/*.{ts,mjs}', '*.config.{js,ts}', '**/vite.config.ts'],
     languageOptions: { globals: globals.node },
   },
   {
     // Scripts do Playwright também rodam trechos dentro do navegador.
-    files: ['scripts/**/*.{js,mjs}', 'e2e/**/*.ts'],
+    files: ['scripts/**/*.{js,mjs}', 'e2e/**/*.{ts,mjs}'],
     languageOptions: { globals: { ...globals.node, ...globals.browser } },
   },
 );

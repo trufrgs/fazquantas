@@ -32,9 +32,23 @@ interface LocalEvents {
 }
 
 const ACK_TIMEOUT_MS = 8000;
-/** Ping a cada 20 s; sem nada chegando em 45 s, a conexão está morta (rede trocou, celular dormiu). */
-const HEARTBEAT_MS = 20_000;
-const DEAD_AFTER_MS = 45_000;
+/**
+ * Prova de vida. Conexão morta em silêncio (túnel, troca de wi-fi para 4G, celular que dormiu) não
+ * avisa: o navegador segue achando que está aberta. Então: sem ouvir nada (ou sem mandar nada, que o
+ * servidor também precisa saber que a gente está aí) por `IDLE_PING_MS`, pinga;
+ * ping sem resposta em `PONG_TIMEOUT_MS` derruba e reconecta. Ao voltar a tela ou a rede, e quando um
+ * pedido demora, a prova é na hora e mais curta (`PROBE_TIMEOUT_MS`). O ping é respondido pelo
+ * Cloudflare sem acordar a sala. Antes (20 s de ping, 45 s de prazo), levava até um minuto para
+ * perceber, e o toque na carta sumia sem aviso.
+ */
+const IDLE_PING_MS = 10_000;
+const PONG_TIMEOUT_MS = 5_000;
+const PROBE_TIMEOUT_MS = 3_000;
+/** Pedido sem resposta nesse tempo dispara a prova (a resposta normal chega em milissegundos). */
+const SLOW_ACK_MS = 2_500;
+/** Conexão que não abre nesse tempo é abandonada: sem rede, a tentativa ficaria pendurada. */
+const CONNECT_TIMEOUT_MS = 8_000;
+const CHECK_MS = 1_000;
 const RETRY_MAX_MS = 5000;
 
 export const NO_ANSWER = { ok: false as const, error: { code: 'TIMEOUT', message: 'O servidor não respondeu. Tenta de novo.' } };
@@ -80,6 +94,13 @@ export class SalaSocket {
   private attempt = 0;
   private stopped = false;
   private lastHeard = 0;
+  /** Última mensagem mandada: o servidor também precisa ouvir a gente (decide se o lugar está em uso). */
+  private lastSent = 0;
+  /** Quando o último ping saiu e até quando a resposta tem que chegar (`null` = nenhum esperando). */
+  private pingSentAt = 0;
+  private pingDeadline: number | null = null;
+  /** Quando a conexão atual começou a abrir. */
+  private openedAt = 0;
   private heartbeat: number | null = null;
   private retry: number | null = null;
   private readonly onOnline = () => this.reconnectNow();
@@ -104,6 +125,8 @@ export class SalaSocket {
 
   constructor(private target: string) {
     window.addEventListener('online', this.onOnline);
+    // `pageshow`: a página voltou do cache de navegação (Safari), com as conexões fechadas.
+    window.addEventListener('pageshow', this.onOnline);
     document.addEventListener('visibilitychange', this.onVisible);
     this.open();
   }
@@ -130,19 +153,29 @@ export class SalaSocket {
   }
 
   /** Manda e espera a resposta. Sem conexão, espera ela voltar até o tempo acabar. */
-  async request<T extends object = object>(event: keyof ClientToServerEvents, payload?: unknown): Promise<Ack<T>> {
+  async request<T extends object = object>(
+    event: keyof ClientToServerEvents,
+    payload?: unknown,
+    { timeoutMs = ACK_TIMEOUT_MS }: { timeoutMs?: number } = {},
+  ): Promise<Ack<T>> {
     if (!(await this.whenConnected())) return NO_SERVER;
     const id = ++this.seq;
     return new Promise<Ack<T>>((resolve) => {
+      // Demorou: prova de vida na hora. Conexão morta cai em segundos e o pedido volta sem servidor.
+      const slow = window.setTimeout(() => this.probe(), SLOW_ACK_MS);
+      const done = (r: Ack<object>) => {
+        window.clearTimeout(slow);
+        resolve(r as Ack<T>);
+      };
       const timer = window.setTimeout(() => {
         this.acks.delete(id);
-        resolve(NO_ANSWER);
-      }, ACK_TIMEOUT_MS);
-      this.acks.set(id, { resolve: resolve as (r: Ack<object>) => void, timer });
+        done(NO_ANSWER);
+      }, timeoutMs);
+      this.acks.set(id, { resolve: done, timer });
       if (!this.send({ e: event, d: payload, id })) {
         window.clearTimeout(timer);
         this.acks.delete(id);
-        resolve(NO_SERVER);
+        done(NO_SERVER);
       }
     });
   }
@@ -163,12 +196,21 @@ export class SalaSocket {
     });
   }
 
+  /**
+   * A conexão está viva? Pinga e, sem resposta em poucos segundos, derruba e reconecta. Sem conexão,
+   * tenta abrir agora.
+   */
+  probe(): void {
+    if (this.stopped) return;
+    if (this.connected) this.ping(PROBE_TIMEOUT_MS);
+    else this.reconnectNow();
+  }
+
   /** Fecha de vez (saiu da sala): não reconecta mais. */
   close(): void {
+    this.detach();
     if (this.stopped) return;
     this.stopped = true;
-    window.removeEventListener('online', this.onOnline);
-    document.removeEventListener('visibilitychange', this.onVisible);
     if (this.retry !== null) window.clearTimeout(this.retry);
     this.stopHeartbeat();
     this.failAcks();
@@ -193,17 +235,25 @@ export class SalaSocket {
       return;
     }
     this.ws = ws;
+    this.openedAt = Date.now();
+    const opening = window.setTimeout(() => {
+      if (this.ws === ws && !this.connected) this.drop(ws, 'não abriu', { quick: false });
+    }, CONNECT_TIMEOUT_MS);
     ws.onopen = () => {
+      window.clearTimeout(opening);
       if (this.ws !== ws) return;
       this.connected = true;
       this.attempt = 0;
       this.lastHeard = Date.now();
+      this.lastSent = Date.now();
+      this.pingDeadline = null;
       this.startHeartbeat();
       this.fire('connect');
     };
     ws.onmessage = (ev: MessageEvent) => {
       if (this.ws !== ws) return;
       this.lastHeard = Date.now();
+      this.pingDeadline = null;
       if (ev.data === WS_PONG || typeof ev.data !== 'string') return;
       let msg: WireToClient;
       try {
@@ -222,6 +272,7 @@ export class SalaSocket {
       this.fire(msg.e, msg.d);
     };
     ws.onclose = (ev: CloseEvent) => {
+      window.clearTimeout(opening);
       if (this.ws !== ws) return;
       this.ws = null;
       const was = this.connected;
@@ -232,7 +283,10 @@ export class SalaSocket {
       const detail = reason === 'rateLimited' || reason === 'maintenance' ? ev.reason : undefined;
       this.failAcks(detail);
       if (reason === 'network' && !this.stopped) this.scheduleRetry();
-      else this.stopped = true;
+      else {
+        this.stopped = true;
+        this.detach();
+      }
       // Tentativa que nem abriu não é "queda": só avisa de quem estava conectado ou de fim de vez.
       if (was || reason !== 'network') this.fire('disconnect', reason, detail);
     };
@@ -241,11 +295,19 @@ export class SalaSocket {
     };
   }
 
+  /** Para de ouvir rede e tela (acabou de vez). */
+  private detach(): void {
+    window.removeEventListener('online', this.onOnline);
+    window.removeEventListener('pageshow', this.onOnline);
+    document.removeEventListener('visibilitychange', this.onVisible);
+  }
+
   private send(msg: object): boolean {
     const ws = this.ws;
     if (!ws || ws.readyState !== WebSocket.OPEN) return false;
     try {
       ws.send(JSON.stringify(msg));
+      this.lastSent = Date.now();
       return true;
     } catch {
       return false;
@@ -281,9 +343,27 @@ export class SalaSocket {
     }, base * (0.75 + Math.random() * 0.5));
   }
 
-  /** Voltou a rede ou a tela: tenta agora em vez de esperar o próximo intervalo. */
+  /**
+   * Voltou a rede ou a tela: conectada, prova que está viva (pode ter morrido em silêncio enquanto o
+   * celular dormia); abrindo há um tempo, recomeça (a tentativa da época sem rede fica pendurada);
+   * esperando a próxima tentativa, tenta agora.
+   */
   private reconnectNow(): void {
-    if (this.stopped || this.connected || this.ws) return;
+    if (this.stopped) return;
+    if (this.connected) {
+      this.ping(PROBE_TIMEOUT_MS);
+      return;
+    }
+    if (this.ws) {
+      if (Date.now() - this.openedAt < 1500) return;
+      const stale = this.ws;
+      this.ws = null;
+      try {
+        stale.close();
+      } catch {
+        // já fechada
+      }
+    }
     if (this.retry !== null) {
       window.clearTimeout(this.retry);
       this.retry = null;
@@ -291,26 +371,57 @@ export class SalaSocket {
     this.open();
   }
 
+  /** Manda um ping e marca até quando a resposta tem que chegar. */
+  private ping(timeoutMs: number): void {
+    const ws = this.ws;
+    if (!ws || !this.connected) return;
+    const now = Date.now();
+    this.pingSentAt = now;
+    this.lastSent = now;
+    this.pingDeadline = Math.min(this.pingDeadline ?? Number.POSITIVE_INFINITY, now + timeoutMs);
+    try {
+      ws.send(WS_PING);
+    } catch {
+      // o onclose cuida
+    }
+  }
+
+  /**
+   * Derruba uma conexão que não responde (ou não abriu) e tenta de novo. `quick`: a próxima tentativa
+   * sai logo (a rede pode estar boa; quem morreu foi só esta conexão).
+   */
+  private drop(ws: WebSocket, why: string, { quick = true } = {}): void {
+    if (this.ws !== ws) return;
+    this.ws = null;
+    const was = this.connected;
+    this.connected = false;
+    this.pingDeadline = null;
+    this.stopHeartbeat();
+    this.failAcks();
+    try {
+      ws.close(4000, why);
+    } catch {
+      // já fechada
+    }
+    if (quick) this.attempt = 0;
+    this.scheduleRetry();
+    if (was) this.fire('disconnect', 'network');
+  }
+
   private startHeartbeat(): void {
     this.stopHeartbeat();
     this.heartbeat = window.setInterval(() => {
       const ws = this.ws;
-      if (!ws) return;
-      if (Date.now() - this.lastHeard > DEAD_AFTER_MS) {
-        // Ninguém responde: derruba e deixa a reconexão cuidar.
-        try {
-          ws.close(4000, 'sem resposta');
-        } catch {
-          // já fechada
-        }
+      if (!ws || !this.connected) return;
+      const now = Date.now();
+      // Ping sem resposta no prazo: morta em silêncio. Derruba e deixa a reconexão cuidar.
+      if (this.pingDeadline !== null && this.lastHeard < this.pingSentAt && now > this.pingDeadline) {
+        this.drop(ws, 'sem resposta');
         return;
       }
-      try {
-        ws.send(WS_PING);
-      } catch {
-        // o onclose cuida
-      }
-    }, HEARTBEAT_MS);
+      // Pinga se ficou 10 s sem ouvir o servidor, ou sem ele ouvir a gente (vendo os outros jogarem).
+      if (this.pingDeadline === null && (now - this.lastHeard >= IDLE_PING_MS || now - this.lastSent >= IDLE_PING_MS)) this.ping(PONG_TIMEOUT_MS);
+    }, CHECK_MS);
   }
 
   private stopHeartbeat(): void {

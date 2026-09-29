@@ -49,6 +49,33 @@ pnpm exec playwright test                  # E2E locais (sobem os servidores soz
 - A `main` publica sozinha (CI → Cloudflare). Mudança grande ou arriscada vai por PR.
 - Horas que aparecem para pessoas: horário de Brasília (`America/Sao_Paulo`).
 
+## Conexão e volta à sala
+
+Regras que já custaram bug com gente jogando (rodada de QA de 29/09/2026). Mexeu em
+`apps/web/src/lib/sala-socket.ts`, `apps/web/src/stores/online.ts`, `packages/sala/src/servidor.ts`
+ou no `Sala.restore`? Confira cada uma:
+
+- **Prova de vida no cliente:** conexão morta em silêncio não avisa. O socket pinga se ficou 10 s sem
+  ouvir o servidor **ou sem mandar nada** (o servidor também precisa ouvir a gente), derruba em 5 s
+  sem resposta, prova na hora (3 s) ao voltar a tela, a rede ou do cache de navegação (`pageshow`) e
+  quando um pedido demora, e abandona tentativa que não abre em 8 s. Testes:
+  `apps/web/src/lib/sala-socket.test.ts`.
+- **Volta automática (`auto: true` no `room:join`):** a que o app faz sozinho (reconexão, abrir o app)
+  nunca senta como gente nova (responde `SEAT_LOST` ou `KICKED`) e não toma o lugar de uma conexão
+  viva de **outra** aba ou aparelho (`SEAT_TAKEN`). A mesma aba (identidade `aba` guardada no
+  `sessionStorage`) sempre assume. Entrar tocando num botão ou pelo link não é automático e assume o
+  lugar. Testes: `packages/sala/test/volta-automatica.test.ts`.
+- **Sinal de vida no servidor:** `Conexao.vivaHa()` vem do horário do ping respondido pelo Cloudflare e
+  da última mensagem (guardada no anexo do WebSocket, que sobrevive à hibernação). Conexão muda há mais
+  de 30 s libera o lugar para o mesmo apelido entrar de outro aparelho.
+- **Sair:** o app manda `room:leave` e também `POST /api/salas/<código>/sair` com o token (`keepalive`),
+  porque com a conexão caída o `room:leave` some.
+- **Sala que acorda:** timer recalculado no `Sala.restore` **antes** de religar a partida (ver "Testes").
+- **Tela:** pedido feito durante o "Reconectando…" espera a volta ao assento; a atualização do app
+  nunca recarrega por cima de uma tela de erro.
+- Roteiros exploratórios que simulam modo avião, conexão morta, buraco negro, rede lenta, WebKit e
+  Firefox: [`e2e/exploratorio/`](e2e/exploratorio/README.md).
+
 ## Segredos
 
 - **Nunca** em arquivo do repositório, em argumento de comando (`argv`) ou em log.
@@ -83,7 +110,8 @@ pnpm exec playwright test                  # E2E locais (sobem os servidores soz
   arquivo? Rode `pnpm exec playwright test e2e/atualizacao.spec.ts`: o bug de aba presa na versão
   antiga já aconteceu uma vez (28/09/2026).
 - **Fase atual (antes da v1 validada com gente de verdade): testes exploratórios.** Os E2E existem
-  e rodam à mão (local e contra a produção), mas a CI não os roda. Depois da v1, as verificações
-  viram E2E na CI e os testes com pessoas ganham runbooks.
+  e rodam à mão (local e contra a produção), mas a CI não os roda; os roteiros de rede e aparelhos
+  ficam em `e2e/exploratorio/`. Depois da v1, as verificações viram E2E na CI e os testes com pessoas
+  ganham runbooks.
 - Testar contra a produção deixa rastro (partidas no ranking, apelidos, acessos): troque os nomes
   dos objetos (acima) antes de lançar.

@@ -145,10 +145,14 @@ export const updateRoomSchema = z.object({
   password: passwordSchema.nullable().optional(),
 });
 
+/** Identidade da aba (aleatória, do próprio app). */
+const abaSchema = z.string().regex(/^[A-Za-z0-9_-]{8,40}$/).optional();
+
 export const createRoomSchema = z.object({
   name: nameSchema,
   avatar: avatarSchema,
   profileKey: profileKeySchema.optional(),
+  aba: abaSchema,
   settings: updateRoomSchema.optional(),
 });
 
@@ -160,6 +164,8 @@ export const joinRoomSchema = z.object({
   // Limpa do mesmo jeito que a senha guardada, para comparar igual.
   password: z.string().max(PASSWORD_MAX_LENGTH * 8).transform(sanitizeName).optional(),
   profileKey: profileKeySchema.optional(),
+  aba: abaSchema,
+  auto: z.boolean().optional(),
 });
 
 export const presenceSchema = z.object({ visible: z.boolean() });

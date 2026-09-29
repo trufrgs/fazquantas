@@ -30,6 +30,7 @@ export const FAST_TIMING: Partial<HostTiming> = {
 
 export interface MundoOpts {
   graceMs?: number;
+  perfilPrazoMs?: number;
   ociosaMs?: number;
   ociosaAssincronaMs?: number;
   conferirPerfil?: (profileId: string | null, name: string) => Promise<{ bloqueado: boolean; nome: string; avatar: string | null }>;
@@ -67,6 +68,7 @@ export class Mundo {
         ociosaMs: this.opts.ociosaMs ?? 10 * 60_000,
         ociosaAssincronaMs: this.opts.ociosaAssincronaMs,
         conferirPerfil: this.opts.conferirPerfil,
+        perfilPrazoMs: this.opts.perfilPrazoMs,
         turnScale: this.opts.turnScale,
         logger: silentLogger,
         rateLimit: this.opts.rateLimit,
@@ -149,6 +151,8 @@ export class ClienteTeste implements Conexao {
   kicked = 0;
   replaced = 0;
   closed: { code: number; reason: string } | null = null;
+  /** Há quanto tempo a conexão deu sinal de vida (o teste muda para simular uma conexão muda). */
+  silencioMs = 0;
   private servidor: SalaServidor | null = null;
   private code: string | null = null;
   private readonly acks = new Map<number, (r: Ack<object>) => void>();
@@ -191,6 +195,10 @@ export class ClienteTeste implements Conexao {
 
   vincular(jogadorId: string | null): void {
     this.vinculo = jogadorId;
+  }
+
+  vivaHa(): number | null {
+    return this.closed ? null : this.silencioMs;
   }
 
   // Teste -------------------------------------------------------------------

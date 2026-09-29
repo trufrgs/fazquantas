@@ -130,7 +130,13 @@ export type ErrorCode =
   | 'INVALID_PAYLOAD'
   | 'RATE_LIMITED'
   | 'BLOCKED'
-  | 'GAME_ERROR';
+  | 'GAME_ERROR'
+  /** Volta automática: o lugar está sendo usado agora por outra conexão viva (outro aparelho ou aba). */
+  | 'SEAT_TAKEN'
+  /** Volta automática com um token que não vale mais (saiu, demorou demais para voltar). */
+  | 'SEAT_LOST'
+  /** Volta automática de quem o anfitrião tirou da sala enquanto estava sem conexão. */
+  | 'KICKED';
 
 export interface ProtocolError {
   code: ErrorCode | string;
@@ -158,6 +164,11 @@ export interface ProfilePayload {
   name: string;
   avatar: string;
   profileKey?: string;
+  /**
+   * Identidade desta aba (aleatória, guardada só nela). A volta automática da mesma aba sempre assume
+   * o lugar (a conexão velha dela morreu); de outra aba ou aparelho, não toma de uma conexão viva.
+   */
+  aba?: string;
 }
 
 export interface RoomUpdatePayload {
@@ -176,7 +187,11 @@ export interface ClientToServerEvents {
     ack: (r: Ack<JoinResult>) => void,
   ) => void;
   'room:join': (
-    p: ProfilePayload & { code: string; token?: string; password?: string },
+    /**
+     * `auto`: a volta que o app faz sozinho (reconexão, abrir o app). Ela nunca senta como gente nova
+     * e não toma o lugar de uma conexão viva; quem toca para entrar (sem `auto`) assume o lugar.
+     */
+    p: ProfilePayload & { code: string; token?: string; password?: string; auto?: boolean },
     ack: (r: Ack<JoinResult>) => void,
   ) => void;
   'room:leave': (ack?: (r: Ack) => void) => void;

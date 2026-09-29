@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 // O store roda no navegador: aqui ganha um `window` mínimo e uma conexão de sala falsa que o
 // teste controla.
 const h = vi.hoisted(() => {
-  type Handler = (data?: unknown) => void;
+  type Handler = (...data: unknown[]) => void;
   class FakeSocket {
     connected = true;
     closed = false;
@@ -35,8 +35,8 @@ const h = vi.hoisted(() => {
       this.connected = false;
     }
     /** Evento vindo do servidor ou da própria conexão (`connect`, `disconnect`). */
-    fire(event: string, data?: unknown) {
-      for (const fn of [...(this.handlers.get(event) ?? [])]) fn(data);
+    fire(event: string, ...data: unknown[]) {
+      for (const fn of [...(this.handlers.get(event) ?? [])]) fn(...data);
     }
     count(event: string) {
       return this.sent.filter((s) => s.event === event).length;
@@ -48,17 +48,28 @@ const h = vi.hoisted(() => {
     }
   }
   const store = new Map<string, string>();
+  const tab = new Map<string, string>();
+  const fetches: { url: string; init: RequestInit }[] = [];
+  (globalThis as unknown as { fetch: unknown }).fetch = (url: string, init: RequestInit) => {
+    fetches.push({ url, init });
+    return Promise.resolve(new Response('{"ok":true}'));
+  };
   (globalThis as unknown as { window: unknown }).window = {
     localStorage: {
       getItem: (k: string) => store.get(k) ?? null,
       setItem: (k: string, v: string) => void store.set(k, v),
       removeItem: (k: string) => void store.delete(k),
     },
+    sessionStorage: {
+      getItem: (k: string) => tab.get(k) ?? null,
+      setItem: (k: string, v: string) => void tab.set(k, v),
+      removeItem: (k: string) => void tab.delete(k),
+    },
     setTimeout: (fn: () => void, ms?: number) => globalThis.setTimeout(fn, ms),
     clearTimeout: (id: ReturnType<typeof setTimeout>) => globalThis.clearTimeout(id),
     location: { protocol: 'http:', hostname: 'localhost', origin: 'http://localhost' },
   };
-  return { FakeSocket, sockets: [] as InstanceType<typeof FakeSocket>[], store };
+  return { FakeSocket, sockets: [] as InstanceType<typeof FakeSocket>[], store, tab, fetches };
 });
 
 vi.mock('../lib/sala-socket', () => ({
@@ -72,7 +83,7 @@ vi.mock('../lib/sala-socket', () => ({
 }));
 vi.mock('../lib/platform', () => ({ serverUrl: () => 'http://servidor' }));
 
-const { savedSession, useOnline } = await import('./online');
+const { abaSubstituida, savedSession, useOnline } = await import('./online');
 const { useApp } = await import('./app');
 const { useGame } = await import('./game');
 
@@ -123,6 +134,8 @@ beforeEach(() => {
   vi.useFakeTimers();
   useOnline.getState().leave();
   h.store.clear();
+  h.tab.clear();
+  h.fetches.length = 0;
   useApp.setState({ screen: 'home', stack: [] });
 });
 
@@ -317,5 +330,78 @@ describe('online store', () => {
     expect(useOnline.getState().kicked).toBe(true);
     expect(useOnline.getState().error).toMatch(/anfitrião te tirou/);
     expect(savedSession()).toBeNull();
+  });
+
+  // Rodada de QA de 29/09/2026 ------------------------------------------------
+
+  it('the automatic return goes as auto, so the server never seats it as a newcomer', async () => {
+    await enterRoom();
+    const s = await dropAndReconnect();
+    const pedido = [...s.sent].reverse().find((x) => x.event === 'room:join');
+    expect(pedido?.payload).toMatchObject({ code: 'ABCD', token: 'tok-1', auto: true });
+  });
+
+  it('the seat in use on another device: steps aside, keeps the session, and this tab does not take it back by itself', async () => {
+    await enterRoom();
+    const s = await dropAndReconnect();
+    s.ackLast('room:join', { ok: false, error: { code: 'SEAT_TAKEN', message: 'Tu estás nessa sala em outro aparelho ou aba.' } });
+    await flush();
+    expect(useOnline.getState().room).toBeNull();
+    expect(useOnline.getState().error).toMatch(/outro aparelho/);
+    expect(savedSession()?.token).toBe('tok-1');
+    expect(abaSubstituida('ABCD')).toBe(true);
+    // Entrar de propósito devolve o lugar a esta aba.
+    void useOnline.getState().join('ABCD');
+    await flush();
+    expect(abaSubstituida('ABCD')).toBe(false);
+  });
+
+  it('kicked while offline: the automatic return says so and forgets the room', async () => {
+    await enterRoom();
+    const s = await dropAndReconnect();
+    s.ackLast('room:join', { ok: false, error: { code: 'KICKED', message: 'O anfitrião te tirou da sala.' } });
+    await flush();
+    expect(useOnline.getState().error).toBe('O anfitrião te tirou da sala.');
+    expect(useOnline.getState().kicked).toBe(true);
+    expect(savedSession()).toBeNull();
+  });
+
+  it('leaving also leaves over plain HTTP with the token (survives a dead socket and closing the tab)', async () => {
+    await enterRoom();
+    useOnline.getState().leave();
+    const saida = h.fetches.find((f) => f.url === 'http://servidor/api/salas/ABCD/sair');
+    expect(saida?.init).toMatchObject({ method: 'POST', keepalive: true });
+    expect(JSON.parse(String(saida?.init.body))).toEqual({ token: 'tok-1' });
+  });
+
+  it('the token also lives in memory: storage wiped by another tab does not lose the seat', async () => {
+    await enterRoom();
+    h.store.clear();
+    const s = await dropAndReconnect();
+    const pedido = [...s.sent].reverse().find((x) => x.event === 'room:join');
+    expect(pedido?.payload).toMatchObject({ token: 'tok-1' });
+  });
+
+  it('a refused create (maintenance) does not erase a room saved by another tab', async () => {
+    h.store.set(SESSION_KEY, JSON.stringify({ code: 'WXYZ', token: 't9', playerId: 'p9' }));
+    void useOnline.getState().create();
+    await flush();
+    socket().fire('disconnect', 'maintenance', 'Volto às 22h.');
+    await flush();
+    expect(useOnline.getState().error).toBe('Volto às 22h.');
+    expect(savedSession()?.code).toBe('WXYZ');
+  });
+
+  it('while reconnecting, a request waits for the return to the seat instead of hearing "not in a room"', async () => {
+    await enterRoom();
+    const s = await dropAndReconnect();
+    const comecar = useOnline.getState().start();
+    await flush();
+    expect(s.count('room:start')).toBe(0);
+    s.ackLast('room:join', joined('tok-1'));
+    await flush();
+    expect(s.count('room:start')).toBe(1);
+    s.ackLast('room:start', { ok: true });
+    await expect(comecar).resolves.toBeNull();
   });
 });

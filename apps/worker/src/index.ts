@@ -76,10 +76,27 @@ async function room(request: Request, env: Env, code: string, cors: Record<strin
   if (request.headers.get('Upgrade')?.toLowerCase() !== 'websocket') {
     return new Response('Esperava um WebSocket.', { status: 426, headers: cors });
   }
-  if (!allowedOrigin(request.headers.get('Origin'), env.ORIGENS)) {
-    return new Response('Origem não permitida.', { status: 403 });
-  }
+  // Recusa pelo próprio WebSocket: o app mostra o motivo em vez de "confere a conexão".
+  if (!allowedOrigin(request.headers.get('Origin'), env.ORIGENS)) return recusarWs(WS_CLOSE.badOrigin, 'Origem não permitida.');
   return stub.fetch(new Request(request, { headers }));
+}
+
+/**
+ * Sair da sala pelo token, sem WebSocket: o app manda junto com o `room:leave` (e com `keepalive`,
+ * que sobrevive a fechar a aba). Sem isso, "Sair" com a conexão caída não chegava ao servidor e o
+ * lugar ficava preso (3 min no lobby, 7 dias na assíncrona).
+ */
+async function sair(request: Request, env: Env, code: string, cors: Record<string, string>): Promise<Response> {
+  if (!allowedOrigin(request.headers.get('Origin'), env.ORIGENS)) return new Response('Origem não permitida.', { status: 403 });
+  let body: { token?: unknown };
+  try {
+    body = (await request.json()) as typeof body;
+  } catch {
+    return json({ ok: false }, cors, 400);
+  }
+  if (typeof body.token !== 'string' || body.token.length < 8 || body.token.length > 64) return json({ ok: false }, cors, 400);
+  const saiu = await env.SALAS.get(env.SALAS.idFromName(code)).sairPorToken(body.token);
+  return json({ ok: true, saiu }, cors);
 }
 
 async function ranking(url: URL, env: Env, cors: Record<string, string>): Promise<Response> {
@@ -149,10 +166,11 @@ export default {
       }
       return room(request, env, newCode(), cors, false);
     }
-    const salas = /^\/api\/salas\/([A-Za-z0-9]{1,8})(\/info)?$/.exec(path);
+    const salas = /^\/api\/salas\/([A-Za-z0-9]{1,8})(\/info|\/sair)?$/.exec(path);
     if (salas) {
       const code = salas[1]!.toUpperCase();
       if (!CODE.test(code)) return json({ error: 'codigo' }, cors, 404);
+      if (salas[2] === '/sair') return request.method === 'POST' ? sair(request, env, code, cors) : json({ ok: false }, cors, 405);
       return room(request, env, code, cors, salas[2] === '/info');
     }
     if (path === '/api/ranking' && request.method === 'GET') return ranking(url, env, cors);

@@ -48,6 +48,8 @@ export function isCompact(players: number, width: number, height: number): boole
  * faixa sempre que couber — a mesa não muda de lugar entre o palpite e as mãos.
  */
 export const BID_PANEL = { maxWidth: 448, margin: 12, band: 170 } as const;
+/** Altura que a dica da primeira vez (ex.: "Carta na testa…") soma ao painel de palpite. */
+export const BID_TIP_H = 104;
 
 /**
  * Distribui `m` oponentes em vagas: coluna direita (de baixo para cima), fileira de cima (da
@@ -214,10 +216,12 @@ export function compactBidPanel(
   youId: string | null,
   scale: number,
   mySeatH: number,
+  /** Altura a mais dentro do painel (a dica da primeira vez). */
+  extra = 0,
 ): boolean {
   if (g.height < 330 * scale) return true;
   const panelW = Math.min(g.width - 2 * BID_PANEL.margin * scale, BID_PANEL.maxWidth * scale);
-  const panelTop = g.height - (142 * scale - mySeatH);
+  const panelTop = g.height - ((142 + extra) * scale - mySeatH);
   const box = g.seatBox;
   return [...g.seats.entries()].some(
     ([id, p]) =>

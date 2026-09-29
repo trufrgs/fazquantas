@@ -24,7 +24,8 @@ export function Home() {
   const s = useUiScale();
   const go = useApp((s) => s.go);
   const { name, avatar } = useSettings();
-  const [ask, setAsk] = useState<null | (() => void)>(null);
+  /** Pedindo o apelido antes de seguir; `obrigatorio`: jogar online (ninguém senta sem nome). */
+  const [ask, setAsk] = useState<null | { then: () => void; obrigatorio: boolean }>(null);
   const [confirmNew, setConfirmNew] = useState(false);
   const saved = hasSavedGame();
   const session = multiplayer ? savedSession() : null;
@@ -37,9 +38,16 @@ export function Home() {
     else go('online');
   };
 
-  const withName = (then: () => void) => () => {
-    if (name.trim()) then();
-    else setAsk(() => then);
+  const withName =
+    (then: () => void, obrigatorio = false) =>
+    () => {
+      if (name.trim()) then();
+      else setAsk({ then, obrigatorio });
+    };
+  const seguir = () => {
+    const then = ask?.then;
+    setAsk(null);
+    then?.();
   };
 
   return (
@@ -135,7 +143,7 @@ export function Home() {
               </Button>
             )}
             {multiplayer && (
-              <Button variant={saved || myTurn ? 'papel' : 'ouro'} size="lg" onClick={withName(() => go('online'))}>
+              <Button variant={saved || myTurn ? 'papel' : 'ouro'} size="lg" onClick={withName(() => go('online'), true)}>
                 Jogar com a gurizada
               </Button>
             )}
@@ -208,27 +216,18 @@ export function Home() {
             <ApelidoGuardado compact />
           </div>
         )}
-        <div className="mt-4 grid grid-cols-2 gap-2">
-          <Button
-            onClick={() => {
-              const then = ask;
-              setAsk(null);
-              then?.();
-            }}
-          >
-            Pular
+        {ask?.obrigatorio ? (
+          <Button variant="ouro" size="lg" className="mt-4 w-full" disabled={!name.trim()} onClick={seguir}>
+            {name.trim() ? 'Pronto' : 'Escreve teu apelido pra jogar online'}
           </Button>
-          <Button
-            variant="ouro"
-            onClick={() => {
-              const then = ask;
-              setAsk(null);
-              then?.();
-            }}
-          >
-            Pronto
-          </Button>
-        </div>
+        ) : (
+          <div className="mt-4 grid grid-cols-2 gap-2">
+            <Button onClick={seguir}>Pular</Button>
+            <Button variant="ouro" onClick={seguir}>
+              Pronto
+            </Button>
+          </div>
+        )}
       </Sheet>
     </div>
   );

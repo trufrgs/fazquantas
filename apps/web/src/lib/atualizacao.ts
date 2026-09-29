@@ -54,8 +54,10 @@ function markHardReset(build: string): void {
  * volta para a sala já apagou a mensagem de erro e largou gente no início (28/09/2026).
  */
 function safeToReload(): boolean {
-  const { room, status } = useOnline.getState();
+  const { room, status, error } = useOnline.getState();
   if (room !== null || status !== 'idle') return false;
+  // Com um erro na tela (a sala acabou, te tiraram), recarregar apagaria o porquê: espera sair dela.
+  if (error) return false;
   return useApp.getState().screen !== 'game' || document.visibilityState === 'hidden';
 }
 

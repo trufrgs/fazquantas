@@ -37,6 +37,7 @@ import { GameOver } from './GameOver';
 import { Hand } from './Hand';
 import {
   BID_PANEL,
+  BID_TIP_H,
   cardSizes,
   compactBidPanel,
   isCompact,
@@ -258,11 +259,17 @@ function Table({
   const revealing = maxShown > 0 || (view.blind && showing);
   // O painel de palpite desce por cima da tua faixa; em mesa baixa (celular deitado) vira uma linha.
   const mySeatH = mySeatSize.height || 47 * s;
-  // Barra de uma linha em mesa baixa ou quando o painel normal cobriria algum assento.
-  const panelCompact = useMemo(
-    () => table.height > 0 && compactBidPanel(geometry, you, s, mySeatH),
+  // Barra de uma linha em mesa baixa ou quando o painel normal cobriria algum assento. A dica da
+  // primeira vez só entra no painel se, com ela, ele ainda não cobrir ninguém (na mesa cheia de
+  // celular pequeno, cobria as cartas na testa de quem senta embaixo, justo na hora de lê-las).
+  const panelFits = useMemo(
+    () =>
+      table.height > 0
+        ? { plain: !compactBidPanel(geometry, you, s, mySeatH), withTip: !compactBidPanel(geometry, you, s, mySeatH, BID_TIP_H) }
+        : { plain: true, withTip: true },
     [table.height, geometry, you, s, mySeatH],
   );
+  const panelCompact = !panelFits.plain;
   const panelBottom = -(mySeatH - 4);
   const reveal = useMemo(() => {
     if (!revealing || table.width === 0) return null;
@@ -341,8 +348,10 @@ function Table({
       ? 'jogar'
       : null;
 
+  // A dica que está na tela (a do palpite só quando cabe no painel).
+  const shownTip = bidding ? (panelFits.withTip ? tip : null) : tip;
   const send = async (action: ClientAction) => {
-    markTipSeen(tip);
+    markTipSeen(shownTip);
     setPendingAt(view.seq);
     const err = await conn.act(action);
     if (err) {
@@ -422,7 +431,11 @@ function Table({
           <ForcaChip mode={view.rules.hierarchy} vira={view.vira} onOpen={() => setForca(true)} />
 
           {online && onlineStatus === 'reconnecting' && (
-            <div className="absolute right-3 top-2 z-30 rounded-full bg-copas px-3 py-1 text-xs font-bold">
+            <div
+              role="status"
+              className="absolute left-1/2 top-2 z-30 flex -translate-x-1/2 items-center gap-2 rounded-full bg-copas px-4 py-1.5 text-sm font-bold whitespace-nowrap shadow-lg"
+            >
+              <span aria-hidden="true" className="size-2 animate-pulse rounded-full bg-papel" />
               Reconectando…
             </div>
           )}
@@ -495,7 +508,7 @@ function Table({
             isDealer={view.dealerId === you}
             isMao={!!you && view.order[0] === you}
             onBid={(value) => void send({ type: 'bid', value })}
-            tip={bidding ? tip : null}
+            tip={bidding ? shownTip : null}
             keyboard={!layerOpen}
             compact={panelCompact}
             hintInline={vw >= 600 * s}

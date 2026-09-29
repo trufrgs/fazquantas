@@ -96,6 +96,12 @@ export function Lobby() {
         )
       }
     >
+      {online.status === 'reconnecting' && (
+        <p role="status" className="flex items-center justify-center gap-2 rounded-2xl bg-copas px-4 py-2 text-center font-semibold text-papel shadow-lg">
+          <span aria-hidden="true" className="size-2 animate-pulse rounded-full bg-papel" />
+          Sem conexão. Reconectando… o que tu mudar sai quando voltar.
+        </p>
+      )}
       <div className="flex flex-col items-center gap-1 pt-1">
         <span className="text-sm text-papel/75">Código da sala</span>
         <div className="flex gap-2" role="img" aria-label={`Código ${room.code.split('').join(' ')}`}>

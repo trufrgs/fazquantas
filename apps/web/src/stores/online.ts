@@ -34,17 +34,78 @@ export function savedSession(): Session | null {
   return storage.get<Session>(SESSION_KEY);
 }
 
+/**
+ * A sessão da sala aberta também fica na memória: com o armazenamento falhando (cookies bloqueados,
+ * cota cheia) ou apagado por outra aba, a reconexão ainda leva o token.
+ */
+let sessaoViva: Session | null = null;
+
 /** Token para voltar ao lugar numa sala: o da sala aberta agora ou o de uma das "tuas salas". */
 function tokenFor(code: string): string | undefined {
+  if (sessaoViva?.code === code) return sessaoViva.token;
   const session = savedSession();
   if (session?.code === code) return session.token;
   return knownRoom(code)?.token;
 }
 
-/** Esquece a sala aberta: não volta sozinho nem aparece nas "tuas salas". */
-function forgetCurrent(code = savedSession()?.code ?? useOnline.getState().room?.code) {
-  storage.remove(SESSION_KEY);
-  if (code) forgetRoom(code);
+/**
+ * Esquece uma sala: não volta sozinho nem aparece nas "tuas salas". A sessão salva só sai se for
+ * dela (pode ser a de outra sala, aberta em outra aba).
+ */
+function forgetCurrent(code = useOnline.getState().room?.code ?? savedSession()?.code) {
+  if (!code) return;
+  if (savedSession()?.code === code) storage.remove(SESSION_KEY);
+  if (sessaoViva?.code === code) sessaoViva = null;
+  forgetRoom(code);
+}
+
+/**
+ * Esta aba perdeu o lugar para outro aparelho ou aba: a volta automática (reabrir, atualizar) não
+ * toma o lugar de volta. Vale só para esta aba; entrar de propósito limpa.
+ */
+const SUBSTITUIDA_KEY = 'fodinha:substituida';
+
+function marcarSubstituida(code: string) {
+  try {
+    window.sessionStorage.setItem(SUBSTITUIDA_KEY, code);
+  } catch {
+    // sem armazenamento da aba: segue
+  }
+}
+
+export function abaSubstituida(code: string): boolean {
+  try {
+    return window.sessionStorage.getItem(SUBSTITUIDA_KEY) === code;
+  } catch {
+    return false;
+  }
+}
+
+function limparSubstituida() {
+  try {
+    window.sessionStorage.removeItem(SUBSTITUIDA_KEY);
+  } catch {
+    // idem
+  }
+}
+
+/**
+ * Sai também pela internet comum, com o token: se o WebSocket caiu, o `room:leave` some e o lugar
+ * ficava preso (3 min no lobby, 7 dias na assíncrona). `keepalive` sobrevive a fechar a aba.
+ */
+function sairPelaInternet(code: string) {
+  const token = tokenFor(code);
+  if (!token) return;
+  try {
+    void fetch(`${serverUrl()}/api/salas/${code}/sair`, {
+      method: 'POST',
+      keepalive: true,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token }),
+    }).catch(() => undefined);
+  } catch {
+    // sem rede: o WebSocket e os prazos da sala cuidam
+  }
 }
 
 /** Endereço do WebSocket de uma sala (`nova` para criar). */
@@ -114,7 +175,8 @@ class OnlineConnection implements GameConnection {
   }
 
   async act(action: ClientAction): Promise<string | null> {
-    if (!this.socket.connected) return 'Sem conexão com o servidor. Espera reconectar.';
+    // Reconectando: a jogada não sai (a mesa na tela pode estar velha); quando voltar, joga de novo.
+    if (!this.socket.connected || useOnline.getState().status !== 'online') return 'Reconectando… tenta de novo em um instante.';
     const r = await this.socket.request('game:action', { action });
     return r.ok ? null : r.error.message;
   }
@@ -142,7 +204,8 @@ interface OnlineState {
   notice: { text: string; at: number } | null;
   dismissNotice: () => void;
   create: (settings?: RoomUpdatePayload) => Promise<boolean>;
-  join: (code: string, opts?: { useToken?: boolean; password?: string }) => Promise<boolean>;
+  /** `auto`: a volta que o app faz sozinho (abrir o app); não toma o lugar de outro aparelho em uso. */
+  join: (code: string, opts?: { useToken?: boolean; password?: string; auto?: boolean }) => Promise<boolean>;
   leave: () => void;
   /** Larga a mesa sem sair da sala (assíncrona): o lugar fica, e a sala segue nas "tuas salas". */
   park: () => void;
@@ -162,7 +225,9 @@ let socket: SalaSocket | null = null;
 let connection: OnlineConnection | null = null;
 /** Cada tentativa de voltar ao assento depois de uma queda; só a mais nova decide o resultado. */
 let rejoinAttempt = 0;
-const REJOIN_RETRY_MS = 2500;
+const REJOIN_RETRY_MS = 1000;
+/** A volta ao assento espera menos que um pedido comum: resposta perdida numa conexão que morreu. */
+const REJOIN_TIMEOUT_MS = 5000;
 
 /** Falhas que passam sozinhas (rede, servidor ocupado): a sala e o lugar continuam valendo. */
 const TRANSIENT = new Set(['TIMEOUT', 'OFFLINE', 'RATE_LIMITED', 'INTERNAL_ERROR']);
@@ -172,20 +237,44 @@ const TRANSIENT = new Set(['TIMEOUT', 'OFFLINE', 'RATE_LIMITED', 'INTERNAL_ERROR
  * o token salvo: ele é compartilhado entre abas e pode ser o de outra aba que assumiu o lugar.
  */
 function dropToOnlineScreen(error: string, { keepSession = false } = {}) {
-  if (!keepSession) forgetCurrent();
+  // Só esquece a sala de onde caiu (sem sala, como na recusa ao criar, não há o que esquecer).
+  const code = useOnline.getState().room?.code;
+  if (!keepSession && code) forgetCurrent(code);
   resetOnline();
   useOnline.setState({ error });
   if (useApp.getState().screen !== 'home') useApp.getState().reset('online');
 }
 
+/**
+ * Identidade desta aba, guardada só nela (sobrevive a recarregar a página, não passa para outra aba
+ * nem aparelho). A volta automática da mesma aba sempre assume o lugar dela.
+ */
+let abaNaMemoria: string | null = null;
+function abaId(): string {
+  try {
+    const salva = window.sessionStorage.getItem('fodinha:aba');
+    if (salva) return salva;
+  } catch {
+    // sem armazenamento da aba
+  }
+  abaNaMemoria ??= Array.from(crypto.getRandomValues(new Uint8Array(12)), (b) => b.toString(16).padStart(2, '0')).join('');
+  try {
+    window.sessionStorage.setItem('fodinha:aba', abaNaMemoria);
+  } catch {
+    // fica só na memória
+  }
+  return abaNaMemoria;
+}
+
 function profile() {
   const s = useSettings.getState();
   // Online, sem apelido, o nome é "Jogador" (o servidor numera se repetir).
-  return { name: (s.name.trim() || 'Jogador').slice(0, 16), avatar: s.avatar, profileKey: s.profileKey };
+  return { name: (s.name.trim() || 'Jogador').slice(0, 16), avatar: s.avatar, profileKey: s.profileKey, aba: abaId() };
 }
 
 function saveSession(r: JoinResult) {
-  storage.set(SESSION_KEY, { code: r.code, token: r.token, playerId: r.playerId });
+  sessaoViva = { code: r.code, token: r.token, playerId: r.playerId };
+  storage.set(SESSION_KEY, sessaoViva);
   rememberRoom({ code: r.code, token: r.token, playerId: r.playerId });
 }
 
@@ -198,12 +287,23 @@ function sendPresence() {
 
 if (typeof document !== 'undefined') document.addEventListener('visibilitychange', sendPresence);
 
+/**
+ * Voltou a tela ou a rede com a volta ao assento pendente: tenta de novo agora (a resposta da
+ * tentativa anterior pode ter se perdido com a conexão que morreu).
+ */
+function retomar() {
+  if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return;
+  if (useOnline.getState().status === 'reconnecting' && socket?.connected) void rejoin();
+}
+if (typeof document !== 'undefined') document.addEventListener('visibilitychange', retomar);
+if (typeof window !== 'undefined' && typeof window.addEventListener === 'function') window.addEventListener('online', retomar);
+
 const REASONS: Partial<Record<DisconnectReason, string>> = {
-  replaced: 'Tu abriu essa sala em outro aparelho ou aba. Segue por lá.',
+  replaced: 'Tu abriu essa sala em outro aparelho ou aba. Segue por lá, ou toca em "Voltar pra sala" pra jogar aqui.',
   kicked: 'O anfitrião te tirou da sala.',
   gone: 'A sala acabou: ficou um tempo sem ninguém.',
   closedByAdmin: 'A sala foi encerrada pela administração do jogo.',
-  tooManyAttempts: 'Muitas senhas erradas. Espera um minuto e tenta de novo.',
+  tooManyAttempts: 'Muitas senhas erradas seguidas. Confere a senha com quem te convidou e tenta de novo.',
   refused: 'Esse endereço não pode abrir salas.',
 };
 
@@ -224,7 +324,10 @@ function openSocket(code: string): SalaSocket {
     }
     if (reason === 'closed' || reason === 'left') return;
     s.removeAllListeners();
+    s.close();
     socket = null;
+    const code = useOnline.getState().room?.code;
+    if (reason === 'replaced' && code) marcarSubstituida(code);
     dropToOnlineScreen(detail ?? REASONS[reason] ?? 'A conexão com a sala caiu.', { keepSession: reason === 'replaced' });
     if (reason === 'kicked') useOnline.setState({ kicked: true });
   });
@@ -288,7 +391,8 @@ async function rejoin(): Promise<void> {
   if (!room || status !== 'reconnecting' || !s) return;
   const attempt = ++rejoinAttempt;
   const token = tokenFor(room.code);
-  const r = await s.request<JoinResult>('room:join', { code: room.code, ...profile(), token });
+  // `auto`: a volta automática nunca senta como gente nova nem toma o lugar de quem joga em outro aparelho.
+  const r = await s.request<JoinResult>('room:join', { code: room.code, ...profile(), token, auto: true }, { timeoutMs: REJOIN_TIMEOUT_MS });
   if (attempt !== rejoinAttempt || socket !== s) return;
   if (r.ok) {
     saveSession(r);
@@ -302,8 +406,34 @@ async function rejoin(): Promise<void> {
     }, REJOIN_RETRY_MS);
     return;
   }
-  // A sala sumiu (ficou ociosa, o servidor apagou…) ou o lugar foi perdido.
+  if (r.error.code === 'SEAT_TAKEN') {
+    // Segue jogando no outro aparelho: esta aba sai sem apagar a sessão (é a mesma do outro).
+    marcarSubstituida(room.code);
+    dropToOnlineScreen(r.error.message, { keepSession: true });
+    return;
+  }
+  // A sala sumiu, o lugar foi perdido ou o anfitrião tirou a pessoa enquanto ela estava sem conexão.
   dropToOnlineScreen(r.error.message);
+  if (r.error.code === 'KICKED') useOnline.setState({ kicked: true });
+}
+
+/** Espera a volta ao assento terminar (ou desistir) antes de mandar um pedido. */
+function ateVoltar(ms: number): Promise<boolean> {
+  return new Promise((resolve) => {
+    const agora = useOnline.getState().status;
+    if (agora === 'online') return resolve(true);
+    if (agora !== 'reconnecting') return resolve(false);
+    const fim = (ok: boolean) => {
+      window.clearTimeout(timer);
+      unsub();
+      resolve(ok);
+    };
+    const timer = window.setTimeout(() => fim(false), ms);
+    const unsub = useOnline.subscribe((st) => {
+      if (st.status === 'online') fim(true);
+      else if (st.status !== 'reconnecting') fim(false);
+    });
+  });
 }
 
 function resetOnline() {
@@ -317,7 +447,17 @@ function resetOnline() {
 async function request<T extends object = object>(event: Parameters<SalaSocket['request']>[0], payload?: unknown): Promise<Ack<T>> {
   const s = socket;
   if (!s) return { ok: false, error: { code: 'NOT_IN_ROOM', message: 'Tu não está em nenhuma sala.' } };
+  // Reconectando: o pedido espera a volta ao assento (antes dela, o servidor responde "não está na sala").
+  if (useOnline.getState().status === 'reconnecting' && !(await ateVoltar(8000))) {
+    return { ok: false, error: { code: 'OFFLINE', message: 'Sem conexão com a sala. Espera reconectar e tenta de novo.' } };
+  }
+  if (socket !== s) return { ok: false, error: { code: 'NOT_IN_ROOM', message: 'Tu não está em nenhuma sala.' } };
   return s.request<T>(event, payload);
+}
+
+/** Pedido sem esperar o resultado (a tela se atualiza pelo estado da sala). */
+function pedir(event: Parameters<SalaSocket['request']>[0], payload?: unknown) {
+  void request(event, payload);
 }
 
 export const useOnline = create<OnlineState>((set) => ({
@@ -337,10 +477,12 @@ export const useOnline = create<OnlineState>((set) => ({
       if (isAsyncTurn(current.turnTimeoutSec)) storage.remove(SESSION_KEY);
       else {
         socket?.emit('room:leave');
+        sairPelaInternet(current.code);
         forgetCurrent(current.code);
       }
       resetOnline();
     }
+    limparSubstituida();
     set({ status: 'connecting', error: null, kicked: false, passwordFor: null });
     const withRules: RoomUpdatePayload = { rules: useSettings.getState().rules, ...settings };
     for (let attempt = 1; attempt <= CREATE_ATTEMPTS; attempt++) {
@@ -368,12 +510,15 @@ export const useOnline = create<OnlineState>((set) => ({
     const code = rawCode.trim().toUpperCase();
     const useToken = opts.useToken ?? true;
     set({ status: 'connecting', error: null, kicked: false });
+    // Entrar de propósito devolve o lugar a esta aba, mesmo que outra tenha assumido antes.
+    if (!opts.auto) limparSubstituida();
     // Estava em outra sala: sai dela antes (uma conexão por sala).
     const current = useOnline.getState().room;
     if (current && current.code !== code) {
       if (isAsyncTurn(current.turnTimeoutSec)) storage.remove(SESSION_KEY);
       else {
         socket?.emit('room:leave');
+        sairPelaInternet(current.code);
         forgetCurrent(current.code);
       }
       resetOnline();
@@ -382,12 +527,16 @@ export const useOnline = create<OnlineState>((set) => ({
     const token = useToken ? tokenFor(code) : undefined;
     // Mesma sala (outra senha, ou já dentro): aproveita a conexão; o servidor conta as tentativas.
     const s = socket && socket.url === roomUrl(code) ? socket : openSocket(code);
-    const r = await s.request<JoinResult>('room:join', { code, ...profile(), token, password: opts.password });
+    const r = await s.request<JoinResult>('room:join', { code, ...profile(), token, password: opts.password, auto: opts.auto || undefined });
     if (socket !== s) return false;
     if (!r.ok) {
       const needsPassword = r.error.code === 'PASSWORD_REQUIRED' || r.error.code === 'WRONG_PASSWORD';
-      // Só esquece a sala quando ela não serve mais; falha de rede deixa o "Voltar pra sala".
-      if (!TRANSIENT.has(r.error.code) && !needsPassword && token) forgetCurrent(code);
+      const taken = r.error.code === 'SEAT_TAKEN';
+      if (taken) marcarSubstituida(code);
+      if (r.error.code === 'KICKED') set({ kicked: true });
+      // Só esquece a sala quando ela não serve mais; falha de rede (ou o lugar em uso em outro
+      // aparelho) deixa o "Voltar pra sala".
+      if (!TRANSIENT.has(r.error.code) && !needsPassword && !taken && token) forgetCurrent(code);
       // Pediu senha: a conexão fica aberta para a próxima tentativa.
       if (!needsPassword) closeSocket();
       set({
@@ -405,8 +554,10 @@ export const useOnline = create<OnlineState>((set) => ({
   },
 
   leave: () => {
+    const code = useOnline.getState().room?.code;
     socket?.emit('room:leave');
-    forgetCurrent();
+    if (code) sairPelaInternet(code);
+    forgetCurrent(code);
     resetOnline();
   },
 
@@ -419,9 +570,9 @@ export const useOnline = create<OnlineState>((set) => ({
     const r = await request('room:update', patch);
     return r.ok ? null : r.error.message;
   },
-  addBot: (difficulty) => socket?.emit('room:addBot', { difficulty }),
-  setBot: (playerId, difficulty) => socket?.emit('room:setBot', { playerId, difficulty }),
-  removeSeat: (playerId) => socket?.emit('room:removeSeat', { playerId }),
+  addBot: (difficulty) => pedir('room:addBot', { difficulty }),
+  setBot: (playerId, difficulty) => pedir('room:setBot', { playerId, difficulty }),
+  removeSeat: (playerId) => pedir('room:removeSeat', { playerId }),
   start: async () => {
     const r = await request('room:start');
     return r.ok ? null : r.error.message;
@@ -430,8 +581,8 @@ export const useOnline = create<OnlineState>((set) => ({
     const r = await request('room:rematch');
     return r.ok ? null : r.error.message;
   },
-  backToLobby: () => socket?.emit('room:lobby'),
-  present: () => socket?.emit('room:present'),
+  backToLobby: () => pedir('room:lobby'),
+  present: () => pedir('room:present'),
   clearError: () => set({ error: null, kicked: false, passwordFor: null }),
 }));
 

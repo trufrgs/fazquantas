@@ -33,6 +33,8 @@ const FAST_TIMING = { botThinkMs: [60, 140] as [number, number], trickPauseMs: 3
 
 /** O que fica preso a cada WebSocket e sobrevive à hibernação. */
 interface Anexo {
+  /** Última mensagem que chegou por ele (guardada no máximo a cada 5 s). */
+  visto?: number;
   jogadorId: string | null;
   /** Código da sala: acordando sem nada salvo, a sala ainda sabe quem é. */
   codigo: string;
@@ -42,11 +44,30 @@ interface Anexo {
 class ConexaoWs implements Conexao {
   jogadorId: string | null;
   private readonly codigo: string;
+  private vistoEm: number;
 
-  constructor(private readonly ws: WebSocket) {
+  constructor(
+    private readonly ws: WebSocket,
+    /** Quando o Cloudflare respondeu o último ping dela (sem acordar a sala), ou 0. */
+    private readonly ultimoPing: () => number,
+  ) {
     const anexo = ws.deserializeAttachment() as Anexo | null;
     this.jogadorId = anexo?.jogadorId ?? null;
     this.codigo = anexo?.codigo ?? '';
+    this.vistoEm = anexo?.visto ?? 0;
+  }
+
+  /** Há quanto tempo deu sinal de vida (ping ou mensagem); `null` se não se sabe (conexão antiga). */
+  vivaHa(): number | null {
+    const t = Math.max(this.ultimoPing(), this.vistoEm);
+    return t > 0 ? Math.max(0, Date.now() - t) : null;
+  }
+
+  /** Chegou mensagem: guarda a hora no anexo, que sobrevive à hibernação (no máximo a cada 5 s). */
+  visto(agora: number): void {
+    if (agora - this.vistoEm < 5000) return;
+    this.vistoEm = agora;
+    this.gravar(this.jogadorId);
   }
 
   enviar<E extends keyof ServerToClientEvents>(evento: E, ...dados: Parameters<ServerToClientEvents[E]>): void {
@@ -66,8 +87,12 @@ class ConexaoWs implements Conexao {
   }
 
   vincular(jogadorId: string | null): void {
+    this.gravar(jogadorId);
+  }
+
+  private gravar(jogadorId: string | null): void {
     try {
-      this.ws.serializeAttachment({ jogadorId, codigo: this.codigo } satisfies Anexo);
+      this.ws.serializeAttachment({ jogadorId, codigo: this.codigo, visto: this.vistoEm } satisfies Anexo);
     } catch {
       // fechada: não importa mais
     }
@@ -103,6 +128,8 @@ export class SalaDO extends DurableObject<Env> {
   private servidor: SalaServidor | null = null;
   private readonly relogio: AlarmClock;
   private readonly conexoes = new WeakMap<WebSocket, ConexaoWs>();
+  /** Por que a sala deste código acabou (guardado com a marca de fim). */
+  private fimMotivo: string | null = null;
   private salvando = false;
   /** Há resultado de ranking esperando para ser enviado. */
   private rankingPendente = true;
@@ -121,7 +148,10 @@ export class SalaDO extends DurableObject<Env> {
     ctx.setWebSocketAutoResponse(new WebSocketRequestResponsePair(WS_PING, WS_PONG));
     void ctx.blockConcurrencyWhile(async () => {
       const salva = await ctx.storage.get<SalaSalva>('sala');
-      this.acabou = !salva && (await ctx.storage.get<number>('fim')) !== undefined;
+      // A marca de fim era só a hora (até 29/09/2026); agora guarda o motivo também.
+      const fim = await ctx.storage.get<number | { quando: number; motivo: string }>('fim');
+      this.acabou = !salva && fim !== undefined;
+      this.fimMotivo = typeof fim === 'object' && fim !== null ? fim.motivo : null;
       this.atividade = (await ctx.storage.get<number>('atividade')) ?? salva?.criadaEm ?? null;
       const sockets = ctx.getWebSockets();
       if (salva) {
@@ -150,11 +180,12 @@ export class SalaDO extends DurableObject<Env> {
     const pair = new WebSocketPair();
     const [client, server] = Object.values(pair) as [WebSocket, WebSocket];
     this.ctx.acceptWebSocket(server);
-    server.serializeAttachment({ jogadorId: null, codigo: this.code } satisfies Anexo);
+    server.serializeAttachment({ jogadorId: null, codigo: this.code, visto: Date.now() } satisfies Anexo);
     return new Response(null, { status: 101, webSocket: client });
   }
 
   override async webSocketMessage(ws: WebSocket, message: string | ArrayBuffer): Promise<void> {
+    this.conexao(ws).visto(Date.now());
     this.marcarAtividade();
     await this.servidor?.receive(this.conexao(ws), message);
   }
@@ -196,17 +227,31 @@ export class SalaDO extends DurableObject<Env> {
       aoAvisar: (a) => this.avisar(a),
       conferirPerfil: (profileId, nome) => contasStub(this.env).conferir(profileId, nome),
     });
-    if (this.acabou) this.servidor.markEnded();
+    if (this.acabou) this.servidor.markEnded(this.fimMotivo);
     return this.servidor;
   }
 
   private conexao(ws: WebSocket): ConexaoWs {
     let c = this.conexoes.get(ws);
     if (!c) {
-      c = new ConexaoWs(ws);
+      c = new ConexaoWs(ws, () => this.ultimoPing(ws));
       this.conexoes.set(ws, c);
     }
     return c;
+  }
+
+  /** O ping é respondido pelo Cloudflare sem acordar a sala, mas o horário da resposta fica guardado. */
+  private ultimoPing(ws: WebSocket): number {
+    try {
+      return this.ctx.getWebSocketAutoResponseTimestamp(ws)?.getTime() ?? 0;
+    } catch {
+      return 0; // WebSocket já fechado
+    }
+  }
+
+  /** Saída pelo token, pela internet comum (o WebSocket de quem saiu pode ter caído). */
+  async sairPorToken(token: string): Promise<boolean> {
+    return this.servidor?.leaveByToken(token) ?? false;
   }
 
   private info(): SalaInfo {
@@ -292,10 +337,11 @@ export class SalaDO extends DurableObject<Env> {
     this.ultimoResumo = '';
     this.ctx.waitUntil(painelStub(this.env).salaEncerrada(this.code, motivo).catch((e: unknown) => console.error('[painel]', e)));
     this.relogio.clear();
-    // Apaga tudo e deixa só a marca de que acabou (o link velho ouve "essa sala já acabou").
+    // Apaga tudo e deixa só a marca de que acabou, com o motivo (o link velho ouve o porquê).
+    this.fimMotivo = motivo;
     void this.ctx.storage
       .deleteAll()
-      .then(() => this.ctx.storage.put('fim', Date.now()))
+      .then(() => this.ctx.storage.put('fim', { quando: Date.now(), motivo: motivo.slice(0, 120) }))
       .catch((e) => console.error('[encerrar]', e));
     for (const ws of this.ctx.getWebSockets()) {
       try {
