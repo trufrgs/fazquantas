@@ -31,7 +31,7 @@ const FUMO_DE_NOVO_MS = 16000;
 
 /** O som de cada golpe de "Quem mata quem", na hora em que a arma acerta (os mesmos arquivos, em outro tom). */
 const SOM_GOLPE: Record<Golpe, { id: SoundId; rate: number }> = {
-  corta: { id: 'bid', rate: 1.9 },
+  corta: { id: 'corte', rate: 1 },
   bate: { id: 'play', rate: 0.55 },
   fura: { id: 'bid', rate: 1.7 },
   brilha: { id: 'made', rate: 1.2 },
@@ -47,10 +47,12 @@ function maoDaView(v: PlayerView): { plays: readonly Play[]; fechada: boolean } 
 function somDoGolpe(g: GolpeNaMao, ritmo: number) {
   const som = SOM_GOLPE[g.golpe];
   const ms = (s: number) => (s * 1000) / ritmo;
-  // O espadão varre a mesa inteira de uma vez; os outros acertam uma carta de cada vez (até três).
-  if (g.golpe === 'corta') play('sweep', { delayMs: ms(acertoDe(g, 0) - 0.14), rate: 1.6 });
-  const vezes = g.golpe === 'corta' || g.golpe === 'brilha' ? 1 : Math.min(g.vitimas.length, 3);
-  for (let i = 0; i < vezes; i++) play(som.id, { delayMs: ms(acertoDe(g, i)), rate: som.rate });
+  // O espadão: o aço sai ("shing") no começo da varrida e cada carta cortada faz o seu corte (até
+  // quatro, um pouco mais agudo a cada uma). Os outros acertam uma carta de cada vez (até três); a luz
+  // do belo soa uma vez.
+  if (g.golpe === 'corta') play('espada', { delayMs: ms(Math.max(0, acertoDe(g, 0) - 0.22)) });
+  const vezes = g.golpe === 'brilha' ? 1 : Math.min(g.vitimas.length, g.golpe === 'corta' ? 4 : 3);
+  for (let i = 0; i < vezes; i++) play(som.id, { delayMs: ms(acertoDe(g, i)), rate: som.rate * (g.golpe === 'corta' ? 1 + i * 0.06 : 1) });
 }
 
 /** Sons e vibração a partir da diferença entre a visão anterior e a atual. */
