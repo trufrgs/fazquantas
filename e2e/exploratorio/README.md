@@ -39,6 +39,7 @@ sala (`routeWebSocket`) e simula as falhas de verdade de celular:
 | `4-aparelhos.mjs` | Tirado pelo anfitrião sem rede, sair com a conexão morta, trocar do celular (morto) para o notebook |
 | `5-motores.mjs` | Entrar, jogar, modo avião e recarregar no WebKit e no Firefox (`pnpm exec playwright install webkit firefox`) |
 | `6-mesa-cheia.mjs` | Mesa com 8 em celular pequeno (`360`, `se`, `mini`): foto do painel de cantada aberto |
+| `7-longe.mjs` | Longe da mesa por muito tempo (`LONGE_MIN`, padrão 3,5): anfitriã no WhatsApp, sala sem ninguém conectado, reabrir o app sem servidor |
 
 Referências de tempo (29/09/2026, local): modo avião volta em ~0,2 s; conexão morta é percebida em
 ~16 s e volta em ~0,2 s; jogada com a conexão morta avisa em ~6 s; celular que dormiu volta em ~0,3 s.

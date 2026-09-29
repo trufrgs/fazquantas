@@ -9,7 +9,7 @@ import { sendPush, type VapidKeys } from './push';
  *   objeto; se ela não existe mais (morreu sem avisar), o painel fecha a linha.
  * - **Mesa parada:** lobby sem ninguém mexer há X horas e partida terminada sem ninguém puxar a
  *   próxima há Y horas são encerradas, com o motivo no histórico (X e Y o admin ajusta; 0 desliga).
- *   Salas ao vivo sem ninguém conectado já acabam sozinhas em 15 min, e as assíncronas em 7 dias.
+ *   Salas ao vivo sem ninguém conectado já acabam sozinhas em 12 h, e as assíncronas em 7 dias.
  * - **Resumo do dia** (cron das 21:00 BRT): push para os aparelhos do admin.
  */
 

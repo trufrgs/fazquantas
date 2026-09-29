@@ -13,6 +13,8 @@ interface InfoSala {
 export interface SalaNaLista extends SalaConhecida {
   info: InfoSala;
   yourTurn: boolean;
+  /** Não deu para perguntar ao servidor agora (sem rede): a sala fica na lista, sem a situação. */
+  semRede?: boolean;
 }
 
 /** "até 21:40", "até amanhã 09:15" ou "até sex. 09:15" (hora deste aparelho). */
@@ -38,18 +40,19 @@ export function useTuasSalas(): SalaNaLista[] | null {
       rooms.map(async (r) => {
         try {
           const res = await fetch(`${serverUrl()}/api/salas/${r.code}/info`);
-          if (!res.ok) return res.status === 404 ? { ...r, info: { exists: false }, yourTurn: false } : null;
+          if (res.status === 404) return { ...r, info: { exists: false }, yourTurn: false };
+          if (!res.ok) throw new Error(`info ${res.status}`);
           const info = (await res.json()) as InfoSala;
           return { ...r, info, yourTurn: info.turn?.playerId === r.playerId };
         } catch {
-          return null; // sem rede: fica na lista, só não mostra agora
+          // Sem rede (ou servidor fora do ar): a sala segue na lista, e o toque tenta voltar.
+          return { ...r, info: { exists: true }, yourTurn: false, semRede: true };
         }
       }),
     ).then((all) => {
       if (!alive) return;
       const out: SalaNaLista[] = [];
       for (const r of all) {
-        if (!r) continue;
         if (!r.info.exists) forgetRoom(r.code);
         else out.push(r);
       }
@@ -66,6 +69,7 @@ export function useTuasSalas(): SalaNaLista[] | null {
 
 function situacao(r: SalaNaLista): string {
   const { info } = r;
+  if (r.semRede) return 'Sem conexão agora: toca pra tentar voltar';
   if (info.status === 'lobby') return 'Esperando começar';
   if (info.status === 'finished') return 'Partida terminada';
   if (!info.turn) return 'Partida andando';

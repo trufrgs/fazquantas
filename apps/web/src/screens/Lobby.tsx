@@ -23,9 +23,17 @@ export function Lobby() {
   const settings = useSettings();
   const [botDifficulty, setBotDifficulty] = useState<BotDifficulty>(settings.difficulty);
   const [confirmLeave, setConfirmLeave] = useState(false);
-  // Botão voltar do Android na sala: pergunta antes de sair (sair de verdade libera o lugar).
+  // Botão voltar do Android na sala: pergunta antes de sair (sair de verdade libera o lugar). Ainda
+  // voltando para a sala (sem ela na tela), é desistir da volta: o lugar segue guardado.
   useEffect(() => {
-    const ask = () => setConfirmLeave((open) => !open);
+    const ask = () => {
+      if (!useOnline.getState().room) {
+        useOnline.getState().desistirDaVolta();
+        useApp.getState().reset('online');
+        return;
+      }
+      setConfirmLeave((open) => !open);
+    };
     window.addEventListener('fodinha:voltar', ask);
     return () => window.removeEventListener('fodinha:voltar', ask);
   }, []);
@@ -35,10 +43,37 @@ export function Lobby() {
   const room = online.room;
 
   if (!room) {
+    const conectando = online.status === 'reconnecting' || online.status === 'connecting';
+    // Voltando sozinho para a sala (abriu o app de novo): sem rede, segue tentando até a pessoa desistir.
+    const desistir = () => {
+      online.desistirDaVolta();
+      reset('online');
+    };
     return (
-      <ScreenFrame title="Sala" onBack={() => reset('online')}>
+      <ScreenFrame title="Sala" onBack={desistir}>
         <Panel>
-          <p>{online.status === 'reconnecting' || online.status === 'connecting' ? 'Conectando na sala…' : 'Tu não está em nenhuma sala.'}</p>
+          {!conectando ? (
+            <p>Tu não está em nenhuma sala.</p>
+          ) : online.voltando ? (
+            <div role="status" className="flex flex-col gap-2">
+              <p className="flex items-center gap-2 font-semibold">
+                <span aria-hidden="true" className={`size-2 shrink-0 animate-pulse rounded-full ${online.voltando.semRede ? 'bg-copas' : 'bg-paus'}`} />
+                Voltando pra sala {online.voltando.code}…
+              </p>
+              {online.voltando.semRede && (
+                <>
+                  <p className="text-tinta-2">
+                    Sem resposta do servidor agora. Teu lugar na mesa fica guardado: a volta é sozinha assim que a conexão voltar.
+                  </p>
+                  <Button className="mt-1" onClick={desistir}>
+                    Desistir por agora
+                  </Button>
+                </>
+              )}
+            </div>
+          ) : (
+            <p role="status">Conectando na sala…</p>
+          )}
         </Panel>
       </ScreenFrame>
     );
@@ -164,6 +199,11 @@ export function Lobby() {
             </li>
           ))}
         </ul>
+        {host && !asyncRoom && room.seats.some((s) => s.kind === 'human' && !s.connected) && (
+          <p className="mt-2 text-sm text-tinta-2">
+            Quem saiu da tela segue com o lugar guardado. Se começar agora, a mesa joga por quem está fora até a pessoa voltar.
+          </p>
+        )}
         {host && !full && (
           <div className="mt-3 flex flex-col gap-2 rounded-2xl bg-tinta/5 p-3">
             <Segmented<BotDifficulty>

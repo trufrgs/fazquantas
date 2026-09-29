@@ -77,7 +77,7 @@ export function Agora({
   if (paradas.length) {
     alertas.push({
       tom: 'atencao',
-      texto: `${plural(paradas.length, 'mesa parada', 'mesas paradas')} há mais de 1 h, sem ninguém conectado.`,
+      texto: `${plural(paradas.length, 'mesa parada', 'mesas paradas')} além do prazo, sem ninguém conectado.`,
       botao: { rotulo: 'Ver', fazer: () => irPara('salas', 'paradas') },
     });
   }

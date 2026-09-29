@@ -91,7 +91,7 @@ function limparSubstituida() {
 
 /**
  * Sai também pela internet comum, com o token: se o WebSocket caiu, o `room:leave` some e o lugar
- * ficava preso (3 min no lobby, 7 dias na assíncrona). `keepalive` sobrevive a fechar a aba.
+ * ficava preso (ele só fica livre quando a pessoa sai). `keepalive` sobrevive a fechar a aba.
  */
 function sairPelaInternet(code: string) {
   const token = tokenFor(code);
@@ -200,6 +200,14 @@ interface OnlineState {
   kicked: boolean;
   /** Código da sala que pediu senha: a tela mostra o campo. */
   passwordFor: string | null;
+  /**
+   * A volta automática (abriu o app com a sala salva) em andamento. `semRede`: uma tentativa já falhou
+   * por falta de rede, e ela segue tentando sozinha (o lugar continua guardado no servidor) até dar
+   * certo ou a pessoa desistir.
+   */
+  voltando: { code: string; semRede: boolean } | null;
+  /** Desiste da volta automática em andamento (a sala segue nas "tuas salas" para voltar depois). */
+  desistirDaVolta: () => void;
   /** Recado da administração para a sala (faixa no alto até a pessoa fechar). */
   notice: { text: string; at: number } | null;
   dismissNotice: () => void;
@@ -231,6 +239,13 @@ const REJOIN_TIMEOUT_MS = 5000;
 
 /** Falhas que passam sozinhas (rede, servidor ocupado): a sala e o lugar continuam valendo. */
 const TRANSIENT = new Set(['TIMEOUT', 'OFFLINE', 'RATE_LIMITED', 'INTERNAL_ERROR']);
+/** Cada entrada numa sala; uma mais nova (ou desistir) encerra a volta automática que ainda tentava. */
+let joinSeq = 0;
+/** Pausa entre as tentativas da volta automática sem rede (o socket já espera a conexão abrir). */
+const VOLTA_PAUSA_MS = 1000;
+/** Falta de rede: a volta automática tenta até conseguir. Erro do servidor: só algumas vezes. */
+const SEM_REDE = new Set(['TIMEOUT', 'OFFLINE']);
+const VOLTA_TENTATIVAS_ERRO = 5;
 
 /**
  * Sai da sala localmente e mostra o motivo na tela "Jogar com a gurizada". `keepSession` preserva
@@ -269,7 +284,14 @@ function abaId(): string {
 function profile() {
   const s = useSettings.getState();
   // Online, sem apelido, o nome é "Jogador" (o servidor numera se repetir).
-  return { name: (s.name.trim() || 'Jogador').slice(0, 16), avatar: s.avatar, profileKey: s.profileKey, aba: abaId() };
+  return {
+    name: (s.name.trim() || 'Jogador').slice(0, 16),
+    avatar: s.avatar,
+    profileKey: s.profileKey,
+    aba: abaId(),
+    // A volta automática também acontece com o app em segundo plano: a coroa só volta para quem olha.
+    visible: typeof document === 'undefined' || document.visibilityState === 'visible',
+  };
 }
 
 function saveSession(r: JoinResult) {
@@ -301,7 +323,7 @@ if (typeof window !== 'undefined' && typeof window.addEventListener === 'functio
 const REASONS: Partial<Record<DisconnectReason, string>> = {
   replaced: 'Tu abriu essa sala em outro aparelho ou aba. Segue por lá, ou toca em "Voltar pra sala" pra jogar aqui.',
   kicked: 'O anfitrião te tirou da sala.',
-  gone: 'A sala acabou: ficou um tempo sem ninguém.',
+  gone: 'A sala acabou.',
   closedByAdmin: 'A sala foi encerrada pela administração do jogo.',
   tooManyAttempts: 'Muitas senhas erradas seguidas. Confere a senha com quem te convidou e tenta de novo.',
   refused: 'Esse endereço não pode abrir salas.',
@@ -441,7 +463,8 @@ function resetOnline() {
   if (useGame.getState().conn?.kind === 'online') useGame.getState().detach();
   connection = null;
   rejoinAttempt++; // uma volta ao assento ainda pendente não ressuscita a sala
-  useOnline.setState({ room: null, status: 'idle', passwordFor: null, notice: null });
+  joinSeq++; // nem a volta automática que ainda tentava entrar
+  useOnline.setState({ room: null, status: 'idle', passwordFor: null, notice: null, voltando: null });
 }
 
 async function request<T extends object = object>(event: Parameters<SalaSocket['request']>[0], payload?: unknown): Promise<Ack<T>> {
@@ -467,7 +490,14 @@ export const useOnline = create<OnlineState>((set) => ({
   kicked: false,
   passwordFor: null,
   notice: null,
+  voltando: null,
   dismissNotice: () => set({ notice: null }),
+  desistirDaVolta: () => {
+    if (useOnline.getState().room) return; // já voltou: sair da sala é outra coisa
+    joinSeq++;
+    closeSocket();
+    set({ status: 'idle', voltando: null });
+  },
 
   create: async (settings) => {
     // Estava numa sala: sai dela antes (uma conexão por sala).
@@ -483,7 +513,7 @@ export const useOnline = create<OnlineState>((set) => ({
       resetOnline();
     }
     limparSubstituida();
-    set({ status: 'connecting', error: null, kicked: false, passwordFor: null });
+    set({ status: 'connecting', error: null, kicked: false, passwordFor: null, voltando: null });
     const withRules: RoomUpdatePayload = { rules: useSettings.getState().rules, ...settings };
     for (let attempt = 1; attempt <= CREATE_ATTEMPTS; attempt++) {
       const s = openSocket('nova');
@@ -509,7 +539,7 @@ export const useOnline = create<OnlineState>((set) => ({
   join: async (rawCode, opts = {}) => {
     const code = rawCode.trim().toUpperCase();
     const useToken = opts.useToken ?? true;
-    set({ status: 'connecting', error: null, kicked: false });
+    set({ status: 'connecting', error: null, kicked: false, voltando: null });
     // Entrar de propósito devolve o lugar a esta aba, mesmo que outra tenha assumido antes.
     if (!opts.auto) limparSubstituida();
     // Estava em outra sala: sai dela antes (uma conexão por sala).
@@ -525,10 +555,32 @@ export const useOnline = create<OnlineState>((set) => ({
       set({ status: 'connecting' });
     }
     const token = useToken ? tokenFor(code) : undefined;
+    const seq = ++joinSeq;
+    if (opts.auto) set({ voltando: { code, semRede: false } });
     // Mesma sala (outra senha, ou já dentro): aproveita a conexão; o servidor conta as tentativas.
     const s = socket && socket.url === roomUrl(code) ? socket : openSocket(code);
-    const r = await s.request<JoinResult>('room:join', { code, ...profile(), token, password: opts.password, auto: opts.auto || undefined });
-    if (socket !== s) return false;
+    const pedir = () => s.request<JoinResult>('room:join', { code, ...profile(), token, password: opts.password, auto: opts.auto || undefined });
+    let r = await pedir();
+    // A volta automática não desiste por falta de rede: o lugar continua guardado no servidor. Espera
+    // a conexão voltar e tenta de novo, até dar certo, a sala dizer não, ou a pessoa desistir. Erro do
+    // servidor (não de rede) tenta só algumas vezes; conexão fechada de vez não tem por que insistir.
+    let errosDoServidor = 0;
+    while (
+      opts.auto &&
+      !r.ok &&
+      TRANSIENT.has(r.error.code) &&
+      (SEM_REDE.has(r.error.code) || ++errosDoServidor < VOLTA_TENTATIVAS_ERRO) &&
+      !s.encerrado &&
+      socket === s &&
+      seq === joinSeq
+    ) {
+      set({ voltando: { code, semRede: true } });
+      await new Promise((resolve) => window.setTimeout(resolve, VOLTA_PAUSA_MS));
+      if (socket !== s || seq !== joinSeq) return false;
+      r = await pedir();
+    }
+    if (socket !== s || seq !== joinSeq) return false;
+    set({ voltando: null });
     if (!r.ok) {
       const needsPassword = r.error.code === 'PASSWORD_REQUIRED' || r.error.code === 'WRONG_PASSWORD';
       const taken = r.error.code === 'SEAT_TAKEN';

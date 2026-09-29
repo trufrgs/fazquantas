@@ -84,7 +84,7 @@ async function room(request: Request, env: Env, code: string, cors: Record<strin
 /**
  * Sair da sala pelo token, sem WebSocket: o app manda junto com o `room:leave` (e com `keepalive`,
  * que sobrevive a fechar a aba). Sem isso, "Sair" com a conexão caída não chegava ao servidor e o
- * lugar ficava preso (3 min no lobby, 7 dias na assíncrona).
+ * lugar ficava preso (o lugar só fica livre quando a pessoa sai).
  */
 async function sair(request: Request, env: Env, code: string, cors: Record<string, string>): Promise<Response> {
   if (!allowedOrigin(request.headers.get('Origin'), env.ORIGENS)) return new Response('Origem não permitida.', { status: 403 });

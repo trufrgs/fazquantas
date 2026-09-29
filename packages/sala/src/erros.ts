@@ -6,11 +6,12 @@ export type ServerErrorCode = ErrorCode | 'INTERNAL_ERROR';
 /** Mensagens mostradas ao jogador (pt-BR, curtas e diretas). */
 export const MESSAGES = {
   roomNotFound: 'Sala não encontrada. Confere o código.',
-  roomGone: 'Essa sala já acabou: ficou um tempo sem ninguém. Cria uma sala nova e manda o convite de novo.',
+  roomGone: 'Essa sala já acabou: ficou horas sem ninguém. Cria uma sala nova e manda o convite de novo.',
+  roomGoneVazia: 'Essa sala já acabou: todo mundo saiu dela. Cria uma sala nova e manda o convite de novo.',
   roomGoneAdmin: 'Essa sala foi encerrada pela administração do jogo. Cria uma sala nova e manda o convite de novo.',
   roomGoneParada: 'Essa sala foi encerrada por ficar parada. Cria uma sala nova e manda o convite de novo.',
   seatTaken: 'Tu estás nessa sala em outro aparelho ou aba. Segue por lá, ou toca em "Voltar pra sala" pra jogar aqui.',
-  seatLost: 'Teu lugar nessa sala não vale mais (tu saiu ou demorou pra voltar). Entra de novo pelo código.',
+  seatLost: 'Tu saiu dessa sala (aqui ou em outro aparelho) e o lugar ficou livre. Pra voltar, entra de novo pelo código.',
   kicked: 'O anfitrião te tirou da sala.',
   seatBusy: 'Tem alguém com teu apelido jogando nessa mesa agora. Se és tu em outro aparelho, segue por lá, ou fecha lá e tenta de novo daqui a 30 segundos.',
   roomFull: 'A sala está cheia.',

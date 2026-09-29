@@ -22,9 +22,11 @@ describe('automação: mesa parada', () => {
     expect(motivoParaEncerrar({ existe: true, status: 'playing', conectados: 2, assincrona: true, atividade: now - 300 * H }, cfg, now, now - 400 * H)).toBeNull();
   });
 
-  it('rede de segurança: mesa ao vivo sem ninguém há mais de 1 h e assíncrona parada há mais de 8 dias', () => {
-    expect(motivoParaEncerrar({ existe: true, status: 'playing', conectados: 0, atividade: now - 2 * H }, cfg, now, now - 3 * H)).toMatch(/ao vivo sem ninguém/);
-    expect(motivoParaEncerrar({ existe: true, status: 'playing', conectados: 0, atividade: now - 0.5 * H }, cfg, now, now - 3 * H)).toBeNull();
+  it('rede de segurança: mesa ao vivo sem ninguém há mais de 13 h e assíncrona parada há mais de 8 dias', () => {
+    expect(motivoParaEncerrar({ existe: true, status: 'playing', conectados: 0, atividade: now - 14 * H }, cfg, now, now - 15 * H)).toMatch(/ao vivo sem ninguém há mais de 13 h/);
+    // Até 12 h é a própria sala que espera quem saiu (o lugar de cada um fica guardado).
+    expect(motivoParaEncerrar({ existe: true, status: 'playing', conectados: 0, atividade: now - 2 * H }, cfg, now, now - 3 * H)).toBeNull();
+    expect(motivoParaEncerrar({ existe: true, status: 'playing', conectados: 0, atividade: now - 12.5 * H }, cfg, now, now - 13 * H)).toBeNull();
     expect(motivoParaEncerrar({ existe: true, status: 'playing', conectados: 0, assincrona: true, atividade: now - 5 * 24 * H }, cfg, now, now - 6 * 24 * H)).toBeNull();
     expect(motivoParaEncerrar({ existe: true, status: 'playing', conectados: 0, assincrona: true, atividade: now - 9 * 24 * H }, cfg, now, now - 9 * 24 * H)).toMatch(/8 dias/);
     // Sem saber quantos estão conectados, não arrisca.

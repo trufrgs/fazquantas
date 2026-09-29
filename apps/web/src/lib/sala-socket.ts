@@ -114,6 +114,11 @@ export class SalaSocket {
     return this.target;
   }
 
+  /** Fechou de vez (saiu, ou o servidor fechou por um motivo que não é rede): não reconecta mais. */
+  get encerrado(): boolean {
+    return this.stopped;
+  }
+
   /**
    * A sala foi criada: dali em diante a reconexão vai para o endereço dela. Sem isso, quem criou a
    * sala reconectava em `/api/salas/nova`, caía numa sala nova e vazia e ouvia "sala não encontrada"

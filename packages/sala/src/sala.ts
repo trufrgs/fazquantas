@@ -85,6 +85,8 @@ export interface Perfil {
   profileId: string | null;
   /** A aba de onde veio o pedido (ver `ProfilePayload.aba`). */
   aba?: string | null;
+  /** A página de quem entra está à vista (sem a informação, conta como à vista). */
+  visivel?: boolean;
 }
 
 export interface AjustesSala {
@@ -126,8 +128,11 @@ export interface SalaDeps {
   relogio: Clock;
   aleatorio(): number;
   timing?: Partial<HostTiming>;
-  /** No lobby, quanto tempo quem caiu tem para voltar antes de perder o assento. */
-  graceMs: number;
+  /**
+   * Quanto tempo o anfitrião pode ficar fora (sala ao vivo) antes de a coroa passar para quem está na
+   * mesa. Ninguém perde o lugar por sair da tela: ele fica até a pessoa sair, ser tirada ou a sala acabar.
+   */
+  coroaMs: number;
   /** Sem nenhum humano conectado por esse tempo, a sala acaba. */
   ociosaMs: number;
   /**
@@ -156,9 +161,13 @@ interface HumanSeat {
   /** Segredo para reconectar no mesmo assento. */
   token: string;
   conexao: Conexao | null;
-  /** Quando caiu (`null` conectado); no lobby, dá o prazo para voltar. */
+  /** Quando caiu (`null` conectado). */
   desconectadoEm: number | null;
-  graceTimer: unknown;
+  /**
+   * Desde quando não está olhando a mesa (caiu ou escondeu a página); `null` = na mesa. Do anfitrião,
+   * conta o prazo da coroa. Salas salvas antes de 29/09/2026 não têm.
+   */
+  foraDesde?: number | null;
   /** A página do jogador está à vista (senão, a vez dele vira notificação). */
   visivel: boolean;
   /** A aba que sentou por último (a volta automática dela sempre assume o lugar). */
@@ -190,10 +199,7 @@ export interface SalaSalva {
   criadaEm: number;
   hostId: string;
   status: RoomStatus;
-  seats: (
-    | Omit<HumanSeat, 'conexao' | 'graceTimer'>
-    | BotSeat
-  )[];
+  seats: (Omit<HumanSeat, 'conexao'> | BotSeat)[];
   rules: Rules;
   turnTimeoutSec: number | null;
   pace: Pace;
@@ -205,6 +211,8 @@ export interface SalaSalva {
   idleSince: number | null;
   /** Tokens de quem foi tirado pelo anfitrião (salas salvas antes de 29/09/2026 não têm). */
   expulsos?: string[];
+  /** Quem criou a sala: a coroa volta para ele quando ele volta (antes de 29/09/2026: o anfitrião). */
+  criadorId?: string;
 }
 
 /**
@@ -216,6 +224,11 @@ export interface SalaSalva {
 export class Sala {
   private seats: Seat[] = [];
   private hostPlayerId = '';
+  /** Quem criou a sala (`''` depois que ele sai): recebe a coroa de volta quando volta. */
+  private criadorId = '';
+  /** Prazo da coroa do anfitrião que está fora (sala ao vivo). */
+  private coroaTimer: unknown = null;
+  private coroaPrazo: number | null = null;
   private currentStatus: RoomStatus = 'lobby';
   private rules: Rules = normalizeRules(DEFAULT_RULES);
   private turnTimeoutSec: number | null = DEFAULT_TURN_TIMEOUT_SEC;
@@ -439,13 +452,16 @@ export class Sala {
       token: randomToken(),
       conexao: null,
       desconectadoEm: null,
-      graceTimer: null,
       visivel: true,
       aba: perfil.aba ?? null,
     };
     this.seats.push(seat);
-    this.bind(seat, conexao);
-    if (!this.hostPlayerId) this.hostPlayerId = seat.playerId;
+    this.bind(seat, conexao, perfil.visivel ?? true);
+    if (!this.hostPlayerId) {
+      this.hostPlayerId = seat.playerId;
+      this.criadorId = seat.playerId;
+    }
+    this.conferirCoroa();
     this.touch();
     return { code: this.code, playerId: seat.playerId, token: seat.token };
   }
@@ -461,7 +477,6 @@ export class Sala {
       old.enviar('room:replaced');
       old.fechar(WS_CLOSE.replaced, 'assento assumido por outra conexão');
     }
-    this.clearGrace(seat);
     // Durante a partida o nome já está no estado do jogo; só muda fora dela.
     if (this.currentStatus !== 'playing') {
       seat.name = this.claimName(perfil.name, seat.playerId);
@@ -469,8 +484,9 @@ export class Sala {
     }
     if (perfil.profileId) seat.profileId = perfil.profileId;
     if (perfil.aba) seat.aba = perfil.aba;
-    this.bind(seat, conexao);
+    this.bind(seat, conexao, perfil.visivel ?? true);
     if (this.currentStatus === 'playing') this.gameHost?.setAway(playerId, false);
+    this.conferirCoroa();
     this.touch();
     this.queueView(playerId);
     return { code: this.code, playerId: seat.playerId, token: seat.token };
@@ -481,18 +497,23 @@ export class Sala {
     return isAsyncTurn(this.turnTimeoutSec);
   }
 
-  /** A conexão caiu (não é saída explícita). */
+  /**
+   * A conexão caiu (não é saída explícita): o lugar continua da pessoa, por quanto tempo for (até
+   * ela sair, ser tirada ou a sala acabar).
+   */
   handleDisconnect(conexao: Conexao): void {
     const playerId = conexao.jogadorId;
     const seat = playerId ? this.human(playerId) : undefined;
     if (!seat || seat.conexao !== conexao) return;
     seat.conexao = null;
     seat.desconectadoEm = this.deps.relogio.now();
+    seat.foraDesde ??= seat.desconectadoEm;
     // Na partida ao vivo, a mesa joga por quem caiu; na assíncrona, a vez espera por ele.
     if (this.currentStatus === 'playing') {
       if (!this.isAsync) this.gameHost?.setAway(seat.playerId, true);
       else this.warnIfTurnOf(seat);
-    } else this.startGrace(seat);
+    }
+    this.conferirCoroa();
     this.touch();
   }
 
@@ -510,6 +531,8 @@ export class Sala {
     const seat = this.human(playerId);
     if (!seat?.conexao) return;
     seat.visivel = true;
+    seat.foraDesde = null;
+    this.conferirCoroa();
     if (this.currentStatus === 'playing' && this.gameHost?.isAway(playerId)) {
       this.gameHost.setAway(playerId, false);
       this.touch();
@@ -521,7 +544,10 @@ export class Sala {
     const seat = this.human(playerId);
     if (!seat || seat.visivel === visible) return;
     seat.visivel = visible;
+    seat.foraDesde = visible ? null : (seat.foraDesde ?? this.deps.relogio.now());
     if (!visible) this.warnIfTurnOf(seat);
+    // Anfitrião que escondeu o jogo também está fora da mesa; quem criou e voltou a olhar recebe a coroa.
+    this.conferirCoroa();
     this.deps.aoMudar();
   }
 
@@ -531,6 +557,7 @@ export class Sala {
   update(requesterId: string, patch: AjustesSala): void {
     this.assertHost(requesterId);
     this.applySettings(patch, false);
+    this.conferirCoroa();
     this.touch();
   }
 
@@ -694,10 +721,8 @@ export class Sala {
     this.disposed = true;
     this.disposeGame();
     this.clearIdleTimer();
-    for (const seat of this.humans()) {
-      this.clearGrace(seat);
-      this.unbind(seat);
-    }
+    this.clearCoroaTimer();
+    for (const seat of this.humans()) this.unbind(seat);
     this.outbox = [];
   }
 
@@ -711,7 +736,7 @@ export class Sala {
       status: this.currentStatus,
       seats: this.seats.map((seat) => {
         if (seat.kind === 'bot') return { ...seat };
-        const { conexao: _c, graceTimer: _g, ...rest } = seat;
+        const { conexao: _c, ...rest } = seat;
         return rest;
       }),
       rules: { ...this.rules },
@@ -725,6 +750,7 @@ export class Sala {
       partida: this.partida && this.gameHost ? { ...this.partida, host: this.gameHost.snapshot() } : null,
       idleSince: this.idleSinceMs,
       expulsos: this.expulsos,
+      criadorId: this.criadorId,
     };
   }
 
@@ -735,6 +761,7 @@ export class Sala {
   static restore(saved: SalaSalva, deps: SalaDeps, conexoes: readonly Conexao[]): Sala {
     const sala = new Sala(saved.code, deps, saved.criadaEm);
     sala.hostPlayerId = saved.hostId;
+    sala.criadorId = saved.criadorId ?? saved.hostId;
     sala.currentStatus = saved.status;
     sala.rules = normalizeRules(saved.rules);
     sala.turnTimeoutSec = saved.turnTimeoutSec;
@@ -744,9 +771,7 @@ export class Sala {
     sala.password = saved.password;
     sala.series = saved.series;
     sala.expulsos = saved.expulsos ?? [];
-    sala.seats = saved.seats.map((seat) =>
-      seat.kind === 'bot' ? { ...seat } : { ...seat, conexao: null, graceTimer: null },
-    );
+    sala.seats = saved.seats.map((seat) => (seat.kind === 'bot' ? { ...seat } : { ...seat, conexao: null }));
     const now = deps.relogio.now();
     for (const conexao of conexoes) {
       const seat = conexao.jogadorId ? sala.human(conexao.jogadorId) : undefined;
@@ -758,7 +783,10 @@ export class Sala {
         conexao.jogadorId = null;
       }
     }
-    for (const seat of sala.humans()) if (!seat.conexao) seat.desconectadoEm ??= now;
+    for (const seat of sala.humans()) {
+      if (!seat.conexao) seat.desconectadoEm ??= now;
+      seat.foraDesde ??= seat.conexao && seat.visivel ? null : (seat.desconectadoEm ?? now);
+    }
     // Antes de religar a partida: ela já pede a contagem da sala parada, que tem que continuar de
     // onde estava. Depois, a contagem recomeçava a cada vez que o objeto acordava (e o alarme da
     // própria contagem acorda o objeto): mesa abandonada no meio da partida não acabava nunca.
@@ -782,9 +810,8 @@ export class Sala {
       // Partida perdida (não deveria acontecer): volta para o lobby em vez de travar.
       sala.currentStatus = 'lobby';
     }
-    if (sala.currentStatus !== 'playing') {
-      for (const seat of sala.humans()) if (!seat.conexao) sala.startGrace(seat, seat.desconectadoEm ?? now);
-    }
+    // O prazo da coroa conta desde a queda do anfitrião, não desde que o objeto acordou.
+    sala.conferirCoroa();
     sala.touch();
     return sala;
   }
@@ -830,10 +857,12 @@ export class Sala {
     return randomGauchoAvatar(this.deps.aleatorio);
   }
 
-  private bind(seat: HumanSeat, conexao: Conexao): void {
+  private bind(seat: HumanSeat, conexao: Conexao, visivel = true): void {
+    // Voltou com o app em segundo plano: segue fora da mesa desde quando saiu (caiu ou escondeu).
+    seat.foraDesde = visivel ? null : (seat.foraDesde ?? seat.desconectadoEm ?? this.deps.relogio.now());
     seat.conexao = conexao;
     seat.desconectadoEm = null;
-    seat.visivel = true;
+    seat.visivel = visivel;
     conexao.jogadorId = seat.playerId;
     conexao.vincular(seat.playerId);
   }
@@ -848,47 +877,71 @@ export class Sala {
     }
   }
 
-  /** Prazo para voltar ao assento no lobby, contado desde a queda. */
-  private startGrace(seat: HumanSeat, since = this.deps.relogio.now()): void {
-    this.clearGrace(seat);
-    const grace = this.isAsync ? this.asyncIdleMs : this.deps.graceMs;
-    const left = Math.max(0, since + grace - this.deps.relogio.now());
-    seat.graceTimer = this.deps.relogio.setTimeout(() => {
-      seat.graceTimer = null;
-      this.onGraceExpired(seat.playerId);
-    }, left);
+  /**
+   * A coroa fica com quem está olhando a mesa. Anfitrião fora (caiu ou escondeu o jogo) há mais de
+   * `coroaMs` numa sala ao vivo: ela passa para o próximo humano na mesa (o lugar do anfitrião não
+   * muda), e quem criou a sala recebe de volta quando volta a olhar a mesa (voltar com o app em
+   * segundo plano não conta: a coroa ia e voltava). Na assíncrona, ficar fora é o normal: ela não anda.
+   * `vencido`: o prazo do timer que disparou (o relógio de alarmes dispara um pouco antes da hora).
+   */
+  private conferirCoroa(vencido = 0): void {
+    if (this.disposed) return;
+    const naMesa = (seat: HumanSeat) => seat.conexao !== null && seat.visivel;
+    const criador = this.criadorId ? this.human(this.criadorId) : undefined;
+    if (criador && naMesa(criador) && this.hostPlayerId !== criador.playerId) {
+      this.hostPlayerId = criador.playerId;
+      this.markDirty();
+    }
+    const host = this.human(this.hostPlayerId);
+    const now = Math.max(this.deps.relogio.now(), vencido);
+    if (!host || naMesa(host) || this.isAsync) {
+      this.clearCoroaTimer();
+      return;
+    }
+    const prazo = (host.foraDesde ?? now) + this.deps.coroaMs;
+    if (prazo > now) {
+      if (this.coroaTimer !== null && this.coroaPrazo === prazo) return;
+      this.clearCoroaTimer();
+      this.coroaPrazo = prazo;
+      this.coroaTimer = this.deps.relogio.setTimeout(() => {
+        this.coroaTimer = null;
+        this.coroaPrazo = null;
+        this.conferirCoroa(prazo);
+      }, prazo - now);
+      return;
+    }
+    this.clearCoroaTimer();
+    const from = this.indexOf(host.playerId);
+    for (let k = 1; k < this.seats.length; k++) {
+      const seat = this.seats[(from + k) % this.seats.length];
+      if (seat?.kind !== 'human' || !naMesa(seat)) continue;
+      this.deps.logger.info(`[${this.code}] ${host.name} está fora da mesa; a coroa passou para ${seat.name}.`);
+      this.hostPlayerId = seat.playerId;
+      this.markDirty();
+      return;
+    }
   }
 
-  private clearGrace(seat: HumanSeat): void {
-    if (seat.graceTimer === null) return;
-    this.deps.relogio.clearTimeout(seat.graceTimer);
-    seat.graceTimer = null;
-  }
-
-  private onGraceExpired(playerId: string): void {
-    if (this.disposed || this.currentStatus === 'playing') return; // na partida o assento fica
-    const index = this.indexOf(playerId);
-    const seat = this.seats[index];
-    if (seat?.kind !== 'human' || seat.conexao) return;
-    this.deps.logger.info(`[${this.code}] ${seat.name} não voltou a tempo e perdeu o assento.`);
-    this.removeAt(index);
+  private clearCoroaTimer(): void {
+    this.coroaPrazo = null;
+    if (this.coroaTimer === null) return;
+    this.deps.relogio.clearTimeout(this.coroaTimer);
+    this.coroaTimer = null;
   }
 
   private removeAt(index: number): void {
     const [seat] = this.seats.splice(index, 1);
     if (!seat) return;
     this.lastReactionAt.delete(seat.playerId);
-    if (seat.kind === 'human') {
-      this.clearGrace(seat);
-      this.unbind(seat);
-    }
+    if (seat.kind === 'human') this.unbind(seat);
+    if (seat.playerId === this.criadorId) this.criadorId = '';
     if (seat.playerId === this.hostPlayerId) this.passCrown(index);
     this.afterSeatChange();
   }
 
   private replaceWithBot(index: number, seat: HumanSeat): void {
-    this.clearGrace(seat);
     this.unbind(seat);
+    if (seat.playerId === this.criadorId) this.criadorId = '';
     if (this.partida?.ranqueada && seat.profileId) {
       this.partida.abandonos.push({ profileId: seat.profileId, name: seat.name, avatar: seat.avatar });
     }
@@ -926,6 +979,7 @@ export class Sala {
       this.close('sem jogadores');
       return;
     }
+    this.conferirCoroa();
     this.refreshIdle();
   }
 
@@ -1012,10 +1066,8 @@ export class Sala {
     }
     game.setSpeed(paceMultiplier(this.pace));
     this.disposeGame();
-    for (const seat of this.humans()) {
-      this.clearGrace(seat); // na partida, quem caiu fica com o assento (o host joga por ele)
-      if (!seat.conexao && !this.isAsync) game.setAway(seat.playerId, true);
-    }
+    // Quem está fora da tela entra na partida com a mesa jogando por ele, até voltar.
+    for (const seat of this.humans()) if (!seat.conexao && !this.isAsync) game.setAway(seat.playerId, true);
     this.series = series;
     this.partida = {
       id: `${this.code}-${randomToken(9)}`,
@@ -1151,8 +1203,6 @@ export class Sala {
         this.deps.logger.error(`[${this.code}] erro ao registrar o ranking`, error);
       }
     }
-    // Fora da partida, quem continua desconectado volta a ter prazo para voltar.
-    for (const seat of this.humans()) if (!seat.conexao) this.startGrace(seat, seat.desconectadoEm ?? now);
     this.markDirty();
   }
 

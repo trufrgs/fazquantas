@@ -323,8 +323,8 @@ describe('anfitrião', () => {
 });
 
 describe('conexão e limpeza', () => {
-  it('queda no lobby: volta com token no prazo; sem voltar, perde o assento e a coroa passa', async () => {
-    const mundo = startWorld({ graceMs: 200 });
+  it('queda no lobby: volta com token ao mesmo lugar; fora além do prazo, a coroa passa e o lugar fica', async () => {
+    const mundo = startWorld({ coroaMs: 200 });
     const ana = connect(mundo);
     const beto = connect(mundo);
     const a = await createRoom(ana);
@@ -340,13 +340,13 @@ describe('conexão e limpeza', () => {
     expect(state.seats).toHaveLength(2);
 
     ana2.close();
-    const after = await beto.waitForState((s) => s.seats.length === 1, 'assento perdido', 3000);
-    expect(after.hostId).toBe(b.playerId);
-    expect(after.seats[0]?.playerId).toBe(b.playerId);
+    const after = await beto.waitForState((s) => s.hostId === b.playerId, 'a coroa passa', 3000);
+    expect(after.seats.map((s) => s.playerId)).toEqual([a.playerId, b.playerId]);
 
     const ana3 = connect(mundo);
-    const fresh = await joinRoom(ana3, a.code, 'Ana', a.token);
-    expect(fresh.playerId).not.toBe(a.playerId);
+    const same = await joinRoom(ana3, a.code, 'Ana', a.token);
+    expect(same.playerId).toBe(a.playerId);
+    await beto.waitForState((s) => s.hostId === a.playerId, 'a coroa volta para quem criou');
   });
 
   it('todos saem com room:leave → a sala acaba na hora', async () => {
@@ -361,15 +361,15 @@ describe('conexão e limpeza', () => {
     expect(mundo.rooms.size()).toBe(0);
     expect(mundo.encerradas).toEqual([{ code, motivo: 'sem jogadores' }]);
     expect(mundo.salvas.has(code)).toBe(false);
-    // Link antigo: a sala existiu e acabou.
+    // Link antigo: a sala existiu e acabou (todo mundo saiu dela).
     expect(await beto.call('room:join', { code, name: 'Beto', avatar: 'b' })).toMatchObject({
       ok: false,
-      error: { code: 'ROOM_GONE', message: MESSAGES.roomGone },
+      error: { code: 'ROOM_GONE', message: MESSAGES.roomGoneVazia },
     });
   });
 
   it('todos caem → a sala acaba depois do tempo ocioso; quem tem gente fica', async () => {
-    const mundo = startWorld({ ociosaMs: 100, graceMs: 60_000 });
+    const mundo = startWorld({ ociosaMs: 100, coroaMs: 60_000 });
     const ana = connect(mundo);
     const beto = connect(mundo);
     const keep = connect(mundo);

@@ -60,19 +60,21 @@ export function App() {
   }, []);
 
   // Recarregou ou reabriu no meio de uma sala: volta sozinho para o assento (sair de propósito
-  // apaga a sessão). Sala que sumiu só deixa a pessoa no início, sem erro.
+  // apaga a sessão). Vai direto para a sala, que mostra "Voltando pra sala…" enquanto isso; sem rede,
+  // a volta segue tentando (o lugar fica guardado no servidor) até dar certo ou a pessoa desistir.
   useEffect(() => {
     const session = multiplayer ? savedSession() : null;
     // Esta aba perdeu o lugar para outro aparelho ou aba: não toma de volta sozinha ao recarregar.
     if (!session || code || isAdminPath || abaSubstituida(session.code)) return;
+    useApp.getState().reset('lobby');
     void useOnline
       .getState()
       .join(session.code, { auto: true })
       .then((ok) => {
+        if (ok) return; // o estado da sala (ou a mesa, no meio da partida) chega pelo socket
+        // Não deu para voltar: mostra o porquê (sala acabou, lugar liberado) em vez de largar calado.
         const screen = useApp.getState().screen;
-        if (ok && screen !== 'lobby' && screen !== 'game') useApp.getState().reset('lobby');
-        // Não deu para voltar: mostra o porquê (sala acabou, lugar perdido) em vez de largar calado.
-        else if (!ok && useOnline.getState().error && screen === 'home') useApp.getState().reset('online');
+        if (useOnline.getState().error && (screen === 'lobby' || screen === 'home')) useApp.getState().reset('online');
       });
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 

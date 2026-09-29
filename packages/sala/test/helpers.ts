@@ -29,7 +29,7 @@ export const FAST_TIMING: Partial<HostTiming> = {
 };
 
 export interface MundoOpts {
-  graceMs?: number;
+  coroaMs?: number;
   perfilPrazoMs?: number;
   ociosaMs?: number;
   ociosaAssincronaMs?: number;
@@ -64,7 +64,7 @@ export class Mundo {
         relogio: this.opts.agora ? { ...systemClock(), now: this.opts.agora } : systemClock(),
         aleatorio: this.opts.aleatorio ?? Math.random,
         timing: this.opts.timing ?? FAST_TIMING,
-        graceMs: this.opts.graceMs ?? 60_000,
+        coroaMs: this.opts.coroaMs ?? 60_000,
         ociosaMs: this.opts.ociosaMs ?? 10 * 60_000,
         ociosaAssincronaMs: this.opts.ociosaAssincronaMs,
         conferirPerfil: this.opts.conferirPerfil,

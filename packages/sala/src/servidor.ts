@@ -35,6 +35,7 @@ export const PERFIL_PRAZO_MS = 3000;
 /** A mensagem de "essa sala já acabou" conforme o motivo guardado. */
 function salaAcabou(motivo: string | null): string {
   if (motivo?.startsWith('admin')) return MESSAGES.roomGoneAdmin;
+  if (motivo === 'sem jogadores') return MESSAGES.roomGoneVazia;
   if (motivo && /parad|abandonad|sem ninguém há/.test(motivo)) return MESSAGES.roomGoneParada;
   return MESSAGES.roomGone;
 }
@@ -227,7 +228,13 @@ export class SalaServidor {
     };
   }
 
-  private async perfil(p: { name: string; avatar: string; profileKey?: string | undefined; aba?: string | undefined }): Promise<Perfil> {
+  private async perfil(p: {
+    name: string;
+    avatar: string;
+    profileKey?: string | undefined;
+    aba?: string | undefined;
+    visible?: boolean | undefined;
+  }): Promise<Perfil> {
     const profileId = p.profileKey ? await profileIdFromKey(p.profileKey) : null;
     let conferido: Awaited<ReturnType<NonNullable<ServidorDeps['conferirPerfil']>>> | null = null;
     if (this.deps.conferirPerfil) {
@@ -251,6 +258,7 @@ export class SalaServidor {
       avatar: conferido?.avatar ?? p.avatar,
       profileId,
       aba: p.aba ?? null,
+      visivel: p.visible ?? true,
     };
   }
 

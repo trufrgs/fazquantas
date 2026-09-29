@@ -26,9 +26,10 @@ estão no [CONTRIBUTING](../CONTRIBUTING.md#publicação).
   (`apps/web/src/lib/platform.ts`); `VITE_SERVER_URL` troca o endereço.
 - **Servidor:** um Worker na frente (`apps/worker/src/index.ts`) e Durable Objects com SQLite:
   - `SalaDO`: uma sala por objeto (`idFromName(código)`). WebSockets hibernáveis, estado salvo a cada
-    mudança, e o alarme do objeto como relógio (bots, tempo da vez, pausas). A sala some sozinha
-    depois de 15 min sem ninguém conectado; a assíncrona (1 h ou mais por jogada), depois de 7 dias
-    sem lance e sem ninguém conectado.
+    mudança, e o alarme do objeto como relógio (bots, tempo da vez, pausas). Ninguém perde o lugar
+    por sair da tela: ele fica até a pessoa sair ou ser tirada (anfitrião fora há 3 min passa a coroa,
+    que volta para quem criou a sala). A sala some sozinha depois de 12 h sem ninguém conectado; a assíncrona (1 h ou
+    mais por jogada), depois de 7 dias sem lance e sem ninguém conectado.
   - `RankingDO`: um objeto só com as partidas valendo ranking (tabelas `jogadores`, `partidas`,
     `resultados`). O nome do objeto está em `RANKING_NOME` (`apps/worker/src/ranking-do.ts`): trocar
     o nome começa um ranking zerado.

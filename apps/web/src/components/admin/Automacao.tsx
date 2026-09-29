@@ -144,8 +144,9 @@ export function Automacao({ dados, token, acao }: { dados: Dados; token: string;
           </Button>
         </div>
         <p className="mt-3 text-sm text-tinta-2">
-          Fixas: sala ao vivo sem ninguém conectado acaba sozinha em 15 min (se escapar, a automação encerra depois de 1 h); sala de &quot;cada um no seu
-          tempo&quot; parada acaba em 7 dias (a automação garante em 8); sala que sumiu sem avisar sai da lista na próxima rodada.
+          Fixas: ninguém perde o lugar por sair da tela (anfitrião fora há 3 min passa a coroa, que volta para quem criou a sala); sala ao vivo sem ninguém
+          conectado acaba sozinha em 12 h (se escapar, a automação encerra depois de 13 h); sala de &quot;cada um no seu tempo&quot; parada acaba em
+          7 dias (a automação garante em 8); sala que sumiu sem avisar sai da lista na próxima rodada.
         </p>
       </Panel>
 

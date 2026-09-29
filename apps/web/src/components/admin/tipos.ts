@@ -160,9 +160,14 @@ export const STATUS: Record<string, string> = { lobby: 'no lobby', playing: 'jog
 /** Desde quando ninguém mexe na sala (mensagem ou conexão de gente; a sala só acordar não conta). */
 export const ultimaAtividade = (s: Sala) => s.atividade ?? s.criada;
 
-/** Mesa parada: sem ninguém conectado e sem mexer há pelo menos 1 h (candidata a encerrar). */
 export const HORA_MS = 3_600_000;
-export const estaParada = (s: Sala, agora: number) => s.conectados === 0 && agora - ultimaAtividade(s) >= HORA_MS;
+/**
+ * Mesa parada além do prazo: sem ninguém conectado e sem mexer há mais de 12 h (7 dias na de cada um
+ * no seu tempo). Antes disso é normal: o lugar de cada um fica guardado, e a sala acaba sozinha no
+ * prazo. Passou dele, algo falhou nela (a automação encerra em seguida).
+ */
+export const estaParada = (s: Sala, agora: number) =>
+  s.conectados === 0 && agora - ultimaAtividade(s) >= (s.assincrona ? 7 * 24 : 12) * HORA_MS;
 
 /** Uma linha sobre a rodada da automação ("conferiu 3, encerrou 1, 0 sumidas"). */
 export function resumoRodada(r: RodadaAutomacao): string {

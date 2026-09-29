@@ -58,7 +58,7 @@ describe('sala assíncrona', () => {
   });
 
   it('quem fecha o jogo no lobby segura o lugar além do prazo da sala ao vivo', async () => {
-    const mundo = startWorld({ graceMs: 30 });
+    const mundo = startWorld({ coroaMs: 30 });
     const ana = connect(mundo);
     const beto = connect(mundo);
     const a = await createRoom(ana, 'Ana', { settings: { turnTimeoutSec: 21600 } });

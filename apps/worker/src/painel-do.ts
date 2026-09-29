@@ -44,7 +44,7 @@ export interface Automacao {
   limiteSalasPorHora: number;
 }
 
-export const AUTOMACAO_PADRAO: Automacao = { lobbyParadoHoras: 12, fimParadoHoras: 2, resumoDiario: true, limiteSalasPorHora: 30 };
+export const AUTOMACAO_PADRAO: Automacao = { lobbyParadoHoras: 12, fimParadoHoras: 12, resumoDiario: true, limiteSalasPorHora: 30 };
 
 export interface Manutencao {
   ativa: boolean;

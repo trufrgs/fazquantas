@@ -169,6 +169,11 @@ export interface ProfilePayload {
    * o lugar (a conexão velha dela morreu); de outra aba ou aparelho, não toma de uma conexão viva.
    */
   aba?: string;
+  /**
+   * A página está à vista ao entrar (a volta automática também acontece com o app em segundo plano).
+   * Sem o campo, conta como à vista. A coroa só volta para quem criou a sala quando ele olha a mesa.
+   */
+  visible?: boolean;
 }
 
 export interface RoomUpdatePayload {

@@ -348,16 +348,20 @@ describe('hibernação', () => {
     await waitUntil(() => mundo.encerradas.some((e) => e.code === a.code), 'sala encerrada por ociosa', 300);
   });
 
-  it('no lobby, quem caiu antes de hibernar tem o prazo contado desde a queda', async () => {
-    const mundo = startWorld({ graceMs: 150 });
+  it('no lobby, quem caiu antes de hibernar continua com o lugar depois de acordar', async () => {
+    const mundo = startWorld({ coroaMs: 150 });
     const ana = connect(mundo);
     const beto = connect(mundo);
     const a = await createRoom(ana);
-    await joinRoom(beto, a.code, 'Beto');
+    const b = await joinRoom(beto, a.code, 'Beto');
     beto.close();
     await ana.waitForState((s) => s.seats[1]?.kind === 'human' && !s.seats[1].connected);
     mundo.hibernar(a.code, [ana]);
-    const after = await ana.waitForState((s) => s.seats.length === 1, 'Beto perde o assento', 3000);
-    expect(after.hostId).toBe(a.playerId);
+    await new Promise((r) => setTimeout(r, 300));
+    const sala = mundo.rooms.get(a.code)!;
+    expect(sala.seatCount).toBe(2);
+    expect(sala.hostId).toBe(a.playerId);
+    const volta = connect(mundo);
+    expect((await joinRoom(volta, a.code, 'Beto', b.token)).playerId).toBe(b.playerId);
   });
 });

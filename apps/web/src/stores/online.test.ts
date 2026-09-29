@@ -392,6 +392,101 @@ describe('online store', () => {
     expect(savedSession()?.code).toBe('WXYZ');
   });
 
+  // Relato de 29/09/2026: saiu para o WhatsApp, voltou e não conseguia mais jogar ------------
+
+  it('opening the app with no network: the automatic return keeps trying until it gets the seat back', async () => {
+    h.store.set(SESSION_KEY, JSON.stringify({ code: 'ABCD', token: 'tok-1', playerId: 'p1' }));
+    const volta = useOnline.getState().join('ABCD', { auto: true });
+    await flush();
+    // Desde o começo a tela sabe que é a volta para a sala (e não uma entrada qualquer).
+    expect(useOnline.getState().voltando).toEqual({ code: 'ABCD', semRede: false });
+    const s = socket();
+    s.ackLast('room:join', { ok: false, error: { code: 'OFFLINE', message: 'Não deu pra falar com o servidor.' } });
+    await flush();
+    expect(useOnline.getState()).toMatchObject({ status: 'connecting', voltando: { code: 'ABCD', semRede: true }, error: null });
+    await vi.advanceTimersByTimeAsync(1000);
+    s.ackLast('room:join', { ok: false, error: { code: 'TIMEOUT', message: 'O servidor não respondeu.' } });
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(s.count('room:join')).toBe(3);
+    expect([...s.sent].reverse().find((x) => x.event === 'room:join')?.payload).toMatchObject({ token: 'tok-1', auto: true });
+    s.ackLast('room:join', joined('tok-1'));
+    await expect(volta).resolves.toBe(true);
+    expect(useOnline.getState()).toMatchObject({ status: 'online', voltando: null, error: null });
+    expect(savedSession()?.token).toBe('tok-1');
+  });
+
+  it('giving up on the automatic return keeps the room saved for later', async () => {
+    h.store.set(SESSION_KEY, JSON.stringify({ code: 'ABCD', token: 'tok-1', playerId: 'p1' }));
+    const volta = useOnline.getState().join('ABCD', { auto: true });
+    await flush();
+    const s = socket();
+    s.ackLast('room:join', { ok: false, error: { code: 'OFFLINE', message: 'Não deu pra falar com o servidor.' } });
+    await flush();
+    useOnline.getState().desistirDaVolta();
+    await vi.advanceTimersByTimeAsync(5000);
+    await expect(volta).resolves.toBe(false);
+    expect(s.closed).toBe(true);
+    expect(s.count('room:join')).toBe(1);
+    expect(useOnline.getState()).toMatchObject({ status: 'idle', voltando: null });
+    expect(savedSession()?.token).toBe('tok-1');
+  });
+
+  it('the automatic return stops on a real answer: a room that ended is forgotten, with the reason', async () => {
+    h.store.set(SESSION_KEY, JSON.stringify({ code: 'ABCD', token: 'tok-1', playerId: 'p1' }));
+    const volta = useOnline.getState().join('ABCD', { auto: true });
+    await flush();
+    socket().ackLast('room:join', { ok: false, error: { code: 'OFFLINE', message: 'Não deu pra falar com o servidor.' } });
+    await vi.advanceTimersByTimeAsync(1000);
+    socket().ackLast('room:join', { ok: false, error: { code: 'ROOM_GONE', message: 'Essa sala já acabou: ficou horas sem ninguém.' } });
+    await expect(volta).resolves.toBe(false);
+    expect(useOnline.getState()).toMatchObject({ status: 'idle', voltando: null, error: 'Essa sala já acabou: ficou horas sem ninguém.' });
+    expect(savedSession()).toBeNull();
+  });
+
+  it('the automatic return gives up after a few server errors (a bug is not a bad connection)', async () => {
+    h.store.set(SESSION_KEY, JSON.stringify({ code: 'ABCD', token: 'tok-1', playerId: 'p1' }));
+    const volta = useOnline.getState().join('ABCD', { auto: true });
+    for (let i = 0; i < 5; i++) {
+      await flush();
+      socket().ackLast('room:join', { ok: false, error: { code: 'INTERNAL_ERROR', message: 'Deu um erro no servidor. Tenta de novo.' } });
+      await vi.advanceTimersByTimeAsync(1000);
+    }
+    await expect(volta).resolves.toBe(false);
+    expect(socket().count('room:join')).toBe(5);
+    expect(useOnline.getState()).toMatchObject({ status: 'idle', voltando: null, error: 'Deu um erro no servidor. Tenta de novo.' });
+    // O lugar continua salvo para tentar de novo pelo "Voltar pra sala".
+    expect(savedSession()?.token).toBe('tok-1');
+  });
+
+  it('a connection closed for good ends the automatic return instead of spinning', async () => {
+    h.store.set(SESSION_KEY, JSON.stringify({ code: 'ABCD', token: 'tok-1', playerId: 'p1' }));
+    const volta = useOnline.getState().join('ABCD', { auto: true });
+    await flush();
+    const s = socket() as InstanceType<typeof h.FakeSocket> & { encerrado?: boolean };
+    s.encerrado = true;
+    s.ackLast('room:join', { ok: false, error: { code: 'OFFLINE', message: 'Não deu pra falar com o servidor.' } });
+    await expect(volta).resolves.toBe(false);
+    await vi.advanceTimersByTimeAsync(3000);
+    expect(s.count('room:join')).toBe(1);
+    expect(useOnline.getState().voltando).toBeNull();
+  });
+
+  it('every join says whether the page is visible (the crown only goes back to someone looking)', async () => {
+    void useOnline.getState().join('ABCD');
+    await flush();
+    expect([...socket().sent].reverse().find((x) => x.event === 'room:join')?.payload).toMatchObject({ visible: true });
+  });
+
+  it('a join typed by hand does not retry by itself (the person sees the network error)', async () => {
+    const entrar = useOnline.getState().join('ABCD');
+    await flush();
+    socket().ackLast('room:join', { ok: false, error: { code: 'OFFLINE', message: 'Não deu pra falar com o servidor.' } });
+    await expect(entrar).resolves.toBe(false);
+    await vi.advanceTimersByTimeAsync(3000);
+    expect(socket().count('room:join')).toBe(1);
+    expect(useOnline.getState()).toMatchObject({ status: 'idle', voltando: null, error: 'Não deu pra falar com o servidor.' });
+  });
+
   it('while reconnecting, a request waits for the return to the seat instead of hearing "not in a room"', async () => {
     await enterRoom();
     const s = await dropAndReconnect();

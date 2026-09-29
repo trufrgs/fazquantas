@@ -58,6 +58,15 @@ Regras que já custaram bug com gente jogando (rodada de QA de 29/09/2026). Mexe
 `apps/web/src/lib/sala-socket.ts`, `apps/web/src/stores/online.ts`, `packages/sala/src/servidor.ts`
 ou no `Sala.restore`? Confira cada uma:
 
+- **Lugar garantido:** sair da tela, perder a conexão ou demorar não tira ninguém da mesa. O lugar só
+  fica livre quando a pessoa sai, o anfitrião tira ou a sala acaba (todos saíram, 12 h sem ninguém
+  conectado, 7 dias na assíncrona, ou a automação do admin). Anfitrião fora há 3 min numa sala ao vivo
+  (caiu ou escondeu o jogo) passa a coroa para quem está olhando a mesa, e ela volta quando quem criou
+  a sala volta a olhar (voltar com o app em segundo plano, `visible: false` no `room:join`, não conta).
+  Abrir o app com a sessão salva vai direto para a sala e, sem rede, segue tentando até voltar (ou a
+  pessoa desistir).
+  Relato de 29/09/2026: o lobby tirava o lugar em 3 min, e quem foi ao WhatsApp chamar a gurizada
+  voltou sem lugar. Testes: `packages/sala/test/lugar-garantido.test.ts`.
 - **Prova de vida no cliente:** conexão morta em silêncio não avisa. O socket pinga se ficou 10 s sem
   ouvir o servidor **ou sem mandar nada** (o servidor também precisa ouvir a gente), derruba em 5 s
   sem resposta, prova na hora (3 s) ao voltar a tela, a rede ou do cache de navegação (`pageshow`) e

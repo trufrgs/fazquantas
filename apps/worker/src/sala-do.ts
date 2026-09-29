@@ -24,10 +24,17 @@ import { rankingStub } from './ranking-do';
 import { horaBrasilia } from './hora';
 import { AlarmClock } from './relogio';
 
-/** No lobby, quem caiu tem esse tempo para voltar ao assento (dá para ir ao WhatsApp chamar gente). */
-export const LOBBY_GRACE_MS = 3 * 60_000;
-/** Sem nenhum humano conectado por esse tempo, a sala acaba e o código fica livre. */
-export const IDLE_ROOM_MS = 15 * 60_000;
+/**
+ * Anfitrião fora da mesa por esse tempo (sala ao vivo): a coroa passa para quem está nela, para
+ * ninguém ficar esperando para começar. O lugar dele fica, e a coroa volta quando ele volta.
+ */
+export const COROA_MS = 3 * 60_000;
+/**
+ * Sem nenhum humano conectado por esse tempo, a sala acaba e o código fica livre. Longo de propósito:
+ * o lugar de cada um espera o WhatsApp, a janta, o celular sem bateria (relato de 29/09/2026: 3 min
+ * no lobby e 15 min de sala vazia tiravam gente da mesa).
+ */
+export const IDLE_ROOM_MS = 12 * 60 * 60_000;
 /** `RAPIDO=1` (só nos testes E2E): pausas curtas para a partida acabar em segundos. */
 const FAST_TIMING = { botThinkMs: [60, 140] as [number, number], trickPauseMs: 300, roundPauseMs: 500, bidsRevealMs: 150, forcedPlayMs: 80, dealMs: 120, awayActMs: 250 };
 
@@ -218,7 +225,7 @@ export class SalaDO extends DurableObject<Env> {
       relogio: this.relogio,
       aleatorio: Math.random,
       timing: (this.env.RAPIDO as string) === '1' ? FAST_TIMING : undefined,
-      graceMs: LOBBY_GRACE_MS,
+      coroaMs: COROA_MS,
       ociosaMs: IDLE_ROOM_MS,
       logger: consoleLogger,
       aoMudar: () => this.agendarSalvar(),

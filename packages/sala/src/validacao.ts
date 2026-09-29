@@ -153,6 +153,7 @@ export const createRoomSchema = z.object({
   avatar: avatarSchema,
   profileKey: profileKeySchema.optional(),
   aba: abaSchema,
+  visible: z.boolean().optional(),
   settings: updateRoomSchema.optional(),
 });
 
@@ -165,6 +166,7 @@ export const joinRoomSchema = z.object({
   password: z.string().max(PASSWORD_MAX_LENGTH * 8).transform(sanitizeName).optional(),
   profileKey: profileKeySchema.optional(),
   aba: abaSchema,
+  visible: z.boolean().optional(),
   auto: z.boolean().optional(),
 });
 

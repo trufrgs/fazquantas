@@ -21,11 +21,11 @@ export interface EstadoSala {
 }
 
 /**
- * Rede de segurança: a sala ao vivo sem ninguém conectado acaba sozinha em 15 min e a de "cada um
- * no seu tempo" em 7 dias. Passou muito disso, algo falhou na sala (já aconteceu: a contagem
- * recomeçava a cada vez que o objeto acordava), e a automação encerra.
+ * Rede de segurança: a sala ao vivo sem ninguém conectado acaba sozinha em 12 h e a de "cada um
+ * no seu tempo" em 7 dias. Passou disso, algo falhou na sala (já aconteceu: a contagem recomeçava a
+ * cada vez que o objeto acordava), e a automação encerra.
  */
-const AO_VIVO_ABANDONADA_MS = HORA_MS;
+const AO_VIVO_ABANDONADA_MS = 13 * HORA_MS;
 const ASSINCRONA_ABANDONADA_MS = 8 * 24 * HORA_MS;
 
 /** A regra que encerra esta sala agora, ou `null` (função pura: os testes cobrem cada caso). */
@@ -39,7 +39,7 @@ export function motivoParaEncerrar(estado: EstadoSala, cfg: Automacao, now: numb
     return `partida terminada e mesa parada há mais de ${cfg.fimParadoHoras} h`;
   }
   if (estado.conectados === 0) {
-    if (!estado.assincrona && parada > AO_VIVO_ABANDONADA_MS) return 'mesa ao vivo sem ninguém há mais de 1 h';
+    if (!estado.assincrona && parada > AO_VIVO_ABANDONADA_MS) return 'mesa ao vivo sem ninguém há mais de 13 h';
     if (estado.assincrona && parada > ASSINCRONA_ABANDONADA_MS) return 'mesa de cada um no seu tempo parada há mais de 8 dias';
   }
   return null;
