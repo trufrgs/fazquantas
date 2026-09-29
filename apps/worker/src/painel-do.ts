@@ -155,6 +155,32 @@ export class PainelDO extends DurableObject<Env> {
     }
   }
 
+  /**
+   * Junta as visitas de `origem` às de `destino` (a mesma pessoa em dois aparelhos): o dia em que só a
+   * origem apareceu passa para o destino; o dia dos dois soma as vezes e fica com o aparelho da visita
+   * mais recente.
+   */
+  async juntar(origem: string, destino: string): Promise<void> {
+    this.ctx.storage.transactionSync(() => {
+      this.sql.exec(
+        `UPDATE acessos AS d SET
+            vezes = d.vezes + o.vezes,
+            primeira = MIN(d.primeira, o.primeira),
+            ip = CASE WHEN o.ultima > d.ultima THEN o.ip ELSE d.ip END,
+            pais = CASE WHEN o.ultima > d.ultima THEN o.pais ELSE d.pais END,
+            cidade = CASE WHEN o.ultima > d.ultima THEN o.cidade ELSE d.cidade END,
+            aparelho = CASE WHEN o.ultima > d.ultima THEN o.aparelho ELSE d.aparelho END,
+            ultima = MAX(d.ultima, o.ultima)
+           FROM acessos AS o
+          WHERE d.perfil = ? AND o.perfil = ? AND o.dia = d.dia`,
+        destino,
+        origem,
+      );
+      this.sql.exec('DELETE FROM acessos WHERE perfil = ? AND dia IN (SELECT dia FROM acessos WHERE perfil = ?)', origem, destino);
+      this.sql.exec('UPDATE acessos SET perfil = ? WHERE perfil = ?', destino, origem);
+    });
+  }
+
   // --- configuração e manutenção --------------------------------------------
 
   async automacao(): Promise<Automacao> {

@@ -12,18 +12,8 @@ const PIN_MAX_WAIT_MS = 24 * 60 * 60_000;
 /** Poucas iterações: o Worker gratuito tem 10 ms de CPU. A espera depois de errar é a proteção. */
 const PBKDF2_ITERATIONS = 2000;
 
-/**
- * Chave de comparação do apelido: sem acento, sem diferença de maiúscula, espaços juntos. "Tomás",
- * "tomas" e "TOMAS " são o mesmo apelido (ninguém se passa por outro trocando um acento).
- */
-export function apelidoKey(name: string): string {
-  return name
-    .normalize('NFD')
-    .replace(/\p{M}/gu, '')
-    .toLocaleLowerCase('pt-BR')
-    .replace(/\s+/g, ' ')
-    .trim();
-}
+/** A chave de comparação do apelido mora no engine: o jogo compara do mesmo jeito. */
+export { apelidoKey } from '@fodinha/engine';
 
 /** Quanto esperar depois de `errors` PINs errados seguidos (0 = pode tentar). */
 export function pinWaitMs(errors: number): number {

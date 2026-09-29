@@ -111,6 +111,33 @@ export class RankingDO extends DurableObject<Env> {
     return r.rowsWritten;
   }
 
+  /**
+   * Junta os resultados de `origem` aos de `destino` (a mesma pessoa em dois aparelhos). Partida em
+   * que os dois jogaram (a pessoa testou com dois aparelhos na mesma mesa) fica só com a do destino.
+   */
+  async juntar(origem: string, destino: string): Promise<number> {
+    let movidos = 0;
+    this.ctx.storage.transactionSync(() => {
+      movidos = this.sql.exec(
+        `UPDATE resultados SET jogador = ?
+          WHERE jogador = ? AND partida NOT IN (SELECT partida FROM resultados WHERE jogador = ?)`,
+        destino,
+        origem,
+        destino,
+      ).rowsWritten;
+      this.sql.exec('DELETE FROM resultados WHERE jogador = ?', origem);
+      // O destino que ainda não estava no ranking herda o nome e o avatar da origem até jogar de novo.
+      this.sql.exec(
+        `INSERT INTO jogadores (id, nome, avatar, atualizado) SELECT ?, nome, avatar, atualizado FROM jogadores WHERE id = ?
+         ON CONFLICT(id) DO NOTHING`,
+        destino,
+        origem,
+      );
+      this.sql.exec('DELETE FROM jogadores WHERE id = ?', origem);
+    });
+    return movidos;
+  }
+
   /** Admin: troca o nome que aparece no ranking. */
   async renomear(profileId: string, nome: string): Promise<void> {
     this.sql.exec('UPDATE jogadores SET nome = ? WHERE id = ?', nome, profileId);

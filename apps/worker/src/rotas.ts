@@ -54,22 +54,57 @@ function resposta(r: ContaResultado, cors: Record<string, string>): Response {
   return json({ ok: false, erro: r.erro, mensagem: MENSAGENS[r.erro], esperaMs: r.esperaMs ?? null }, cors, r.erro === 'espera' ? 429 : 400);
 }
 
+/** Id do perfil da chave que veio (ou `null`, sem chave válida). */
+async function perfilDaChave(key: unknown): Promise<string | null> {
+  return typeof key === 'string' && PROFILE_KEY_PATTERN.test(key) ? profileIdFromKey(key) : null;
+}
+
+/** Junta os dados de `origem` (ranking e visitas) aos de `destino`, que fica com o nome guardado no ranking. */
+async function juntarDados(env: Env, origem: string, destino: string, apelido: string): Promise<number> {
+  const ranking = rankingStub(env);
+  const [movidos] = await Promise.all([ranking.juntar(origem, destino), painelStub(env).juntar(origem, destino)]);
+  await ranking.renomear(destino, apelido);
+  return movidos;
+}
+
 async function perfis(path: string, b: Json, env: Env, cors: Record<string, string>): Promise<Response> {
   const contas = contasStub(env);
   if (path === '/api/perfis/entrar') {
     const apelido = apelidoValido(b.apelido);
     if (!apelido || typeof b.pin !== 'string' || !PIN_PATTERN.test(b.pin)) return json({ ok: false, mensagem: 'Apelido ou PIN inválido.' }, cors, 400);
-    return resposta(await contas.entrar(apelido, b.pin), cors);
+    // O aparelho jogava com esse mesmo apelido (sentou como "Thomas 2"): o perfil dele vem junto.
+    const anterior = b.juntar === true ? await perfilDaChave(b.profileKey) : null;
+    const r = await contas.entrar(apelido, b.pin, anterior);
+    if (r.ok && r.juntou) {
+      const movidos = await juntarDados(env, r.juntou, r.profileId, r.apelido);
+      await painelStub(env).registrar('juntou aparelho ao entrar com o PIN', r.juntou, `${r.apelido} (${movidos} resultados)`);
+    }
+    return resposta(r, cors);
+  }
+  if (path === '/api/perfis/apelido') {
+    const apelido = apelidoValido(b.apelido);
+    if (!apelido) return json({ ok: true, dono: 'livre' }, cors);
+    return json({ ok: true, dono: await contas.donoDoApelido(await perfilDaChave(b.profileKey), apelido) }, cors);
   }
   const key = b.profileKey;
   if (typeof key !== 'string' || !PROFILE_KEY_PATTERN.test(key)) return json({ ok: false, mensagem: 'Perfil inválido.' }, cors, 400);
   const profileId = await profileIdFromKey(key);
-  if (path === '/api/perfis/meu') return json({ ok: true, conta: await contas.meu(profileId) }, cors);
+  if (path === '/api/perfis/meu') {
+    // Ao abrir: o apelido guardado (e a chave, se este aparelho foi juntado a outro perfil) e de
+    // quem é o nome que o aparelho está usando.
+    const apelido = apelidoValido(b.apelido);
+    const [conta, dono] = await Promise.all([contas.meu(profileId), apelido ? contas.donoDoApelido(profileId, apelido) : null]);
+    return json({ ok: true, conta, dono }, cors);
+  }
   if (path === '/api/perfis/avatar') {
     if (typeof b.avatar !== 'string' || !AVATAR.test(b.avatar)) return json({ ok: false }, cors, 400);
     return json({ ok: await contas.trocarAvatar(profileId, b.avatar) }, cors);
   }
   if (path === '/api/perfis/guardar') {
+    // Aparelho juntado a outro perfil ainda com a chave antiga: primeiro ele passa a usar a do perfil.
+    if ((await contas.perfilValendo(profileId)) !== profileId) {
+      return json({ ok: false, mensagem: 'Este aparelho já é de um perfil guardado. Fecha e abre o jogo de novo.' }, cors, 409);
+    }
     const apelido = apelidoValido(b.apelido);
     if (!apelido) return json({ ok: false, mensagem: 'Apelido inválido: de 2 a 16 letras.' }, cors, 400);
     if (typeof b.pin !== 'string' || !PIN_PATTERN.test(b.pin)) return json({ ok: false, mensagem: 'O PIN tem de 4 a 8 números.' }, cors, 400);
@@ -90,7 +125,8 @@ async function visita(request: Request, b: Json, env: Env, cors: Record<string, 
   if (typeof key !== 'string' || !PROFILE_KEY_PATTERN.test(key)) return json({ ok: false }, cors, 400);
   const cf = (request as Request & { cf?: { country?: string; city?: string } }).cf;
   await painelStub(env).visita({
-    profileId: await profileIdFromKey(key),
+    // Aparelho juntado a outro perfil conta a visita para ele.
+    profileId: await contasStub(env).perfilValendo(await profileIdFromKey(key)),
     nome: typeof b.name === 'string' ? sanitizeName(b.name).slice(0, NAME_MAX_LENGTH) : '',
     avatar: typeof b.avatar === 'string' && AVATAR.test(b.avatar) ? b.avatar : '',
     ip: truncateIp(request.headers.get('CF-Connecting-IP')),
@@ -228,6 +264,24 @@ async function admin(path: string, request: Request, b: Json, env: Env, cors: Re
         await contas.bloquear(profileId, 0, '');
         await painel.registrar('admin: desbloqueou', profileId);
         return json({ ok: true }, cors);
+      case 'juntar': {
+        // A mesma pessoa em outro aparelho: este perfil vira o de destino (que tem o apelido guardado).
+        const destino = typeof b.destino === 'string' ? b.destino : '';
+        if (!PROFILE_ID.test(destino)) return json({ ok: false, mensagem: 'Escolhe o perfil de destino.' }, cors, 400);
+        const r = await contas.juntar(profileId, destino);
+        if (!r.ok) {
+          const mensagem = {
+            mesmo: 'É o mesmo perfil.',
+            'destino-sem-apelido': 'O destino precisa ter apelido guardado.',
+            'origem-com-apelido': 'Este perfil tem apelido guardado: libera o apelido antes de juntar.',
+          }[r.erro];
+          return json({ ok: false, mensagem }, cors, 400);
+        }
+        const apelido = (await contas.meu(r.destino))?.apelido ?? '';
+        const movidos = await juntarDados(env, profileId, r.destino, apelido);
+        await painel.registrar('admin: juntou perfis', profileId, `${apelido} (${movidos} resultados)`);
+        return json({ ok: true, resultados: movidos }, cors);
+      }
       case 'tirar-do-ranking': {
         const partidas = await rankingStub(env).remover(profileId);
         await painel.registrar('admin: tirou do ranking', profileId, `${partidas} resultados`);

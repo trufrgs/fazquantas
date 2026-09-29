@@ -51,10 +51,15 @@ export interface ServidorDeps extends Omit<SalaDeps, 'aoEncerrar'> {
   /** A sala acabou: pode apagar o que foi salvo. */
   aoEncerrar(motivo: string): void;
   /**
-   * Antes de sentar: perfil com apelido guardado senta com o apelido e o avatar dele; nome que é
-   * apelido guardado de outra pessoa muda; perfil bloqueado não senta.
+   * Antes de sentar: perfil com apelido guardado senta com o apelido e o avatar dele; perfil
+   * bloqueado não senta; nome que é apelido guardado de outra pessoa vem marcado (`apelidoDeOutro`:
+   * lugar novo não senta com ele) e com número, o nome de quem sentou assim antes e volta ao lugar.
+   * `perfil`: o perfil que vale (o aparelho juntado a outro perfil joga e pontua como ele).
    */
-  conferirPerfil?(profileId: string | null, name: string): Promise<{ bloqueado: boolean; nome: string; avatar: string | null }>;
+  conferirPerfil?(
+    profileId: string | null,
+    name: string,
+  ): Promise<{ bloqueado: boolean; nome: string; avatar: string | null; perfil?: string | null; apelidoDeOutro?: boolean }>;
   /** Prazo da conferência do perfil (padrão `PERFIL_PRAZO_MS`; os testes encurtam). */
   perfilPrazoMs?: number;
   rateLimit?: RateLimitOptions;
@@ -234,7 +239,7 @@ export class SalaServidor {
     profileKey?: string | undefined;
     aba?: string | undefined;
     visible?: boolean | undefined;
-  }): Promise<Perfil> {
+  }): Promise<{ perfil: Perfil; apelidoDeOutro: boolean }> {
     const profileId = p.profileKey ? await profileIdFromKey(p.profileKey) : null;
     let conferido: Awaited<ReturnType<NonNullable<ServidorDeps['conferirPerfil']>>> | null = null;
     if (this.deps.conferirPerfil) {
@@ -254,11 +259,14 @@ export class SalaServidor {
     }
     if (conferido?.bloqueado) throw fail('BLOCKED', MESSAGES.blocked);
     return {
-      name: conferido?.nome ?? p.name,
-      avatar: conferido?.avatar ?? p.avatar,
-      profileId,
-      aba: p.aba ?? null,
-      visivel: p.visible ?? true,
+      perfil: {
+        name: conferido?.nome ?? p.name,
+        avatar: conferido?.avatar ?? p.avatar,
+        profileId: conferido?.perfil ?? profileId,
+        aba: p.aba ?? null,
+        visivel: p.visible ?? true,
+      },
+      apelidoDeOutro: conferido?.apelidoDeOutro ?? false,
     };
   }
 
@@ -282,8 +290,10 @@ export class SalaServidor {
     switch (event) {
       case 'room:create': {
         const { settings, ...profile } = parsePayload(createRoomSchema, payload);
-        const perfil = await this.perfil(profile);
+        const { perfil, apelidoDeOutro } = await this.perfil(profile);
         this.assertOpen(conexao);
+        // Apelido guardado por outra pessoa não senta em lugar novo: a pessoa entra com o PIN ou troca.
+        if (apelidoDeOutro) throw fail('NICK_RESERVED', MESSAGES.nickReserved);
         if (this.sala && !this.sala.isDisposed && this.sala.seatCount > 0) {
           throw fail('ROOM_TAKEN', MESSAGES.roomTaken);
         }
@@ -296,7 +306,7 @@ export class SalaServidor {
       }
       case 'room:join': {
         const { code, token, password, auto, ...profile } = parsePayload(joinRoomSchema, payload);
-        const perfil = await this.perfil(profile);
+        const { perfil, apelidoDeOutro } = await this.perfil(profile);
         this.assertOpen(conexao);
         const sala = this.sala;
         if (!sala || sala.isDisposed || code !== this.code) {
@@ -335,6 +345,9 @@ export class SalaServidor {
         // No meio da partida, o mesmo apelido com a conexão viva: é a pessoa em outro aparelho.
         if (sala.status === 'playing' && sala.seatBusyFor(perfil)) throw fail('GAME_IN_PROGRESS', MESSAGES.seatBusy);
         sala.assertCanJoin();
+        // Lugar novo com o apelido guardado de outra pessoa: entra com o PIN ou troca de apelido (quem
+        // já estava sentado com número, antes desta regra, volta ao lugar pelos caminhos de cima).
+        if (apelidoDeOutro) throw fail('NICK_RESERVED', MESSAGES.nickReserved);
         return sala.addHuman(conexao, perfil);
       }
       case 'room:leave': {

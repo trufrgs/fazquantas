@@ -4,7 +4,15 @@ import { apelidoKey, hashPin, pinWaitMs, randomSalt } from './contas';
 
 /** Resultado de guardar ou entrar com o apelido. */
 export type ContaResultado =
-  | { ok: true; profileKey: string; profileId: string; apelido: string; avatar: string }
+  | {
+      ok: true;
+      profileKey: string;
+      profileId: string;
+      apelido: string;
+      avatar: string;
+      /** O perfil que o aparelho usava antes de entrar e que foi juntado a este (os dados dele vêm junto). */
+      juntou?: string;
+    }
   | { ok: false; erro: 'ocupado' | 'pin' | 'espera' | 'nao-existe' | 'bloqueado'; esperaMs?: number };
 
 /** O que a sala usa ao sentar alguém: o nome que vale e se pode jogar. */
@@ -12,7 +20,25 @@ export interface Conferencia {
   bloqueado: boolean;
   nome: string;
   avatar: string | null;
+  /** O perfil que vale (o aparelho juntado a outro perfil joga e pontua como ele). */
+  perfil: string | null;
+  /** O nome pedido é apelido guardado de outra pessoa: lugar novo não senta com ele. */
+  apelidoDeOutro: boolean;
 }
+
+/** De quem é um apelido, para quem pergunta: ninguém guardou, é o dele, ou é de outra pessoa. */
+export type DonoDoApelido = 'livre' | 'teu' | 'outro';
+
+/** O que o aparelho fica sabendo ao abrir: o apelido guardado dele e, se foi juntado a outro perfil, a chave dele. */
+export interface Meu {
+  apelido: string;
+  avatar: string;
+  /** Chave do perfil guardado a que este aparelho foi juntado: o aparelho passa a usar esta. */
+  chave?: string;
+}
+
+/** Por que não deu para juntar dois perfis. */
+export type FalhaAoJuntar = 'mesmo' | 'destino-sem-apelido' | 'origem-com-apelido';
 
 export interface ContaAdmin {
   profileId: string;
@@ -71,7 +97,44 @@ export class ContasDO extends DurableObject<Env> {
         motivo TEXT NOT NULL DEFAULT '',
         criado INTEGER NOT NULL
       );
+      CREATE TABLE IF NOT EXISTS ligacoes (
+        perfil TEXT PRIMARY KEY,
+        destino TEXT NOT NULL,
+        criado INTEGER NOT NULL
+      );
     `);
+  }
+
+  /**
+   * O perfil que vale para este: o de destino, se ele foi juntado a outro (o admin juntou, ou a
+   * pessoa entrou com o PIN neste aparelho); senão, ele mesmo.
+   */
+  private valendo(perfil: string): string {
+    return this.sql.exec<{ destino: string }>('SELECT destino FROM ligacoes WHERE perfil = ?', perfil).toArray()[0]?.destino ?? perfil;
+  }
+
+  /**
+   * Junta `origem` a `destino` (a mesma pessoa): daqui para frente, o aparelho da origem joga e
+   * pontua como o destino, e ao abrir o jogo recebe a chave dele. O destino precisa ter apelido
+   * guardado (é de onde sai a chave), e a origem, não (dois apelidos não viram um sem escolher qual).
+   */
+  private ligar(origem: string, destino: string): FalhaAoJuntar | null {
+    const alvo = this.valendo(destino);
+    if (origem === alvo) return 'mesmo';
+    if (!this.porPerfil(alvo)) return 'destino-sem-apelido';
+    if (this.porPerfil(origem)) return 'origem-com-apelido';
+    this.ctx.storage.transactionSync(() => {
+      this.sql.exec(
+        `INSERT INTO ligacoes (perfil, destino, criado) VALUES (?, ?, ?)
+         ON CONFLICT(perfil) DO UPDATE SET destino = excluded.destino`,
+        origem,
+        alvo,
+        Date.now(),
+      );
+      // Quem já estava juntado à origem passa a apontar direto para o destino (sem corrente).
+      this.sql.exec('UPDATE ligacoes SET destino = ? WHERE destino = ?', alvo, origem);
+    });
+    return null;
   }
 
   private porPerfil(perfil: string): Linha | null {
@@ -147,15 +210,20 @@ export class ContasDO extends DurableObject<Env> {
     return { ok: true, profileKey: p.profileKey, profileId: p.profileId, apelido: p.apelido, avatar: p.avatar };
   }
 
-  /** Outro aparelho: apelido + PIN devolvem a chave do perfil (o aparelho passa a ser a mesma pessoa). */
-  async entrar(apelido: string, pin: string): Promise<ContaResultado> {
+  /**
+   * Outro aparelho: apelido + PIN devolvem a chave do perfil (o aparelho passa a ser a mesma pessoa).
+   * Com `anterior` (o perfil que o aparelho usava, jogando com esse mesmo apelido), o anterior é
+   * juntado a este: os pontos e as visitas dele vêm junto, e ele não vira outro jogador.
+   */
+  async entrar(apelido: string, pin: string, anterior: string | null = null): Promise<ContaResultado> {
     const now = Date.now();
     const linha = this.porApelido(apelido);
     if (!linha) return { ok: false, erro: 'nao-existe' };
     const falha = await this.conferirPin(linha, pin, now);
     if (falha) return falha;
     if (this.bloqueadoAte(linha.perfil, now)) return { ok: false, erro: 'bloqueado' };
-    return { ok: true, profileKey: linha.chave, profileId: linha.perfil, apelido: linha.apelido, avatar: linha.avatar };
+    const juntou = anterior && this.ligar(anterior, linha.perfil) === null ? anterior : undefined;
+    return { ok: true, profileKey: linha.chave, profileId: linha.perfil, apelido: linha.apelido, avatar: linha.avatar, ...(juntou ? { juntou } : {}) };
   }
 
   /** O avatar escolhido vale em todos os aparelhos do perfil guardado. */
@@ -163,29 +231,50 @@ export class ContasDO extends DurableObject<Env> {
     return this.sql.exec('UPDATE apelidos SET avatar = ? WHERE perfil = ?', avatar, profileId).rowsWritten > 0;
   }
 
-  /** O apelido deste perfil (para a tela de ajustes saber se já está guardado). */
-  async meu(profileId: string): Promise<{ apelido: string; avatar: string } | null> {
-    const l = this.porPerfil(profileId);
-    return l ? { apelido: l.apelido, avatar: l.avatar } : null;
+  /**
+   * O apelido deste perfil (para a tela de ajustes saber se já está guardado). Aparelho juntado a
+   * outro perfil recebe também a chave dele, e passa a usá-la.
+   */
+  async meu(profileId: string): Promise<Meu | null> {
+    const valendo = this.valendo(profileId);
+    const l = this.porPerfil(valendo);
+    if (!l) return null;
+    return { apelido: l.apelido, avatar: l.avatar, ...(valendo !== profileId ? { chave: l.chave } : {}) };
+  }
+
+  /** O perfil que vale para este (o de destino, se ele foi juntado a outro). */
+  async perfilValendo(profileId: string): Promise<string> {
+    return this.valendo(profileId);
+  }
+
+  /** De quem é o apelido, para o perfil que pergunta (o jogo avisa antes de alguém tentar sentar com ele). */
+  async donoDoApelido(profileId: string | null, apelido: string): Promise<DonoDoApelido> {
+    const dono = this.porApelido(apelido);
+    if (!dono) return 'livre';
+    return profileId && this.valendo(profileId) === dono.perfil ? 'teu' : 'outro';
   }
 
   /**
-   * Na hora de sentar: perfil guardado usa o apelido e o avatar dele; nome que é apelido guardado de
-   * outra pessoa ganha número ("Thomas 2"); perfil bloqueado não senta.
+   * Na hora de sentar: perfil guardado (ou juntado a um) usa o apelido e o avatar dele; perfil
+   * bloqueado não senta; nome que é apelido guardado de outra pessoa vem marcado (lugar novo não
+   * senta com ele) e com número ("Thomas 2"), que é o nome de quem sentou assim antes e volta ao lugar.
    */
   async conferir(profileId: string | null, nome: string): Promise<Conferencia> {
     const now = Date.now();
-    if (profileId && this.bloqueadoAte(profileId, now)) return { bloqueado: true, nome, avatar: null };
-    const meu = profileId ? this.porPerfil(profileId) : null;
-    if (meu) return { bloqueado: false, nome: meu.apelido, avatar: meu.avatar };
+    const perfil = profileId ? this.valendo(profileId) : null;
+    if ((profileId && this.bloqueadoAte(profileId, now)) || (perfil && this.bloqueadoAte(perfil, now))) {
+      return { bloqueado: true, nome, avatar: null, perfil, apelidoDeOutro: false };
+    }
+    const meu = perfil ? this.porPerfil(perfil) : null;
+    if (meu) return { bloqueado: false, nome: meu.apelido, avatar: meu.avatar, perfil, apelidoDeOutro: false };
     const dono = this.porApelido(nome);
-    if (!dono) return { bloqueado: false, nome, avatar: null };
+    if (!dono) return { bloqueado: false, nome, avatar: null, perfil, apelidoDeOutro: false };
     for (let k = 2; k < 100; k++) {
       const suffix = ` ${k}`;
       const candidato = `${[...nome].slice(0, NAME_MAX_LENGTH - suffix.length).join('')}${suffix}`;
-      if (!this.porApelido(candidato)) return { bloqueado: false, nome: candidato, avatar: null };
+      if (!this.porApelido(candidato)) return { bloqueado: false, nome: candidato, avatar: null, perfil, apelidoDeOutro: true };
     }
-    return { bloqueado: false, nome: 'Jogador', avatar: null };
+    return { bloqueado: false, nome: 'Jogador', avatar: null, perfil, apelidoDeOutro: true };
   }
 
   // --- admin ---------------------------------------------------------------
@@ -233,6 +322,15 @@ export class ContasDO extends DurableObject<Env> {
       porPerfil.set(l.perfil, c);
     }
     return [...porPerfil.values()];
+  }
+
+  /**
+   * Admin: junta `origem` a `destino` (a mesma pessoa em outro aparelho). A origem passa a jogar,
+   * pontuar e aparecer como o destino; o ranking e as visitas são juntados pela rota.
+   */
+  async juntar(origem: string, destino: string): Promise<{ ok: true; destino: string } | { ok: false; erro: FalhaAoJuntar }> {
+    const erro = this.ligar(origem, destino);
+    return erro ? { ok: false, erro } : { ok: true, destino: this.valendo(destino) };
   }
 
   /** Solta o apelido (a pessoa esqueceu o PIN, ou o apelido era impróprio). O perfil continua. */

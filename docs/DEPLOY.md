@@ -35,8 +35,11 @@ estão no [CONTRIBUTING](../CONTRIBUTING.md#publicação).
     o nome começa um ranking zerado.
   - `AvisosDO`: assinaturas de Web Push por perfil (até 5 aparelhos por perfil).
   - `ContasDO`: apelidos guardados com PIN (PBKDF2 com sal; 5 erros livres e depois espera que dobra
-    até 24 h) e bloqueios de perfil. A sala confere cada pessoa que senta: perfil guardado senta com
-    o apelido e o avatar dele, apelido de outro ganha número, bloqueado não senta.
+    até 24 h), bloqueios de perfil e ligações (aparelho juntado ao perfil guardado da mesma pessoa).
+    A sala confere cada pessoa que senta: perfil guardado (ou juntado a um) senta com o apelido e o
+    avatar dele e pontua como ele; apelido guardado de outra pessoa não senta em lugar novo (erro
+    `NICK_RESERVED`: o jogo pede o PIN ali mesmo ou outro apelido); bloqueado não senta. Quem entra
+    com o PIN num aparelho que já jogava com o mesmo apelido leva junto os pontos e as visitas dele.
   - `PainelDO`: o painel do `/admin` — visitas por dia (IP truncado, cidade, aparelho), salas abertas
     e encerradas (com a última atividade de gente), contadores (salas, partidas, ranqueadas, avisos,
     salas barradas), histórico do que o admin e a automação fizeram, regras da automação,
@@ -97,7 +100,9 @@ virada (00:00 UTC, 21:00 BRT); nada é cobrado.
   - **Salas:** filtros (paradas, sem ninguém, ao vivo, no seu tempo), seleção de várias ("paradas há
     mais de N h" seleciona de uma vez) para encerrar com motivo ou mandar recado; encerradas da
     semana com o motivo.
-  - **Jogadores:** renomear e liberar apelido, tirar do ranking, bloquear (7 dias ou de vez).
+  - **Jogadores:** renomear e liberar apelido, juntar a um apelido guardado (a mesma pessoa em outro
+    aparelho ou navegador: ranking e visitas vão juntos, e o aparelho vira o perfil guardado ao abrir
+    o jogo, sem PIN), tirar do ranking, bloquear (7 dias ou de vez).
   - **Números:** uso do dia, da semana e dos 30 dias, países e os acessos um a um.
   - **Automação:** prazos das regras, "Rodar agora", a última rodada, **manutenção** (barra sala
     nova, com mensagem, e pode avisar as mesas abertas; quem está jogando segue) e o resumo do dia

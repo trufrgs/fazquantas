@@ -31,6 +31,44 @@ function mensagem(r: ContaFalha): string {
 type Modo = 'inicio' | 'guardar' | 'entrar' | 'trocar-pin' | 'trocar-nome';
 
 /**
+ * O apelido digitado é guardado por outra pessoa (ou por ti, em outro aparelho): com o PIN, este
+ * aparelho vira o teu perfil, com os pontos; sem ele, a pessoa escolhe outro apelido. Aparece onde se
+ * escreve o apelido, antes de alguém tentar sentar numa sala com ele.
+ */
+export function ApelidoDeOutro({ nome }: { nome: string }) {
+  const [pin, setPin] = useState('');
+  const [erro, setErro] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const apelido = nome.trim();
+  return (
+    <form
+      aria-label={`Apelido guardado: ${apelido}`}
+      className="flex flex-col gap-2 rounded-2xl bg-ouros/25 p-3 ring-1 ring-ouros-escuro/30"
+      onSubmit={async (e) => {
+        e.preventDefault();
+        setBusy(true);
+        setErro(null);
+        const r = await entrarComApelido(apelido, pin);
+        setBusy(false);
+        if (r !== true) setErro(mensagem(r));
+      }}
+    >
+      <p className="text-sm text-tinta">
+        <strong>"{apelido}" é apelido guardado.</strong> Se é o teu, entra com o PIN: este aparelho vira o teu perfil, com os pontos. Se não é,
+        escolhe outro apelido.
+      </p>
+      <div className="flex gap-2">
+        <PinInput value={pin} onChange={setPin} label="PIN do apelido" />
+        <Button type="submit" variant="ouro" className="shrink-0" disabled={busy || pin.length < 4}>
+          Entrar
+        </Button>
+      </div>
+      {erro && <p role="alert" className="text-sm font-semibold text-copas">{erro}</p>}
+    </form>
+  );
+}
+
+/**
  * Apelido guardado: um PIN deixa o apelido só teu (ninguém mais senta com ele) e leva o perfil,
  * com os pontos do ranking, para outro aparelho.
  */

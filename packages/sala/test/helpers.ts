@@ -15,7 +15,7 @@ import {
 import { onTestFinished } from 'vitest';
 import { silentLogger } from '../src/logger';
 import type { Aviso, Conexao, PartidaRanqueada, Sala, SalaSalva } from '../src/sala';
-import { SalaServidor, type RateLimitOptions } from '../src/servidor';
+import { SalaServidor, type RateLimitOptions, type ServidorDeps as SalaServidorDeps } from '../src/servidor';
 
 /** Pausas curtas: uma partida inteira roda em poucos segundos. */
 export const FAST_TIMING: Partial<HostTiming> = {
@@ -33,7 +33,7 @@ export interface MundoOpts {
   perfilPrazoMs?: number;
   ociosaMs?: number;
   ociosaAssincronaMs?: number;
-  conferirPerfil?: (profileId: string | null, name: string) => Promise<{ bloqueado: boolean; nome: string; avatar: string | null }>;
+  conferirPerfil?: SalaServidorDeps['conferirPerfil'];
   timing?: Partial<HostTiming>;
   rateLimit?: RateLimitOptions;
   /** Tempo por jogada encolhido: 15 s viram 15 ms com 0,001. */

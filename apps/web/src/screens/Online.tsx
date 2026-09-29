@@ -4,6 +4,7 @@ import { ProfileEditor } from '../components/setup/ProfileEditor';
 import { TuasSalas, useTuasSalas } from '../components/setup/TuasSalas';
 import { Button } from '../components/ui/Button';
 import { Panel, ScreenFrame } from '../components/ui/ScreenFrame';
+import { useDonoDoApelido } from '../lib/conta';
 import { serverUrl } from '../lib/platform';
 import { useManutencao } from '../lib/status';
 import { useApp } from '../stores/app';
@@ -36,7 +37,11 @@ export function Online({ initialCode, onCodeUsed }: { initialCode?: string; onCo
   const askPassword = passwordFor !== null && passwordFor === code;
   // Sem apelido, primeiro o apelido: ninguém senta como "Jogador" (nem chegando pelo convite).
   const nome = useSettings((s) => s.name);
+  const claimed = useSettings((s) => s.claimed);
   const [pedindoNome, setPedindoNome] = useState(pedindoNomeAoAbrir);
+  // Apelido guardado por outra pessoa (a sala recusou, ou o jogo viu ao abrir): PIN ou outro apelido.
+  const apelidoDeOutro = useDonoDoApelido(nome) === 'outro' && !claimed;
+  const precisaNome = pedindoNome || apelidoDeOutro;
   /** Código do convite esperando o apelido ficar pronto (decidido uma vez, ao abrir a tela). */
   const [convite] = useState<string | null>(() => {
     const c = cleanCode(initialCode ?? '');
@@ -77,14 +82,14 @@ export function Online({ initialCode, onCodeUsed }: { initialCode?: string; onCo
           Manutenção: {manutencao.mensagem || 'o jogo está em manutenção.'} Criar sala volta logo; quem já está numa mesa segue jogando.
         </div>
       )}
-      {pedindoNome && (
-        <Panel title={convite ? `Antes de entrar na sala ${convite}` : 'Antes de tudo'}>
+      {precisaNome && (
+        <Panel title={convite ? `Antes de entrar na sala ${convite}` : apelidoDeOutro ? 'Esse apelido já tem dono' : 'Antes de tudo'}>
           <ProfileEditor />
           <Button
             variant="ouro"
             size="lg"
             className="mt-3 w-full"
-            disabled={[...nome.trim()].length < 1}
+            disabled={[...nome.trim()].length < 1 || apelidoDeOutro}
             onClick={() => {
               setPedindoNome(false);
               if (convite) void doJoin(convite);
@@ -105,7 +110,7 @@ export function Online({ initialCode, onCodeUsed }: { initialCode?: string; onCo
           variant="ouro"
           size="lg"
           className="w-full"
-          disabled={busy || pedindoNome || manutencao !== null}
+          disabled={busy || precisaNome || manutencao !== null}
           onClick={async () => {
             if (await create()) reset('lobby');
           }}
@@ -154,7 +159,7 @@ export function Online({ initialCode, onCodeUsed }: { initialCode?: string; onCo
             type="submit"
             variant="papel"
             size="lg"
-            disabled={busy || pedindoNome || code.length !== ROOM_CODE_LENGTH || (askPassword && !password.trim())}
+            disabled={busy || precisaNome || code.length !== ROOM_CODE_LENGTH || (askPassword && !password.trim())}
           >
             Entrar
           </Button>

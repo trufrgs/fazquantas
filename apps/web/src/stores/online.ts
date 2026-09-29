@@ -12,6 +12,7 @@ import {
 import { create } from 'zustand';
 import type { GameConnection, ReactionEvent, SeatInfo, ViewUpdate } from '../lib/connection';
 import { syncPush, warnRoom } from '../lib/avisos';
+import { apelidoRecusado } from '../lib/conta';
 import { serverUrl } from '../lib/platform';
 import { SalaSocket, type DisconnectReason } from '../lib/sala-socket';
 import { forgetRoom, knownRoom, rememberRoom } from '../lib/minhas-salas';
@@ -530,6 +531,7 @@ export const useOnline = create<OnlineState>((set) => ({
       }
       closeSocket();
       if (r.error.code === 'ROOM_TAKEN' && attempt < CREATE_ATTEMPTS) continue;
+      if (r.error.code === 'NICK_RESERVED') apelidoRecusado(useSettings.getState().name);
       set({ status: 'idle', error: r.error.message });
       return false;
     }
@@ -586,6 +588,7 @@ export const useOnline = create<OnlineState>((set) => ({
       const taken = r.error.code === 'SEAT_TAKEN';
       if (taken) marcarSubstituida(code);
       if (r.error.code === 'KICKED') set({ kicked: true });
+      if (r.error.code === 'NICK_RESERVED') apelidoRecusado(useSettings.getState().name);
       // Só esquece a sala quando ela não serve mais; falha de rede (ou o lugar em uso em outro
       // aparelho) deixa o "Voltar pra sala".
       if (!TRANSIENT.has(r.error.code) && !needsPassword && !taken && token) forgetCurrent(code);

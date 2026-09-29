@@ -1,3 +1,4 @@
+import { apelidoKey } from '@fodinha/engine';
 import { useMemo, useState } from 'react';
 import { Avatar } from '../ui/Avatar';
 import { Button } from '../ui/Button';
@@ -9,6 +10,12 @@ import { hora, type Dados, type RodarAcao } from './tipos';
 export function Pessoas({ dados, agora, acao }: { dados: Dados; agora: number; acao: RodarAcao }) {
   const [busca, setBusca] = useState('');
   const [renomeando, setRenomeando] = useState<{ id: string; nome: string } | null>(null);
+  // Juntar: a mesma pessoa em outro aparelho (ou navegador) vira o perfil do apelido guardado.
+  const [juntando, setJuntando] = useState<{ id: string; destino: string } | null>(null);
+  const guardados = useMemo(
+    () => dados.contas.filter((c): c is typeof c & { apelido: string } => !!c.apelido).sort((a, b) => a.apelido.localeCompare(b.apelido, 'pt-BR')),
+    [dados.contas],
+  );
 
   const jogadores = useMemo(() => {
     const contas = new Map(dados.contas.map((c) => [c.profileId, c]));
@@ -62,7 +69,39 @@ export function Pessoas({ dados, agora, acao }: { dados: Dados; agora: number; a
                   {bloqueado && j.conta?.motivo && <p className="text-sm text-copas">Motivo: {j.conta.motivo}</p>}
                 </div>
               </div>
-              {renomeando?.id === j.id ? (
+              {juntando?.id === j.id ? (
+                <form
+                  className="flex flex-wrap gap-2"
+                  onSubmit={async (e) => {
+                    e.preventDefault();
+                    const destino = guardados.find((g) => g.profileId === juntando.destino);
+                    const r = await perfil(j.id, { acao: 'juntar', destino: juntando.destino }, `${j.nome} agora joga como ${destino?.apelido ?? 'o perfil guardado'}.`);
+                    if (r?.ok) setJuntando(null);
+                  }}
+                >
+                  <select
+                    value={juntando.destino}
+                    onChange={(e) => setJuntando({ id: j.id, destino: e.target.value })}
+                    aria-label={`Juntar ${j.nome} ao perfil`}
+                    className="h-10 min-w-0 flex-1 rounded-2xl border-0 bg-white/70 px-3 text-tinta shadow-inner ring-1 ring-tinta/15 outline-none focus:ring-2 focus:ring-espadas"
+                  >
+                    <option value="">Escolhe o apelido guardado</option>
+                    {guardados
+                      .filter((g) => g.profileId !== j.id)
+                      .map((g) => (
+                        <option key={g.profileId} value={g.profileId}>
+                          {g.apelido} ({g.profileId.slice(0, 8)})
+                        </option>
+                      ))}
+                  </select>
+                  <Button size="sm" variant="ouro" type="submit" disabled={!juntando.destino}>
+                    Juntar
+                  </Button>
+                  <Button size="sm" onClick={() => setJuntando(null)}>
+                    Cancelar
+                  </Button>
+                </form>
+              ) : renomeando?.id === j.id ? (
                 <form
                   className="flex flex-wrap gap-2"
                   onSubmit={async (e) => {
@@ -96,6 +135,14 @@ export function Pessoas({ dados, agora, acao }: { dados: Dados; agora: number; a
                         Liberar apelido
                       </Button>
                     </>
+                  )}
+                  {!j.conta?.apelido && guardados.length > 0 && (
+                    <Button
+                      size="sm"
+                      onClick={() => setJuntando({ id: j.id, destino: guardados.find((g) => apelidoKey(g.apelido) === apelidoKey(j.nome))?.profileId ?? '' })}
+                    >
+                      Juntar a um apelido
+                    </Button>
                   )}
                   {j.rank && (
                     <Confirmar confirmar="Tirar mesmo" onConfirm={() => void perfil(j.id, { acao: 'tirar-do-ranking' }, `${j.nome} saiu do ranking.`)}>

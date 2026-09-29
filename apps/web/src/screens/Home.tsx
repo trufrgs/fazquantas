@@ -14,6 +14,7 @@ import { resumeLocalGame, startLocalGame } from '../lib/game-actions';
 import { hasSavedGame, savedGameSummary } from '../lib/local-connection';
 import { useMedia, useUiScale } from '../lib/ui-scale';
 import { useSize } from '../components/table/useSize';
+import { useDonoDoApelido } from '../lib/conta';
 import { useComoInstalar } from '../lib/instalar';
 import { multiplayer } from '../lib/platform';
 import { useApp } from '../stores/app';
@@ -29,7 +30,7 @@ const FAN_MIN_H = 64;
 export function Home() {
   const s = useUiScale();
   const go = useApp((s) => s.go);
-  const { name, avatar } = useSettings();
+  const { name, avatar, claimed } = useSettings();
   /** Pedindo o apelido antes de seguir; `obrigatorio`: jogar online (ninguém senta sem nome). */
   const [ask, setAsk] = useState<null | { then: () => void; obrigatorio: boolean }>(null);
   const [confirmNew, setConfirmNew] = useState(false);
@@ -63,10 +64,12 @@ export function Home() {
   const cardW = fanH / 1.8;
   const k = cardW / 80;
 
+  // Apelido guardado por outra pessoa não senta em sala: antes de jogar online, PIN ou outro apelido.
+  const apelidoDeOutro = useDonoDoApelido(name) === 'outro' && !claimed;
   const withName =
     (then: () => void, obrigatorio = false) =>
     () => {
-      if (name.trim()) then();
+      if (name.trim() && !(obrigatorio && apelidoDeOutro)) then();
       else setAsk({ then, obrigatorio });
     };
   const seguir = () => {
@@ -257,8 +260,8 @@ export function Home() {
           </div>
         )}
         {ask?.obrigatorio ? (
-          <Button variant="ouro" size="lg" className="mt-4 w-full" disabled={!name.trim()} onClick={seguir}>
-            {name.trim() ? 'Pronto' : 'Escreve teu apelido pra jogar online'}
+          <Button variant="ouro" size="lg" className="mt-4 w-full" disabled={!name.trim() || apelidoDeOutro} onClick={seguir}>
+            {!name.trim() ? 'Escreve teu apelido pra jogar online' : apelidoDeOutro ? 'Entra com o PIN ou troca o apelido' : 'Pronto'}
           </Button>
         ) : (
           <div className="mt-4 grid grid-cols-2 gap-2">

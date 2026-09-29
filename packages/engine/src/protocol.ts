@@ -141,7 +141,9 @@ export type ErrorCode =
   /** Volta automática com um token que não vale mais (saiu, demorou demais para voltar). */
   | 'SEAT_LOST'
   /** Volta automática de quem o anfitrião tirou da sala enquanto estava sem conexão. */
-  | 'KICKED';
+  | 'KICKED'
+  /** Lugar novo com um apelido guardado por outra pessoa: entra com o PIN ou escolhe outro apelido. */
+  | 'NICK_RESERVED';
 
 export interface ProtocolError {
   code: ErrorCode | string;

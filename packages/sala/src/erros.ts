@@ -34,6 +34,7 @@ export const MESSAGES = {
   tooManyAttempts: 'Muitas senhas erradas seguidas. Confere a senha com quem te convidou e tenta de novo.',
   rateLimited: 'Muitas ações seguidas. Espera um pouquinho.',
   blocked: 'Esse perfil está bloqueado no jogo online.',
+  nickReserved: 'Esse apelido já tem dono: é guardado com PIN. Se é o teu, entra com o PIN; se não é, escolhe outro apelido.',
   internal: 'Deu um erro no servidor. Tenta de novo.',
   payload: 'Dados inválidos.',
   name: 'Apelido inválido: usa de 1 a 16 caracteres.',

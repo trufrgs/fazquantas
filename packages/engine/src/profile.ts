@@ -18,6 +18,19 @@ export function randomToken(bytes = 16): string {
   return base64url(crypto.getRandomValues(new Uint8Array(bytes)));
 }
 
+/**
+ * Chave de comparação do apelido: sem acento, sem diferença de maiúscula, espaços juntos. "Tomás",
+ * "tomas" e "TOMAS " são o mesmo apelido (ninguém se passa por outro trocando um acento).
+ */
+export function apelidoKey(name: string): string {
+  return name
+    .normalize('NFD')
+    .replace(/\p{M}/gu, '')
+    .toLocaleLowerCase('pt-BR')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
 /** Id público do perfil (22 caracteres) a partir da chave secreta. */
 export async function profileIdFromKey(key: string): Promise<string> {
   const data = new TextEncoder().encode(`fazquantas:perfil:${key}`);
