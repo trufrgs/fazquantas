@@ -19,3 +19,13 @@
 # Arquivos do build com hash no nome: podem ficar no cache para sempre.
 /assets/*
   Cache-Control: public, max-age=31536000, immutable
+
+# Cartas, avatares e sons: sem isso, cada carta que aparecia perguntava ao servidor de novo (max-age=0)
+# e, com internet fraca, demorava a surgir na mesa (relato de 29/09/2026). Uma semana sem perguntar e,
+# depois, usa o que tem enquanto confere por trás. O service worker atualiza pela revisão do build.
+/cards/*
+  Cache-Control: public, max-age=604800, stale-while-revalidate=31536000
+/avatars/*
+  Cache-Control: public, max-age=604800, stale-while-revalidate=31536000
+/sounds/*
+  Cache-Control: public, max-age=604800, stale-while-revalidate=31536000

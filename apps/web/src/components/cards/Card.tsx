@@ -14,12 +14,21 @@ export function cardSrc(id: CardId): string {
   return `${import.meta.env.BASE_URL}cards/${id}.webp`;
 }
 
-/** Pré-carrega as 40 imagens (a primeira distribuição não pisca). */
+/** As imagens pré-carregadas ficam referenciadas: o navegador não descarta a versão já decodificada. */
+const guardadas = new Map<CardId, HTMLImageElement>();
+
+/**
+ * Pré-carrega e decodifica as 40 imagens (a primeira distribuição não pisca e a carta jogada não
+ * aparece em branco enquanto a imagem chega).
+ */
 export function preloadCards(ids: readonly CardId[]): void {
   for (const id of ids) {
+    if (guardadas.has(id)) continue;
     const img = new Image();
     img.decoding = 'async';
     img.src = cardSrc(id);
+    guardadas.set(id, img);
+    void img.decode?.().catch(() => undefined);
   }
 }
 
@@ -80,7 +89,8 @@ export const Card = memo(function Card({ id, faceDown, width, className, title }
       role="img"
       aria-label={title ?? cardName(cardOf(id))}
     >
-      <img src={cardSrc(id)} alt="" width={width} height={height} draggable={false} decoding="async" className="block h-full w-full select-none" />
+      {/* Síncrono: já decodificada no pré-carregamento, a carta nunca pinta um quadro em branco antes da imagem. */}
+      <img src={cardSrc(id)} alt="" width={width} height={height} draggable={false} decoding="sync" className="block h-full w-full select-none" />
       {width >= 34 && <BigIndex id={id} />}
     </span>
   );
