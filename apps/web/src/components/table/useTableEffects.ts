@@ -1,32 +1,57 @@
-import type { PlayerView } from '@fodinha/engine';
+import type { Play, PlayerView } from '@fodinha/engine';
 import { useEffect, useRef } from 'react';
 import type { ViewUpdate } from '../../lib/connection';
 import { setMyTurn, warnTurn } from '../../lib/avisos';
 import { haptic } from '../../lib/haptics';
 import { play, type SoundId } from '../../lib/sound';
 import { useSettings } from '../../stores/settings';
-import { contextoDaRodada, manilhaDe, manilhasQueimadas, type EfeitoManilha } from './manilhas';
+import {
+  acertoDe,
+  chaveDoGolpe,
+  contextoDaRodada,
+  golpeComAnimacao,
+  golpesDaMao,
+  mesaMudou,
+  mesaVista,
+  ritmoDosGolpes,
+  type Golpe,
+  type GolpeNaMao,
+  type MesaVista,
+} from './manilhas';
 
 const played = (v: PlayerView) => v.completedTricks.reduce((n, t) => n + t.plays.length, 0) + (v.trick?.plays.length ?? 0);
 const bids = (v: PlayerView) => v.players.filter((p) => p.bid !== null).length;
 
-/** O som de cada manilha na mesa (os mesmos arquivos, em outro tom). */
-const SOM_MANILHA: Record<EfeitoManilha, { id: SoundId; rate: number }> = {
-  corte: { id: 'sweep', rate: 1.7 },
-  aco: { id: 'bid', rate: 1.6 },
-  pancada: { id: 'play', rate: 0.55 },
-  ouro: { id: 'made', rate: 1.3 },
-  brasa: { id: 'pop', rate: 0.7 },
+/** O som de cada golpe de "Quem mata quem", na hora em que a arma acerta (os mesmos arquivos, em outro tom). */
+const SOM_GOLPE: Record<Golpe, { id: SoundId; rate: number }> = {
+  corta: { id: 'bid', rate: 1.9 },
+  bate: { id: 'play', rate: 0.55 },
+  fura: { id: 'bid', rate: 1.7 },
+  moedas: { id: 'made', rate: 1.5 },
+  vinho: { id: 'pop', rate: 0.8 },
 };
 
-/** A carta que acabou de cair na mesa (na mão atual, ou na que acabou de fechar). */
-function ultimaJogada(v: PlayerView) {
-  return v.trick?.plays.at(-1) ?? (v.phase === 'trickEnd' ? v.lastTrick?.plays.at(-1) : undefined);
+/** A mão que está na mesa (a atual, ou a que acabou de fechar). */
+function maoDaView(v: PlayerView): { plays: readonly Play[]; fechada: boolean } {
+  const fechada = v.phase === 'trickEnd';
+  return { plays: (fechada ? v.lastTrick?.plays : v.trick?.plays) ?? [], fechada };
+}
+
+function somDoGolpe(g: GolpeNaMao, ritmo: number) {
+  const som = SOM_GOLPE[g.golpe];
+  const ms = (s: number) => (s * 1000) / ritmo;
+  // O espadão varre a mesa inteira de uma vez; os outros acertam uma carta de cada vez (até três).
+  if (g.golpe === 'corta') play('sweep', { delayMs: ms(acertoDe(g, 0) - 0.14), rate: 1.6 });
+  const vezes = g.golpe === 'corta' || g.golpe === 'moedas' ? 1 : Math.min(g.vitimas.length, 3);
+  for (let i = 0; i < vezes; i++) play(som.id, { delayMs: ms(acertoDe(g, i)), rate: som.rate });
 }
 
 /** Sons e vibração a partir da diferença entre a visão anterior e a atual. */
-export function useTableEffects(update: ViewUpdate | null, online = false) {
+export function useTableEffects(update: ViewUpdate | null, online = false, ritmo = 1) {
   const prev = useRef<PlayerView | null>(null);
+  // Quem mata quem: o que a mesa já mostrou (a mesma conta da `TrickArea`) e os golpes que já soaram.
+  const mesa = useRef<MesaVista | null>(null);
+  const soados = useRef({ chave: '', golpes: new Set<string>() });
   const hapticsOn = useSettings((s) => s.haptics);
 
   // Saiu da mesa: não é mais a vez de ninguém aqui.
@@ -39,6 +64,20 @@ export function useTableEffects(update: ViewUpdate | null, online = false) {
     if (!v) return;
     const you = v.you;
     if (online) setMyTurn(v.actor?.playerId === you);
+
+    // Cada golpe soa uma vez, quando a arma acerta; o que a mesa não anima (já estava lá quando ela
+    // apareceu, ou chegou de uma vez quando a conexão voltou) também não soa.
+    const mao = maoDaView(v);
+    const antes = mesa.current;
+    const agora = antes && !mesaMudou(antes, v.roundNumber, mao.plays, mao.fechada) ? antes : mesaVista(antes, v.roundNumber, mao.plays, mao.fechada);
+    mesa.current = agora;
+    if (soados.current.chave !== agora.chave) soados.current = { chave: agora.chave, golpes: new Set() };
+    for (const g of golpesDaMao(mao.plays, contextoDaRodada(v.rules, v.vira), mao.fechada)) {
+      const k = chaveDoGolpe(g);
+      if (soados.current.golpes.has(k) || !golpeComAnimacao(g, mao.plays, agora)) continue;
+      soados.current.golpes.add(k);
+      somDoGolpe(g, ritmoDosGolpes(ritmo));
+    }
     const newRound = !p || v.roundNumber !== p.roundNumber;
     if (newRound && v.phase === 'bidding') {
       play('shuffle');
@@ -48,19 +87,9 @@ export function useTableEffects(update: ViewUpdate | null, online = false) {
     if (!p || v.seq === p.seq) return;
 
     if (v.roundNumber === p.roundNumber && bids(v) > bids(p)) play('bid');
-    const ctx = contextoDaRodada(v.rules, v.vira);
-    if (v.roundNumber === p.roundNumber && played(v) > played(p)) {
-      play('play');
-      const nova = ultimaJogada(v);
-      const manilha = nova ? manilhaDe(nova.cardId, ctx) : null;
-      if (manilha) play(SOM_MANILHA[manilha.efeito].id, { delayMs: 90, rate: SOM_MANILHA[manilha.efeito].rate });
-    }
+    if (v.roundNumber === p.roundNumber && played(v) > played(p)) play('play');
     if (v.phase === 'trickEnd' && p.phase !== 'trickEnd' && (v.lastTrick?.cancelled.length ?? 0) > 0) {
       play('melou', { delayMs: 280 });
-    }
-    // Manilha batida por uma mais forte: queimou.
-    if (v.phase === 'trickEnd' && p.phase !== 'trickEnd' && v.lastTrick && manilhasQueimadas(v.lastTrick, ctx).length > 0) {
-      play('lifeLost', { delayMs: 380, rate: 1.6 });
     }
     if (p.phase === 'trickEnd' && v.phase !== 'trickEnd') play('sweep');
 
@@ -95,7 +124,7 @@ export function useTableEffects(update: ViewUpdate | null, online = false) {
       play('win', { delayMs: 200 });
       void haptic('success', hapticsOn);
     }
-  }, [update, hapticsOn, online]);
+  }, [update, hapticsOn, online, ritmo]);
 
   // Tique-taque nos últimos 5 segundos da sua vez.
   const deadline = update?.view.actor?.playerId === update?.view.you ? (update?.view.turnDeadline ?? null) : null;

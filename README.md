@@ -90,7 +90,9 @@ cada jogador só a visão dele, então nenhuma carta escondida sai do servidor.
 
 Cenas de desenvolvimento para revisar o visual: `http://localhost:5173/?cena=empardou` (também `mesa8`,
 `palpite`, `mao`, `cega`, `cega8`, `muitas`, `fimrodada`, `fimjogo`, `espectador`, `vira`) e `?galeria` com
-o baralho inteiro.
+o baralho inteiro. Os golpes das manilhas ("Quem mata quem": o espadão corta, o bastião bate, o sete de
+espadas fura, o sete belo derruba a golpe de moeda e a de copas, com vira, derrama vinho) têm cenas que
+jogam uma mão sozinhas: `espadao`, `duelo`, `fraca`, `setespadas`, `setebelo`, `manilhas` e `manilhasvira`.
 
 ## Código aberto
 

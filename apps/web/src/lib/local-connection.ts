@@ -61,6 +61,8 @@ export class LocalConnection implements GameConnection {
   private last: ViewUpdate | null = null;
   private lastBanter = 0;
   private timers: number[] = [];
+  /** O ritmo do jogo (o `GameHost` guarda o dele sem mostrar). */
+  private multiplier = 1;
   private readonly rng = createRng(randomSeed(Math.random));
   /** Assentos não mudam numa partida local: calculados uma vez (o `memo` da mesa agradece). */
   private readonly seatInfo: SeatInfo[];
@@ -97,8 +99,8 @@ export class LocalConnection implements GameConnection {
       seed: randomSeed(Math.random),
       revealToEliminated: true,
     });
-    host.setSpeed(opts.speed);
     const conn = new LocalConnection(host);
+    conn.setSpeed(opts.speed);
     host.start();
     return conn;
   }
@@ -108,8 +110,8 @@ export class LocalConnection implements GameConnection {
     if (saved?.v !== 1) return null;
     try {
       const host = GameHost.restore(saved.snapshot);
-      host.setSpeed(speed);
       const conn = new LocalConnection(host);
+      conn.setSpeed(speed);
       host.start();
       return conn;
     } catch {
@@ -158,7 +160,12 @@ export class LocalConnection implements GameConnection {
   }
 
   setSpeed(multiplier: number): void {
+    this.multiplier = multiplier;
     this.host.setSpeed(multiplier);
+  }
+
+  speed(): number {
+    return this.multiplier;
   }
 
   dispose(): void {

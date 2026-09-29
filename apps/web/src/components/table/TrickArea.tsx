@@ -2,8 +2,21 @@ import { card as cardOf, cardName, type Play, type StrengthCtx } from '@fodinha/
 import { AnimatePresence, motion } from 'motion/react';
 import { useState } from 'react';
 import { Card, CARD_RATIO } from '../cards/Card';
-import { GritoManilha, ManilhaEfeito, Queimou } from './ManilhaEfeito';
-import { manilhaDe, manilhasQueimadas } from './manilhas';
+import { ArmaDoGolpe, CartaAtingida, GritoManilha, SOMBRA_CARTA } from './Golpes';
+import {
+  acertoDe,
+  chaveDaMao,
+  chaveDoGolpe,
+  golpeComAnimacao,
+  golpesDaMao,
+  mandaNaMesa,
+  manilhaDe,
+  mesaMudou,
+  mesaVista,
+  ritmoDosGolpes,
+  vitimasEmOrdem,
+  type GolpeNaMao,
+} from './manilhas';
 import { tossRotation, trickStacking, type Point, type TableGeometry } from './layout';
 
 export interface TrickAreaProps {
@@ -21,25 +34,35 @@ export interface TrickAreaProps {
   youFromHand: boolean;
   /** Rodada às cegas: a carta de cada um sai de onde estava à mostra, no mesmo tamanho. */
   revealFrom?: { spots: ReadonlyMap<string, Point>; cardWidth: number } | null;
-  /** Força das cartas da rodada: manilha que cai na mesa ganha efeito e grito. */
+  /** Força das cartas da rodada: a manilha grita e ataca as cartas que ganha ("Quem mata quem"). */
   ctx?: StrengthCtx | null;
   /** Número da rodada (a mesma carta volta em outra rodada e tem direito ao efeito de novo). */
   rodada?: number;
+  /** Ritmo do jogo (1 = normal): os golpes acompanham o tempo que a mão fica na mesa. */
+  ritmo?: number;
 }
 
 export function TrickArea(p: TrickAreaProps) {
   const cw = p.cardWidth;
   const ch = cw * CARD_RATIO;
   const stack = trickStacking(p.plays.map((play) => p.geometry.tricks.get(play.playerId) ?? p.geometry.center));
-  // Cartas que já estavam na mesa quando ela apareceu (voltou para a sala, recarregou) não repetem o
-  // efeito, só naquela mão: a mão é a rodada mais a primeira carta jogada.
-  const chaveDaMao = `${p.rodada ?? 0}:${p.plays[0]?.cardId ?? ''}`;
-  const [naAbertura] = useState(() => ({ chave: chaveDaMao, ids: new Set(p.plays.map((play) => play.cardId)) }));
+  const rodada = p.rodada ?? 0;
+  const chave = chaveDaMao(rodada, p.plays);
+  // O que a mesa já mostrou: o que estava nela quando apareceu (voltou para a sala, recarregou) ou
+  // chegou de uma vez (a conexão voltou) entra sem golpe nem grito.
+  const [vista, setVista] = useState(() => mesaVista(null, rodada, p.plays, p.resolved));
+  let mesa = vista;
+  if (mesaMudou(vista, rodada, p.plays, p.resolved)) {
+    mesa = mesaVista(vista, rodada, p.plays, p.resolved);
+    setVista(mesa);
+  }
   const ctx = p.ctx ?? null;
-  const manilha = (play: Play) => (ctx ? manilhaDe(play.cardId, ctx) : null);
-  const fresca = (play: Play) => !(naAbertura.chave === chaveDaMao && naAbertura.ids.has(play.cardId)) && manilha(play) !== null;
-  const queimadas =
-    p.resolved && ctx && p.winnerId ? manilhasQueimadas({ plays: p.plays, winnerId: p.winnerId, cancelled: [...p.cancelled] }, ctx) : [];
+  const ritmo = ritmoDosGolpes(p.ritmo);
+  // "Quem mata quem": quem apanha de quem nesta mão, e na ordem em que a arma chega em cada uma.
+  const golpes = ctx ? golpesDaMao(p.plays, ctx, p.resolved).filter((g) => golpeComAnimacao(g, p.plays, mesa)) : [];
+  const pontoDe = (playerId: string) => p.geometry.tricks.get(playerId) ?? p.geometry.center;
+  const apanhou = new Map<string, { g: GolpeNaMao; ordem: number }>();
+  for (const g of golpes) vitimasEmOrdem(g, (id) => pontoDe(id).x).forEach((id, ordem) => apanhou.set(id, { g, ordem }));
   return (
     <div className="pointer-events-none absolute inset-0" aria-live="polite">
       <AnimatePresence custom={p.collectTo}>
@@ -52,8 +75,7 @@ export function TrickArea(p: TrickAreaProps) {
           const isWinner = p.resolved && play.playerId === p.winnerId;
           const isCancelled = p.resolved && p.cancelled.includes(play.playerId);
           const faded = p.resolved && !isWinner;
-          const efeito = fresca(play) ? manilha(play)!.efeito : null;
-          const queimou = queimadas.includes(play.playerId);
+          const golpe = apanhou.get(play.playerId);
           return (
             <motion.div
               key={play.cardId}
@@ -86,39 +108,34 @@ export function TrickArea(p: TrickAreaProps) {
               role="img"
               aria-label={cardName(cardOf(play.cardId))}
             >
-              <motion.div
-                className="relative h-full w-full transition-[filter,box-shadow] duration-300"
+              <div
+                // A carta que apanha leva a sombra junto (a daqui ficaria parada no lugar dela), e a troca
+                // é na hora, sem transição (senão ficam duas).
+                className={`relative h-full w-full duration-300 ${golpe ? 'transition-[filter]' : 'transition-[filter,box-shadow]'}`}
                 style={{
                   borderRadius: cw * 0.06,
                   boxShadow: isWinner
                     ? '0 0 0 3px var(--color-luz), 0 0 26px 8px rgb(255 205 130 / 0.55), 0 12px 24px rgb(0 0 0 / 0.5)'
-                    : '0 6px 14px rgb(0 0 0 / 0.45)',
-                  filter: isCancelled
-                    ? 'grayscale(0.85) brightness(0.8)'
-                    : queimou
-                      ? 'sepia(0.55) saturate(1.3) brightness(0.72)'
-                      : faded
-                        ? 'brightness(0.82)'
-                        : undefined,
-                  // A carta que queimou escurece depois do efeito da manilha que a bateu.
-                  transitionDelay: queimou ? '650ms' : undefined,
+                    : golpe
+                      ? 'none'
+                      : SOMBRA_CARTA,
+                  filter: isCancelled ? 'grayscale(0.85) brightness(0.8)' : faded ? 'brightness(0.82)' : undefined,
                 }}
-                // O bastião bate na mesa: chega grande e assenta.
-                initial={efeito === 'pancada' ? { scale: 1.28 } : false}
-                animate={{ scale: 1 }}
-                transition={{ type: 'spring', stiffness: 520, damping: 14, delay: 0.2 }}
               >
-                <Card id={play.cardId} width={cw} />
-                {efeito && <ManilhaEfeito efeito={efeito} width={cw} />}
-                {queimou && <Queimou width={cw} />}
-              </motion.div>
+                {golpe ? (
+                  <CartaAtingida
+                    id={play.cardId}
+                    cw={cw}
+                    golpe={golpe.g.golpe}
+                    manilha={ctx !== null && manilhaDe(play.cardId, ctx) !== null}
+                    acerto={acertoDe(golpe.g, golpe.ordem)}
+                    ritmo={ritmo}
+                  />
+                ) : (
+                  <Card id={play.cardId} width={cw} />
+                )}
+              </div>
             </motion.div>
-          );
-        })}
-        {p.plays.filter(fresca).map((play) => {
-          const at = p.geometry.tricks.get(play.playerId) ?? p.geometry.center;
-          return (
-            <GritoManilha key={`grito-${play.cardId}`} nome={manilha(play)!.nome} x={at.x} y={at.y - ch / 2 - 2} />
           );
         })}
         {/*
@@ -128,9 +145,8 @@ export function TrickArea(p: TrickAreaProps) {
         */}
         {p.resolved &&
           p.plays
-            .filter((play) => p.cancelled.includes(play.playerId) || queimadas.includes(play.playerId))
+            .filter((play) => p.cancelled.includes(play.playerId))
             .map((play) => {
-              const queimou = queimadas.includes(play.playerId);
               const at = p.geometry.tricks.get(play.playerId) ?? p.geometry.center;
               const c = p.geometry.center;
               const d = Math.hypot(at.x - c.x, at.y - c.y) || 1;
@@ -138,18 +154,38 @@ export function TrickArea(p: TrickAreaProps) {
               return (
                 <motion.span
                   key={`carimbo-${play.cardId}`}
-                  className={`absolute z-40 -translate-x-1/2 -translate-y-1/2 whitespace-nowrap rounded-md border-2 bg-papel/95 px-1.5 font-hand text-xl font-bold leading-none shadow ${queimou ? 'border-[#c2410c] text-[#c2410c]' : 'border-copas text-copas'}`}
+                  className="absolute z-40 -translate-x-1/2 -translate-y-1/2 whitespace-nowrap rounded-md border-2 border-copas bg-papel/95 px-1.5 font-hand text-xl font-bold leading-none text-copas shadow"
                   style={{ left: at.x + ((at.x - c.x) / d) * push, top: at.y + ((at.y - c.y) / d) * push }}
                   initial={{ scale: 2, opacity: 0, rotate: -24 }}
                   animate={{ scale: 1, opacity: 1, rotate: -14 }}
                   exit={{ opacity: 0, transition: { duration: 0.15 } }}
-                  transition={{ type: 'spring', stiffness: 500, damping: 18, delay: queimou ? 0.75 : 0.1 }}
+                  transition={{ type: 'spring', stiffness: 500, damping: 18, delay: 0.1 }}
                 >
-                  {queimou ? 'queimou' : 'empardou'}
+                  empardou
                 </motion.span>
               );
             })}
       </AnimatePresence>
+      {/* O grito de cada manilha que cai: grande se ela passa a mandar na mesa, pequeno se chega depois de uma mais forte. */}
+      {ctx &&
+        p.plays.map((play, i) => {
+          const m = manilhaDe(play.cardId, ctx);
+          if (!m || mesa.semGolpe.has(play.cardId)) return null;
+          const at = pontoDe(play.playerId);
+          return (
+            <GritoManilha
+              key={`grito-${chave}-${play.cardId}`}
+              nome={m.nome}
+              x={at.x}
+              y={at.y - ch / 2 - 2}
+              pequeno={!mandaNaMesa(p.plays, i, ctx)}
+              ritmo={ritmo}
+            />
+          );
+        })}
+      {golpes.map((g) => (
+        <ArmaDoGolpe key={`arma-${chave}-${chaveDoGolpe(g)}`} g={g} pontoDe={pontoDe} cw={cw} ritmo={ritmo} />
+      ))}
     </div>
   );
 }

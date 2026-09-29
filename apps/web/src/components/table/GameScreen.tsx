@@ -127,7 +127,12 @@ export function GameScreen() {
   const reactions = useGame((s) => s.reactions);
   const gameKey = useGame((s) => s.gameKey);
   const inRoom = useOnline((s) => s.room !== null);
-  useTableEffects(update, inRoom);
+  // O ritmo do jogo: o da sala, online; no local, o do jogo agora (o "Acelerar" muda sem mexer nos
+  // ajustes). Os golpes das manilhas e a pausa do resumo acompanham o tempo da mão na mesa.
+  const pace = useOnline((s) => s.room?.pace ?? 'normal');
+  const speed = useSettings((s) => s.speed);
+  const ritmo = inRoom ? paceMultiplier(pace) : (conn?.speed?.() ?? SPEED_MULTIPLIER[speed]);
+  useTableEffects(update, inRoom, ritmo);
   if (!conn || !update) {
     // Mesa vazia: numa sala online, o caminho é a sala (sair do início deixaria o assento preso).
     return (
@@ -142,7 +147,7 @@ export function GameScreen() {
     );
   }
   // Partida nova (inclusive revanche) remonta a mesa: nenhuma trava ou seleção sobra da anterior.
-  return <Table key={gameKey} conn={conn} update={update} seats={seats} reactions={reactions} />;
+  return <Table key={gameKey} conn={conn} update={update} seats={seats} reactions={reactions} ritmo={ritmo} />;
 }
 
 function Table({
@@ -150,11 +155,14 @@ function Table({
   update,
   seats,
   reactions,
+  ritmo,
 }: {
   conn: GameConnection;
   update: ViewUpdate;
   seats: SeatInfo[];
   reactions: LiveReaction[];
+  /** O ritmo do jogo (1 = normal). */
+  ritmo: number;
 }) {
   const view = update.view;
   const settings = useSettings();
@@ -379,7 +387,7 @@ function Table({
     view.phase === 'bidding' ? [...view.order].reverse().find((id) => view.players.find((x) => x.id === id)?.bid != null) ?? null : null;
   const handWidth = Math.min(vw, 640 * s);
   const dealFrom = { x: 0, y: -(table.height - geometry.deck.y) - handCardW * 0.9 };
-  const autoMs = DEFAULT_TIMING.roundPauseMs / (online ? paceMultiplier(room?.pace ?? 'normal') : SPEED_MULTIPLIER[settings.speed]);
+  const autoMs = DEFAULT_TIMING.roundPauseMs / ritmo;
   const mySeat = online ? room?.seats.find((x) => x.playerId === room.youId) : undefined;
   const meAway = mySeat?.kind === 'human' && mySeat.away && view.phase !== 'gameOver';
   const series = online ? (room?.series ?? null) : null;
@@ -549,6 +557,7 @@ function Table({
               revealFrom={reveal ? { spots: reveal.spots, cardWidth: reveal.cardWidth } : null}
               ctx={contextoDaRodada(view.rules, view.vira)}
               rodada={view.roundNumber}
+              ritmo={ritmo}
             />
           )}
           <RoundBanner view={view} shown={banner} />

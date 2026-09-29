@@ -28,7 +28,7 @@ interface Scene {
   lives?: number;
   /**
    * Cena animada: arma a mão (cartas de cada um, na ordem da mesa, primeiro quem puxa) e joga uma a
-   * cada 1,4 s depois de abrir, para ver os efeitos (manilhas, "queimou").
+   * cada 1,4 s depois de abrir, para ver os golpes das manilhas ("Quem mata quem").
    */
   roteiro?: { vira?: CardId; maos: CardId[][] };
 }
@@ -102,6 +102,41 @@ export const SCENES: Record<string, Scene> = {
     rules: { hierarchy: 'vira' },
     until: (s) => s.phase === 'playing' && s.round.cards >= 3 && currentActor(s)?.playerId === YOU,
   },
+  // Quem mata quem, o caso comum: o espadão cai no meio, corta as duas que estavam e, no fim, a última.
+  espadao: {
+    players: 4,
+    seed: 5,
+    until: () => true,
+    roteiro: { maos: [['C4', 'O4'], ['O5', 'C5'], ['E1', 'C6'], ['E3', 'O3']] },
+  },
+  // Mais fraca depois: o espadão manda e revida no bastião que chega depois.
+  duelo: {
+    players: 4,
+    seed: 5,
+    until: () => true,
+    roteiro: { maos: [['C4', 'O4'], ['E1', 'C5'], ['P1', 'C6'], ['E3', 'O3']] },
+  },
+  // A mais fraca por último: o bastião fecha a mão e apanha no golpe do fim, junto com a carta de antes.
+  fraca: {
+    players: 4,
+    seed: 5,
+    until: () => true,
+    roteiro: { maos: [['C4', 'O4'], ['E1', 'C5'], ['C6', 'O5'], ['P1', 'O3']] },
+  },
+  // O sete de espadas manda: fura a que estava e, no fim, as duas que chegaram depois.
+  setespadas: {
+    players: 4,
+    seed: 5,
+    until: () => true,
+    roteiro: { maos: [['C4', 'O4'], ['E7', 'C5'], ['C6', 'O5'], ['E3', 'O3']] },
+  },
+  // O sete belo manda: derruba a golpe de moeda.
+  setebelo: {
+    players: 4,
+    seed: 5,
+    until: () => true,
+    roteiro: { maos: [['C4', 'O4'], ['O7', 'C5'], ['C6', 'O5'], ['E3', 'O3']] },
+  },
   // As quatro manilhas gaúchas na mesma mão: sete belo, bastião, sete de espadas e o espadão por último.
   manilhas: {
     players: 4,
@@ -109,7 +144,7 @@ export const SCENES: Record<string, Scene> = {
     until: () => true,
     roteiro: { maos: [['O7', 'C4'], ['P1', 'C5'], ['E7', 'C6'], ['E1', 'O4']] },
   },
-  // Com vira (6 de ouros: manilha é o 7): a de copas pega fogo.
+  // Com vira (6 de ouros: manilha é o 7): a de copas derrama vinho.
   manilhasvira: {
     players: 4,
     seed: 5,

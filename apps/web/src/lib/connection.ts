@@ -41,5 +41,7 @@ export interface GameConnection {
   resume?(): void;
   skipPause?(): void;
   setSpeed?(multiplier: number): void;
+  /** O ritmo em que o jogo local está agora (1 = normal). */
+  speed?(): number;
   dispose(): void;
 }
