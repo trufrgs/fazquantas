@@ -2,6 +2,7 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { App } from './App';
 import { isNative } from './lib/platform';
+import { startInstalar } from './lib/instalar';
 import { startUiScale } from './lib/ui-scale';
 import './styles/index.css';
 
@@ -17,6 +18,8 @@ if (import.meta.env.PROD && !isNative) {
 document.documentElement.dataset.build = __BUILD_ID__;
 
 startUiScale();
+// O pedido de instalação do navegador pode chegar logo no começo: guarda para o botão dos ajustes.
+startInstalar();
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

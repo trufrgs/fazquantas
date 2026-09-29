@@ -265,8 +265,12 @@ export interface SeatProps {
   round: number;
   /** Assento colado na borda da mesa: os balões abrem para dentro. */
   edge?: BubbleEdge;
-  /** Assento no alto: o balão abre para este lado (embaixo fica a carta na testa). */
+  /** Assento no alto: na rodada da carta na testa, o balão abre para este lado (embaixo fica a carta). */
   side?: 'left' | 'right';
+  /** Rodada da carta na testa. */
+  blind?: boolean;
+  /** Foi quem cantou por último (balão para o lado só fica no último: um não cobre o outro). */
+  lastToBid?: boolean;
 }
 
 /** Oponente ao redor da mesa. */
@@ -276,14 +280,31 @@ export const Seat = memo(function Seat(p: SeatProps) {
   const showTricks = p.phase !== 'bidding';
   const out = player.eliminated;
 
+  // Quem senta no alto não tem espaço em cima: o balão abre embaixo do assento, ou para o lado na
+  // rodada da carta na testa (embaixo fica a carta dele).
+  const placement: BubblePlacement = p.y < 90 ? (p.blind ? (p.side ?? 'right') : 'below') : 'above';
+  // Balões para o lado (fileira de cima na carta na testa) caem um sobre o outro: só o último fica.
+  const sideways = placement === 'left' || placement === 'right';
+  const bubbles = (
+    <>
+      {p.phase === 'bidding' && (!sideways || p.lastToBid) && (
+        <CantadaBubble bid={player.bid} round={p.round} placement={placement} edge={p.edge} compact={p.compact} />
+      )}
+      <ReactionBubble reaction={p.reaction} placement={placement} edge={p.edge} />
+    </>
+  );
+
   return (
-    <div
-      className={`absolute z-10 flex flex-col items-center ${p.compact ? 'w-[4.5rem]' : 'w-[5.25rem]'}`}
-      style={{ left: p.x, top: p.y, transform: 'translate(-50%, -50%)' }}
-      role="group"
-      aria-label={`${player.name}${out ? ', fora do jogo' : ''}`}
-    >
-      <div className="relative">
+    // Centraliza no ponto (x, y) sem `transform` nem `z-index`: o assento não vira uma camada própria,
+    // e os balões (z-30) ficam por cima de todos os avatares, inclusive dos vizinhos. Antes, o balão
+    // de um assento ficava atrás do avatar de quem vinha depois (27/09–29/09/2026).
+    <div className="absolute flex h-0 w-0 items-center justify-center" style={{ left: p.x, top: p.y }}>
+      <div
+        className={`relative flex shrink-0 flex-col items-center ${p.compact ? 'w-[4.5rem]' : 'w-[5.25rem]'}`}
+        role="group"
+        aria-label={`${player.name}${out ? ', fora do jogo' : ''}`}
+      >
+      <div className="relative z-10">
         {p.isTurn && !out && <TurnRing size={avatarSize} deadline={p.deadline} />}
         <Avatar seed={info?.avatar ?? player.id} size={avatarSize} dim={out} />
         {!out && (player.isDealer || p.isMao) && (
@@ -312,23 +333,31 @@ export const Seat = memo(function Seat(p: SeatProps) {
             {info.connected ? 'ausente' : 'caiu'}
           </span>
         )}
-        {p.phase === 'bidding' && (
-          <CantadaBubble bid={player.bid} round={p.round} placement={p.y < 90 ? (p.side ?? 'right') : 'above'} edge={p.edge} compact={p.compact} />
-        )}
-        <ReactionBubble reaction={p.reaction} placement={p.y < 90 ? (p.side ?? 'right') : 'above'} edge={p.edge} />
       </div>
       <span
-        className={`mt-1 max-w-full truncate px-1 text-center text-xs font-bold texto-gravado transition-colors ${
+        className={`relative z-10 mt-1 max-w-full truncate px-1 text-center text-xs font-bold texto-gravado transition-colors ${
           out ? 'text-papel/50 line-through' : p.isTurn ? 'text-ouros' : 'text-papel'
         }`}
       >
         {player.name}
       </span>
-      {out ? (
-        <span className="rounded-full bg-copas/85 px-2 text-[0.6875rem] font-bold text-papel">fora</span>
+      <div className="relative z-10 flex justify-center">
+        {out ? (
+          <span className="rounded-full bg-copas/85 px-2 text-[0.6875rem] font-bold text-papel">fora</span>
+        ) : (
+          <Matches lives={player.lives} starting={p.startingLives} size={p.compact ? 11 : 13} />
+        )}
+      </div>
+      {/* Âncoras dos balões, sem camada própria (sem z-index nem transform): embaixo, o assento
+          inteiro (não cobre o nome); em cima e dos lados, uma caixa do tamanho do avatar. */}
+      {placement === 'below' ? (
+        bubbles
       ) : (
-        <Matches lives={player.lives} starting={p.startingLives} size={p.compact ? 11 : 13} />
+        <div className="pointer-events-none absolute inset-x-0 top-0 mx-auto" style={{ width: rem(avatarSize), height: rem(avatarSize) }}>
+          {bubbles}
+        </div>
       )}
+      </div>
     </div>
   );
 });

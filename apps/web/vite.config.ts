@@ -49,8 +49,11 @@ export default defineConfig(({ mode }) => ({
         injectRegister: null,
         includeAssets: ['icon.svg', 'sounds/*', 'cards/*'],
         manifest: {
+          // Identidade do app instalado: não muda se o endereço de início mudar.
+          id: '/',
           name: 'Faz quantas?',
           short_name: 'Faz quantas?',
+          categories: ['games'],
           description: 'Fodinha com baralho espanhol e regra gaúcha: diz quantas faz, faz quantas disse.',
           lang: 'pt-BR',
           theme_color: '#2a1a10',

@@ -11,7 +11,8 @@ import { Button, IconButton } from '../components/ui/Button';
 import { Sheet } from '../components/ui/Sheet';
 import { resumeLocalGame, startLocalGame } from '../lib/game-actions';
 import { hasSavedGame, savedGameSummary } from '../lib/local-connection';
-import { useUiScale } from '../lib/ui-scale';
+import { useMedia, useUiScale } from '../lib/ui-scale';
+import { useSize } from '../components/table/useSize';
 import { multiplayer } from '../lib/platform';
 import { useApp } from '../stores/app';
 import { untilLabel, useTuasSalas } from '../components/setup/TuasSalas';
@@ -19,6 +20,9 @@ import { savedSession, useOnline } from '../stores/online';
 import { useSettings } from '../stores/settings';
 
 const FAN = ['O7', 'E7', 'P1', 'E1'] as const;
+/** Leque de cartas no tamanho cheio (escala 1) e o menor que ainda vale mostrar. */
+const FAN_H = 144;
+const FAN_MIN_H = 64;
 
 export function Home() {
   const s = useUiScale();
@@ -37,6 +41,22 @@ export function Home() {
     if (await useOnline.getState().join(code)) useApp.getState().reset('lobby');
     else go('online');
   };
+
+  // Cabe tudo na altura visível, sem rolar (barra do Safari, partida salva, "Tua vez"): o leque de
+  // cartas fica com o que sobra depois do logo e dos botões, e some se não sobrar.
+  const [mainRef, mainSize] = useSize<HTMLElement>();
+  const [textoRef, textoSize] = useSize<HTMLDivElement>();
+  const [navRef, navSize] = useSize<HTMLElement>();
+  const deitado = useMedia('(orientation: landscape) and (max-height: 900px)');
+  const gap = 20 * s;
+  const livre =
+    mainSize.height === 0
+      ? FAN_H * s
+      : mainSize.height - 32 * s - textoSize.height - gap - (deitado ? 0 : navSize.height + gap);
+  const fanH = Math.floor(Math.min(FAN_H * s, livre));
+  const showFan = fanH >= FAN_MIN_H * s;
+  const cardW = fanH / 1.8;
+  const k = cardW / 80;
 
   const withName =
     (then: () => void, obrigatorio = false) =>
@@ -73,20 +93,21 @@ export function Home() {
       </header>
 
       <main
+        ref={mainRef}
         tabIndex={-1}
         className="sem-barra flex min-h-0 flex-1 flex-col overflow-y-auto px-6 py-4"
       >
         {/* Centraliza quando cabe e rola quando não cabe; tela deitada e baixa (celular deitado, notebook): duas colunas. */}
-        <div className="m-auto flex w-full flex-col items-center gap-6 [@media(orientation:landscape)_and_(max-height:900px)]:flex-row [@media(orientation:landscape)_and_(max-height:900px)]:justify-center [@media(orientation:landscape)_and_(max-height:900px)]:gap-12">
-          <div className="flex flex-col items-center gap-6">
-            <div className="flex flex-col items-center text-center">
+        <div className="m-auto flex w-full flex-col items-center gap-5 [@media(orientation:landscape)_and_(max-height:900px)]:flex-row [@media(orientation:landscape)_and_(max-height:900px)]:justify-center [@media(orientation:landscape)_and_(max-height:900px)]:gap-12">
+          <div className="flex flex-col items-center gap-5">
+            <div ref={textoRef} className="flex flex-col items-center text-center">
               <motion.h1
-                className="m-0"
+                className="logo-inicio m-0"
                 initial={{ opacity: 0, y: 14 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.6, ease: 'easeOut' }}
               >
-                <Logo size="clamp(3.1rem, min(17vw, 14vh), 6rem)" />
+                <Logo size="var(--logo)" />
               </motion.h1>
               <motion.p
                 className="mt-3 max-w-72 text-balance text-lg leading-snug text-papel/85"
@@ -98,31 +119,33 @@ export function Home() {
               </motion.p>
             </div>
 
-            <div className="relative h-36 w-64" aria-hidden="true">
-              {FAN.map((id, i) => {
-                const off = i - (FAN.length - 1) / 2;
-                return (
-                  <motion.div
-                    key={id}
-                    className="absolute bottom-0 left-1/2 origin-bottom drop-shadow-[0_10px_14px_rgb(0_0_0/0.5)]"
-                    style={{ marginLeft: -40 * s }}
-                    initial={{ rotate: 0, x: 0, y: 30, opacity: 0 }}
-                    animate={{ rotate: off * 11, x: off * 34 * s, y: Math.abs(off) * 5 * s, opacity: 1 }}
-                    transition={{
-                      type: 'spring',
-                      stiffness: 140,
-                      damping: 14,
-                      delay: 0.25 + i * 0.07,
-                    }}
-                  >
-                    <Card id={id} width={80 * s} />
-                  </motion.div>
-                );
-              })}
-            </div>
+            {showFan && (
+              <div className="relative" style={{ height: fanH, width: fanH * 1.78 }} aria-hidden="true">
+                {FAN.map((id, i) => {
+                  const off = i - (FAN.length - 1) / 2;
+                  return (
+                    <motion.div
+                      key={id}
+                      className="absolute bottom-0 left-1/2 origin-bottom drop-shadow-[0_10px_14px_rgb(0_0_0/0.5)]"
+                      style={{ marginLeft: -cardW / 2 }}
+                      initial={{ rotate: 0, x: 0, y: 30, opacity: 0 }}
+                      animate={{ rotate: off * 11, x: off * 34 * k, y: Math.abs(off) * 5 * k, opacity: 1 }}
+                      transition={{
+                        type: 'spring',
+                        stiffness: 140,
+                        damping: 14,
+                        delay: 0.25 + i * 0.07,
+                      }}
+                    >
+                      <Card id={id} width={cardW} />
+                    </motion.div>
+                  );
+                })}
+              </div>
+            )}
           </div>
 
-          <nav className="flex w-full max-w-xs flex-col gap-3" aria-label="Menu principal">
+          <nav ref={navRef} className="flex w-full max-w-xs flex-col gap-3" aria-label="Menu principal">
             {myTurn && (
               <Button variant="ouro" size="lg" disabled={joining} onClick={() => void openRoom(myTurn.code)} className="flex-col !gap-0">
                 <span>Tua vez na sala {myTurn.code}</span>

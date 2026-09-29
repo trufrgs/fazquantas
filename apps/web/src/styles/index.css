@@ -205,3 +205,16 @@
     transition-duration: 1ms !important;
   }
 }
+
+/*
+ * Logo da tela inicial: acompanha a altura visível. `svh` é a altura com as barras do navegador à
+ * mostra (no Safari do iPhone, `vh` conta a tela sem elas e o conteúdo passava do fim).
+ */
+.logo-inicio {
+  --logo: clamp(2.4rem, min(17vw, 11vh), 6rem);
+}
+@supports (height: 1svh) {
+  .logo-inicio {
+    --logo: clamp(2.4rem, min(17vw, 11svh), 6rem);
+  }
+}

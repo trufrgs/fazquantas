@@ -47,3 +47,16 @@ export function useUiScale(): number {
 export function rem(px: number): string {
   return `${px / 16}rem`;
 }
+
+/** Uma media query viva (`true` enquanto a tela bate com ela). */
+export function useMedia(query: string): boolean {
+  return useSyncExternalStore(
+    (cb) => {
+      const m = window.matchMedia(query);
+      m.addEventListener('change', cb);
+      return () => m.removeEventListener('change', cb);
+    },
+    () => window.matchMedia(query).matches,
+    () => false,
+  );
+}

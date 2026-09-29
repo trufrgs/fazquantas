@@ -371,6 +371,9 @@ function Table({
   const winnerId = view.lastTrick?.winnerId ?? null;
   const collectTo = winnerId ? (geometry.seats.get(winnerId) ?? geometry.center) : geometry.center;
   const status = statusLine(view, nameOf);
+  // Quem cantou por último na ordem da rodada (os balões para o lado só mostram esse).
+  const lastBidder =
+    view.phase === 'bidding' ? [...view.order].reverse().find((id) => view.players.find((x) => x.id === id)?.bid != null) ?? null : null;
   const handWidth = Math.min(vw, 640 * s);
   const dealFrom = { x: 0, y: -(table.height - geometry.deck.y) - handCardW * 0.9 };
   const autoMs = DEFAULT_TIMING.roundPauseMs / (online ? paceMultiplier(room?.pace ?? 'normal') : SPEED_MULTIPLIER[settings.speed]);
@@ -475,6 +478,8 @@ function Table({
                     round={view.roundNumber}
                     edge={at.x < 80 ? 'left' : at.x > table.width - 80 ? 'right' : null}
                     side={at.x < table.width / 2 ? 'right' : 'left'}
+                    blind={view.blind}
+                    lastToBid={lastBidder === p.id}
                   />
                 );
               })}

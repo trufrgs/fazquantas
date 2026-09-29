@@ -1,4 +1,5 @@
 import { ApelidoGuardado } from '../components/setup/ApelidoGuardado';
+import { InstalarApp } from '../components/setup/InstalarApp';
 import { ProfileEditor } from '../components/setup/ProfileEditor';
 import { disableNotify, enableNotify, notifyState } from '../lib/avisos';
 import { sincronizarAvatar } from '../lib/conta';
@@ -14,6 +15,7 @@ export function Settings() {
   const go = useApp((st) => st.go);
   return (
     <ScreenFrame title="Ajustes">
+      <InstalarApp />
       <Panel title="Perfil">
         <ProfileEditor onAvatar={sincronizarAvatar} />
       </Panel>
