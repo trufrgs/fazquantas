@@ -4,7 +4,9 @@ import { checkPassword, issueToken, verifyToken } from './admin';
 import { PIN_PATTERN, shortUserAgent, truncateIp } from './contas';
 import { contasStub, type ContaResultado } from './contas-do';
 import { allowedOrigin } from './origens';
-import { painelStub } from './painel-do';
+import { enviarResumo, rodarAutomacao } from './automacao';
+import { AUTOMACAO_PADRAO, painelStub, type Automacao } from './painel-do';
+import type { PushSubscriptionJSON } from './push';
 import { rankingStub } from './ranking-do';
 
 /**
@@ -114,15 +116,79 @@ async function admin(path: string, request: Request, b: Json, env: Env, cors: Re
   if (!(await verifyToken(secret, auth))) return json({ ok: false, mensagem: 'Entra de novo no admin.' }, cors, 401);
 
   if (path === '/api/admin/painel') {
-    const [painel, contasLista, totais] = await Promise.all([painelStub(env).dados(), contas.listar(), rankingStub(env).totais()]);
-    return json({ ok: true, painel, contas: contasLista, ranking: totais }, cors);
+    const [dados, contasLista, totais] = await Promise.all([painelStub(env).dados(), contas.listar(), rankingStub(env).totais()]);
+    return json({ ok: true, painel: dados, contas: contasLista, ranking: totais, padrao: AUTOMACAO_PADRAO }, cors);
   }
-  if (path === '/api/admin/sala') {
-    const code = typeof b.code === 'string' ? b.code.toUpperCase() : '';
-    if (!CODE.test(code)) return json({ ok: false }, cors, 400);
-    const ok = await env.SALAS.get(env.SALAS.idFromName(code)).encerrarPeloAdmin();
-    if (!ok) await painelStub(env).salaEncerrada(code, 'não existia mais');
-    return json({ ok: true, encerrada: ok }, cors);
+  const painel = painelStub(env);
+  const codigos = (): string[] => {
+    const lista = Array.isArray(b.codes) ? b.codes : typeof b.code === 'string' ? [b.code] : [];
+    return [...new Set(lista.filter((c): c is string => typeof c === 'string').map((c) => c.toUpperCase()).filter((c) => CODE.test(c)))].slice(0, 100);
+  };
+  const texto = (v: unknown, max: number) => (typeof v === 'string' ? v.trim().slice(0, max) : '');
+
+  // Encerrar uma ou várias mesas (ação em massa), com o motivo no histórico.
+  if (path === '/api/admin/sala' || path === '/api/admin/salas/encerrar') {
+    const codes = codigos();
+    if (codes.length === 0) return json({ ok: false, mensagem: 'Nenhuma sala.' }, cors, 400);
+    const motivo = texto(b.motivo, 120) || 'encerrada pelo admin';
+    const resultado = await Promise.all(
+      codes.map(async (code) => {
+        const ok = await env.SALAS.get(env.SALAS.idFromName(code)).encerrarPeloAdmin(`admin: ${motivo}`);
+        if (!ok) await painel.salaEncerrada(code, 'não existia mais');
+        return { code, encerrada: ok };
+      }),
+    );
+    await painel.registrar(codes.length > 1 ? `admin: encerrou ${codes.length} mesas` : 'admin: encerrou a mesa', codes.join(', '), motivo);
+    return json({ ok: true, resultado, encerrada: resultado[0]?.encerrada ?? false }, cors);
+  }
+
+  // Recado para mesas escolhidas, ou para todas as abertas.
+  if (path === '/api/admin/salas/avisar') {
+    const msg = texto(b.texto, 240);
+    if (!msg) return json({ ok: false, mensagem: 'Escreve o recado.' }, cors, 400);
+    const codes = b.todas === true ? (await painel.abertas()).map((s) => s.code).slice(0, 100) : codigos();
+    const pessoas = await Promise.all(codes.map((code) => env.SALAS.get(env.SALAS.idFromName(code)).avisoAdmin(msg).catch(() => 0)));
+    const total = pessoas.reduce((n, p) => n + p, 0);
+    await painel.registrar('admin: mandou recado', b.todas === true ? `todas (${codes.length})` : codes.join(', '), msg);
+    return json({ ok: true, salas: codes.length, pessoas: total }, cors);
+  }
+
+  if (path === '/api/admin/manutencao') {
+    const m = await painel.salvarManutencao(b.ativa === true, texto(b.mensagem, 200));
+    await painel.registrar(m.ativa ? 'admin: ligou a manutenção' : 'admin: desligou a manutenção', '', m.mensagem);
+    return json({ ok: true, manutencao: m }, cors);
+  }
+
+  if (path === '/api/admin/automacao') {
+    const patch: Partial<Automacao> = {};
+    for (const k of ['lobbyParadoHoras', 'fimParadoHoras', 'limiteSalasPorHora'] as const) {
+      const v = b[k];
+      if (typeof v === 'number' && Number.isFinite(v) && v >= 0 && v <= 1000) patch[k] = Math.round(v);
+    }
+    if (typeof b.resumoDiario === 'boolean') patch.resumoDiario = b.resumoDiario;
+    const automacao = await painel.salvarAutomacao(patch);
+    await painel.registrar('admin: mudou a automação', '', JSON.stringify(patch));
+    return json({ ok: true, automacao }, cors);
+  }
+
+  if (path === '/api/admin/automacao/rodar') {
+    const rodada = await rodarAutomacao(env);
+    await painel.registrar('admin: rodou a automação agora', '', `${rodada.verificadas} conferidas`);
+    return json({ ok: true, rodada }, cors);
+  }
+
+  if (path === '/api/admin/avisos/assinar' || path === '/api/admin/avisos/cancelar') {
+    const sub = b.subscription as Partial<PushSubscriptionJSON> | undefined;
+    if (!sub || typeof sub.endpoint !== 'string' || !/^https:\/\//.test(sub.endpoint)) return json({ ok: false }, cors, 400);
+    if (path.endsWith('cancelar')) return json({ ok: true, aparelhos: await painel.cancelarAdmin(sub.endpoint) }, cors);
+    const k = sub.keys;
+    if (!k || typeof k.p256dh !== 'string' || typeof k.auth !== 'string') return json({ ok: false }, cors, 400);
+    const aparelhos = await painel.assinarAdmin({ endpoint: sub.endpoint, keys: { p256dh: k.p256dh, auth: k.auth } });
+    return json({ ok: true, aparelhos }, cors);
+  }
+
+  if (path === '/api/admin/avisos/testar') {
+    return json({ ok: true, enviados: await enviarResumo(env, true) }, cors);
   }
   if (path === '/api/admin/perfil') {
     const profileId = typeof b.profileId === 'string' ? b.profileId : '';
@@ -130,6 +196,7 @@ async function admin(path: string, request: Request, b: Json, env: Env, cors: Re
     switch (b.acao) {
       case 'liberar-apelido':
         await contas.liberar(profileId);
+        await painel.registrar('admin: liberou o apelido', profileId);
         return json({ ok: true }, cors);
       case 'renomear': {
         const apelido = apelidoValido(b.apelido);
@@ -137,18 +204,24 @@ async function admin(path: string, request: Request, b: Json, env: Env, cors: Re
         const r = await contas.renomear(profileId, apelido);
         if (r === 'ocupado') return json({ ok: false, mensagem: 'Esse apelido já tem dono.' }, cors, 400);
         await rankingStub(env).renomear(profileId, apelido);
+        await painel.registrar('admin: renomeou', profileId, apelido);
         return json({ ok: true }, cors);
       }
       case 'bloquear': {
         const dias = typeof b.dias === 'number' && b.dias > 0 ? b.dias : null;
         await contas.bloquear(profileId, dias === null ? null : dias * 86_400_000, typeof b.motivo === 'string' ? b.motivo : '');
+        await painel.registrar(dias === null ? 'admin: bloqueou' : `admin: bloqueou por ${dias} dias`, profileId, texto(b.motivo, 200));
         return json({ ok: true }, cors);
       }
       case 'desbloquear':
         await contas.bloquear(profileId, 0, '');
+        await painel.registrar('admin: desbloqueou', profileId);
         return json({ ok: true }, cors);
-      case 'tirar-do-ranking':
-        return json({ ok: true, partidas: await rankingStub(env).remover(profileId) }, cors);
+      case 'tirar-do-ranking': {
+        const partidas = await rankingStub(env).remover(profileId);
+        await painel.registrar('admin: tirou do ranking', profileId, `${partidas} resultados`);
+        return json({ ok: true, partidas }, cors);
+      }
       default:
         return json({ ok: false }, cors, 400);
     }

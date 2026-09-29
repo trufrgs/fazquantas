@@ -9,14 +9,26 @@ import {
 } from '@fodinha/engine';
 
 /** Por que a conexão caiu: só `network` tenta de novo sozinha. */
-export type DisconnectReason = 'network' | 'replaced' | 'kicked' | 'left' | 'gone' | 'closedByAdmin' | 'tooManyAttempts' | 'refused' | 'closed';
+export type DisconnectReason =
+  | 'network'
+  | 'replaced'
+  | 'kicked'
+  | 'left'
+  | 'gone'
+  | 'closedByAdmin'
+  | 'tooManyAttempts'
+  | 'rateLimited'
+  | 'maintenance'
+  | 'refused'
+  | 'closed';
 
 type ServerEvent = keyof ServerToClientEvents;
 type Payload<E extends ServerEvent> = Parameters<ServerToClientEvents[E]>[0];
 
 interface LocalEvents {
   connect: () => void;
-  disconnect: (reason: DisconnectReason) => void;
+  /** `detail`: o texto do servidor ao fechar (recado da manutenção, limite de salas). */
+  disconnect: (reason: DisconnectReason, detail?: string) => void;
 }
 
 const ACK_TIMEOUT_MS = 8000;
@@ -45,6 +57,10 @@ function reasonFor(code: number): DisconnectReason {
       return 'closedByAdmin';
     case WS_CLOSE.tooManyAttempts:
       return 'tooManyAttempts';
+    case WS_CLOSE.rateLimited:
+      return 'rateLimited';
+    case WS_CLOSE.maintenance:
+      return 'maintenance';
     case WS_CLOSE.badOrigin:
       return 'refused';
     default:
@@ -58,7 +74,7 @@ function reasonFor(code: number): DisconnectReason {
  */
 export class SalaSocket {
   private ws: WebSocket | null = null;
-  private readonly handlers = new Map<string, Set<(data: unknown) => void>>();
+  private readonly handlers = new Map<string, Set<(...args: unknown[]) => void>>();
   private readonly acks = new Map<number, { resolve: (r: Ack<object>) => void; timer: number }>();
   private seq = 0;
   private attempt = 0;
@@ -72,7 +88,21 @@ export class SalaSocket {
   };
   connected = false;
 
-  constructor(readonly url: string) {
+  /** Endereço da sala (muda de `/nova` para o da sala criada: é para lá que a reconexão vai). */
+  get url(): string {
+    return this.target;
+  }
+
+  /**
+   * A sala foi criada: dali em diante a reconexão vai para o endereço dela. Sem isso, quem criou a
+   * sala reconectava em `/api/salas/nova`, caía numa sala nova e vazia e ouvia "sala não encontrada"
+   * (bug de 28/09/2026: bastava o celular apagar a tela ou sair um deploy).
+   */
+  retarget(url: string): void {
+    this.target = url;
+  }
+
+  constructor(private target: string) {
     window.addEventListener('online', this.onOnline);
     document.addEventListener('visibilitychange', this.onVisible);
     this.open();
@@ -83,11 +113,11 @@ export class SalaSocket {
   on(event: string, fn: (data: never) => void): void {
     let set = this.handlers.get(event);
     if (!set) this.handlers.set(event, (set = new Set()));
-    set.add(fn as (data: unknown) => void);
+    set.add(fn as (...args: unknown[]) => void);
   }
 
   off(event: string, fn: (data: never) => void): void {
-    this.handlers.get(event)?.delete(fn as (data: unknown) => void);
+    this.handlers.get(event)?.delete(fn as (...args: unknown[]) => void);
   }
 
   removeAllListeners(): void {
@@ -197,12 +227,14 @@ export class SalaSocket {
       const was = this.connected;
       this.connected = false;
       this.stopHeartbeat();
-      this.failAcks();
       const reason = this.stopped ? 'closed' : reasonFor(ev.code);
+      // Recusa com recado (manutenção, limite de salas): quem esperava resposta recebe o recado.
+      const detail = reason === 'rateLimited' || reason === 'maintenance' ? ev.reason : undefined;
+      this.failAcks(detail);
       if (reason === 'network' && !this.stopped) this.scheduleRetry();
       else this.stopped = true;
       // Tentativa que nem abriu não é "queda": só avisa de quem estava conectado ou de fim de vez.
-      if (was || reason !== 'network') this.fire('disconnect', reason);
+      if (was || reason !== 'network') this.fire('disconnect', reason, detail);
     };
     ws.onerror = () => {
       // O onclose vem em seguida.
@@ -220,20 +252,21 @@ export class SalaSocket {
     }
   }
 
-  private fire(event: string, data?: unknown): void {
+  private fire(event: string, ...args: unknown[]): void {
     for (const fn of [...(this.handlers.get(event) ?? [])]) {
       try {
-        fn(data);
+        fn(...args);
       } catch (error) {
         console.error(`[sala] erro tratando ${event}`, error);
       }
     }
   }
 
-  private failAcks(): void {
+  private failAcks(detail?: string): void {
+    const answer = detail ? { ok: false as const, error: { code: 'REFUSED', message: detail } } : NO_SERVER;
     for (const [id, ack] of this.acks) {
       window.clearTimeout(ack.timer);
-      ack.resolve(NO_SERVER);
+      ack.resolve(answer);
       this.acks.delete(id);
     }
   }

@@ -30,7 +30,7 @@ export interface BidPanelProps {
   hintInline?: boolean;
   /** Prazo da tua vez (online com tempo por jogada): o painel cobre a tua faixa, então a conta vai nele. */
   deadline?: number | null;
-  /** Relógio da tua vez, flutuando logo acima do painel. */
+  /** Relógio da tua vez, no cabeçalho do painel (junto das cantadas). */
   clock?: ReactNode;
 }
 
@@ -89,8 +89,11 @@ export function BidPanel(p: BidPanelProps) {
     </h2>
   );
   const sum = (
-    <span className={`shrink-0 text-tinta-2 ${compact ? 'text-xs' : 'text-sm'}`}>
-      cantaram <strong className="tabular-nums text-tinta">{p.bidsSum}</strong> de {p.cards}
+    <span className={`flex shrink-0 items-center gap-2 text-tinta-2 ${compact ? 'text-xs' : 'text-sm'}`}>
+      <span>
+        cantaram <strong className="tabular-nums text-tinta">{p.bidsSum}</strong> de {p.cards}
+      </span>
+      {p.clock}
     </span>
   );
   const note =
@@ -132,7 +135,6 @@ export function BidPanel(p: BidPanelProps) {
           transition={{ type: 'spring', stiffness: 420, damping: 32 }}
         >
           {p.deadline ? <TimeLeft key={p.deadline} deadline={p.deadline} /> : null}
-          {p.clock && <div className="pointer-events-none absolute bottom-full left-1/2 mb-2 -translate-x-1/2">{p.clock}</div>}
           <CoachTip tip={p.tip ?? null} inline />
           {(!compact || !oneRow) && (
             <header

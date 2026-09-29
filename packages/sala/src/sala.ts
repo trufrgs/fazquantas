@@ -856,11 +856,27 @@ export class Sala {
   }
 
   /** Como a sala está, em poucas linhas (painel do admin). */
-  summary(): { status: RoomStatus; humanos: string[]; bots: number; conectados: number; assincrona: boolean; ranqueada: boolean; senha: boolean } {
+  summary(): {
+    status: RoomStatus;
+    humanos: string[];
+    jogadores: { nome: string; perfil: string | null; conectado: boolean; ausente: boolean }[];
+    bots: number;
+    conectados: number;
+    assincrona: boolean;
+    ranqueada: boolean;
+    senha: boolean;
+  } {
     const humans = this.humans();
+    const game = this.currentStatus === 'playing' ? this.gameHost : null;
     return {
       status: this.currentStatus,
       humanos: humans.map((seat) => seat.name),
+      jogadores: humans.map((seat) => ({
+        nome: seat.name,
+        perfil: seat.profileId,
+        conectado: seat.conexao !== null,
+        ausente: game?.isAway(seat.playerId) ?? false,
+      })),
       bots: this.seats.length - humans.length,
       conectados: humans.filter((seat) => seat.conexao !== null).length,
       assincrona: this.isAsync,
@@ -869,9 +885,21 @@ export class Sala {
     };
   }
 
+  /** Recado da administração para todo mundo conectado na sala. */
+  notice(text: string): number {
+    const at = this.deps.relogio.now();
+    let n = 0;
+    for (const seat of this.humans()) {
+      if (!seat.conexao) continue;
+      seat.conexao.enviar('room:notice', { text, at });
+      n += 1;
+    }
+    return n;
+  }
+
   /** A administração encerrou a sala (todo mundo sai, o código fica livre). */
-  closeByAdmin(): void {
-    this.close('admin', WS_CLOSE.closedByAdmin);
+  closeByAdmin(reason = 'admin'): void {
+    this.close(reason, WS_CLOSE.closedByAdmin);
   }
 
   private close(reason: string, closeCode: number = WS_CLOSE.gone): void {

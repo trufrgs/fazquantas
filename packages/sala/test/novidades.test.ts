@@ -74,9 +74,17 @@ describe('ritmo', () => {
   });
 
   it('a partida calma demora mais que a normal', async () => {
-    const timing = { botThinkMs: [20, 20] as [number, number], trickPauseMs: 20, roundPauseMs: 20, forcedPlayMs: 20, dealMs: 0, awayActMs: 20 };
+    const timing = { botThinkMs: [20, 20] as [number, number], trickPauseMs: 20, roundPauseMs: 20, bidsRevealMs: 20, forcedPlayMs: 20, dealMs: 0, awayActMs: 20 };
+    // Mesmo sorteio nas duas partidas: a única diferença é o ritmo (sem isso o teste oscilava).
+    const seeded = () => {
+      let x = 42;
+      return () => {
+        x = (x * 1664525 + 1013904223) % 4294967296;
+        return x / 4294967296;
+      };
+    };
     const duration = async (pace: 'calma' | 'rapida') => {
-      const mundo = startWorld({ timing });
+      const mundo = startWorld({ timing, aleatorio: seeded() });
       const ana = connect(mundo);
       await createRoom(ana, 'Ana', { settings: { pace } });
       const player = autoPlay(ana);

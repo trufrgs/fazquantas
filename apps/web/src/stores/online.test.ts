@@ -10,7 +10,10 @@ const h = vi.hoisted(() => {
     closed = false;
     readonly handlers = new Map<string, Set<Handler>>();
     readonly sent: { event: string; payload: unknown; reply?: (r: unknown) => void }[] = [];
-    constructor(readonly url: string) {}
+    constructor(public url: string) {}
+    retarget(url: string) {
+      this.url = url;
+    }
     on(event: string, fn: Handler) {
       if (!this.handlers.has(event)) this.handlers.set(event, new Set());
       this.handlers.get(event)!.add(fn);
@@ -294,6 +297,17 @@ describe('online store', () => {
     second.ackLast('room:create', joined('tok-1'));
     expect(await creating).toBe(true);
     expect(savedSession()?.token).toBe('tok-1');
+  });
+
+  it('after creating, reconnecting goes back to the created room, not to a new one', async () => {
+    const creating = useOnline.getState().create();
+    await flush();
+    const s = socket();
+    expect(s.url).toBe('ws://servidor/api/salas/nova');
+    s.ackLast('room:create', joined('tok-1'));
+    expect(await creating).toBe(true);
+    // Bug de 28/09/2026: quem criou a sala reconectava em /nova e ouvia "sala não encontrada".
+    expect(s.url).toBe(`ws://servidor/api/salas/${savedSession()?.code}`);
   });
 
   it('being kicked drops to the online screen with the reason', async () => {

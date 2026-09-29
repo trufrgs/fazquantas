@@ -1,5 +1,5 @@
 # Verifica todo push e PR (lint, tipos e testes de unidade) e, na main, publica no Cloudflare:
-# primeiro o Worker (servidor do jogo online), depois os segredos, depois o site.
+# primeiro o Worker (servidor do jogo online, com os segredos), depois o site.
 # Os testes E2E (Playwright) rodam à mão por enquanto: ver CONTRIBUTING.md.
 name: CI
 
@@ -71,11 +71,9 @@ jobs:
       - if: steps.acesso.outputs.ok == 'true'
         run: pnpm install --frozen-lockfile
 
-      - name: Worker (servidor do jogo online)
-        if: steps.acesso.outputs.ok == 'true'
-        run: pnpm --filter @fodinha/worker exec wrangler deploy --message "${GITHUB_SHA::7}"
-
-      - name: Segredos do Worker (só os que existem no GitHub)
+      # Código e segredos numa publicação só: cada publicação reinicia as salas (as partidas em
+      # andamento reconectam), então duas seguidas (deploy + secret bulk) eram um tranco a mais.
+      - name: Worker (servidor do jogo online, com os segredos que existem no GitHub)
         if: steps.acesso.outputs.ok == 'true'
         env:
           VAPID_PRIVADO: ${{ secrets.VAPID_PRIVADO }}
@@ -88,9 +86,7 @@ jobs:
             for (const k of ["VAPID_PRIVADO", "ADMIN_SENHA"]) if (process.env[k]) s[k] = process.env[k];
             process.stdout.write(JSON.stringify(s));
           ' > "$RUNNER_TEMP/segredos.json"
-          if [ "$(cat "$RUNNER_TEMP/segredos.json")" != "{}" ]; then
-            pnpm --filter @fodinha/worker exec wrangler secret bulk "$RUNNER_TEMP/segredos.json"
-          fi
+          pnpm --filter @fodinha/worker exec wrangler deploy --message "${GITHUB_SHA::7}" --secrets-file "$RUNNER_TEMP/segredos.json"
           rm -f "$RUNNER_TEMP/segredos.json"
 
       - name: Site (Cloudflare Pages)

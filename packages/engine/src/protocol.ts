@@ -206,6 +206,8 @@ export interface ServerToClientEvents {
   'room:replaced': () => void;
   'game:view': (m: ViewMessage) => void;
   'game:reaction': (r: { playerId: string; reaction: ReactionId; at: number }) => void;
+  /** Recado da administração do jogo para quem está na sala (ex.: "reinício em 5 min"). */
+  'room:notice': (n: { text: string; at: number }) => void;
 }
 
 /** Mensagem do cliente no WebSocket: evento, dados e, se quer resposta, um id. */
@@ -228,6 +230,10 @@ export const WS_CLOSE = {
   gone: 4004,
   /** A administração do jogo encerrou a sala. */
   closedByAdmin: 4005,
+  /** Criar sala recusado: muitas salas criadas deste endereço agora (o motivo vem no texto). */
+  rateLimited: 4030,
+  /** Criar sala recusado: jogo em manutenção (o recado vem no texto). */
+  maintenance: 4031,
   tooManyAttempts: 4029,
   badOrigin: 4403,
 } as const;

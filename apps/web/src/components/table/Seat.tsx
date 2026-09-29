@@ -6,7 +6,6 @@ import type { LiveReaction } from '../../stores/game';
 import { Avatar } from '../ui/Avatar';
 import { Matches } from '../ui/Matches';
 import { rem } from '../../lib/ui-scale';
-import { SeatClock } from './TurnClock';
 
 export type BidTone = 'none' | 'pending' | 'exact' | 'over' | 'doomed';
 
@@ -169,6 +168,14 @@ const EDGE_CLASS: Record<'left' | 'right' | 'center', string> = {
   right: 'right-0',
   center: 'left-1/2 -translate-x-1/2',
 };
+/** Onde o balão abre: em cima, embaixo, ou ao lado (quem senta no alto: embaixo fica a carta na testa). */
+export type BubblePlacement = 'above' | 'below' | 'left' | 'right';
+
+function bubblePosition(placement: BubblePlacement, edge: BubbleEdge): string {
+  if (placement === 'right') return 'left-full ml-2 top-1/2 -translate-y-1/2';
+  if (placement === 'left') return 'right-full mr-2 top-1/2 -translate-y-1/2';
+  return `${EDGE_CLASS[edge ?? 'center']} ${placement === 'above' ? 'bottom-full mb-2' : 'top-full mt-2'}`;
+}
 
 export function ReactionBubble({
   reaction,
@@ -176,7 +183,7 @@ export function ReactionBubble({
   edge = null,
 }: {
   reaction: LiveReaction | undefined;
-  placement?: 'above' | 'below';
+  placement?: BubblePlacement;
   edge?: BubbleEdge;
 }) {
   const info = reaction ? REACTIONS.find((r) => r.id === reaction.reaction) : undefined;
@@ -185,9 +192,7 @@ export function ReactionBubble({
       {info && reaction && (
         <motion.span
           key={reaction.key}
-          className={`pointer-events-none absolute z-30 flex items-center gap-1 whitespace-nowrap rounded-2xl bg-papel px-2.5 py-1 text-sm font-bold text-tinta shadow-lg ${EDGE_CLASS[edge ?? 'center']} ${
-            placement === 'above' ? 'bottom-full mb-2' : 'top-full mt-2'
-          }`}
+          className={`pointer-events-none absolute z-30 flex items-center gap-1 whitespace-nowrap rounded-2xl bg-papel px-2.5 py-1 text-sm font-bold text-tinta shadow-lg ${bubblePosition(placement, edge)}`}
           initial={{ opacity: 0, y: 8, scale: 0.6 }}
           animate={{ opacity: 1, y: 0, scale: 1 }}
           exit={{ opacity: 0, y: -10, scale: 0.8 }}
@@ -215,22 +220,25 @@ export function CantadaBubble({
   round,
   placement = 'above',
   edge = null,
+  compact = false,
 }: {
   bid: number | null;
   round: number;
-  placement?: 'above' | 'below';
+  placement?: BubblePlacement;
   edge?: BubbleEdge;
+  /** Mesa apertada (celular, muita gente): balão menor, para não cobrir o vizinho. */
+  compact?: boolean;
 }) {
   if (bid === null) return null;
   return (
     <motion.span
       key={`${round}-${bid}`}
       aria-hidden="true"
-      className={`pointer-events-none absolute z-30 whitespace-nowrap rounded-2xl bg-papel px-3 py-1 font-display text-lg font-bold text-tinta shadow-[0_6px_16px_rgb(0_0_0/0.45)] ring-2 ring-ouros ${EDGE_CLASS[edge ?? 'center']} ${
-        placement === 'above' ? 'bottom-full mb-2' : 'top-full mt-2'
-      }`}
+      className={`pointer-events-none absolute z-30 whitespace-nowrap rounded-2xl bg-papel font-display font-bold text-tinta shadow-[0_6px_16px_rgb(0_0_0/0.45)] ring-2 ring-ouros ${
+        compact ? 'px-2 py-0.5 text-sm' : 'px-3 py-1 text-lg'
+      } ${bubblePosition(placement, edge)}`}
       style={{ fontVariationSettings: '"SOFT" 100' }}
-      initial={{ opacity: 0, scale: 0.4, y: placement === 'above' ? 10 : -10 }}
+      initial={{ opacity: 0, scale: 0.4, y: placement === 'above' ? 10 : placement === 'below' ? -10 : 0 }}
       animate={{ opacity: [0, 1, 1, 0], scale: [0.4, 1.1, 1, 0.9], y: 0 }}
       transition={{ duration: 3.2, times: [0, 0.12, 0.85, 1], ease: 'easeOut' }}
     >
@@ -253,12 +261,12 @@ export interface SeatProps {
   compact: boolean;
   /** É mão: palpita e joga primeiro na rodada. */
   isMao: boolean;
-  /** Tempo total da vez (para o relógio saber quando o tempo aperta). */
-  turnTotalMs?: number | null;
   /** Rodada atual (o balão da cantada toca uma vez por rodada). */
   round: number;
   /** Assento colado na borda da mesa: os balões abrem para dentro. */
   edge?: BubbleEdge;
+  /** Assento no alto: o balão abre para este lado (embaixo fica a carta na testa). */
+  side?: 'left' | 'right';
 }
 
 /** Oponente ao redor da mesa. */
@@ -277,11 +285,6 @@ export const Seat = memo(function Seat(p: SeatProps) {
     >
       <div className="relative">
         {p.isTurn && !out && <TurnRing size={avatarSize} deadline={p.deadline} />}
-        {p.isTurn && !out && p.deadline && (
-          <span className="absolute -right-5 -top-3 z-20">
-            <SeatClock deadline={p.deadline} totalMs={p.turnTotalMs ?? null} />
-          </span>
-        )}
         <Avatar seed={info?.avatar ?? player.id} size={avatarSize} dim={out} />
         {!out && (player.isDealer || p.isMao) && (
           <span className="absolute -left-2 -top-1">{player.isDealer ? <DealerChip size="sm" /> : <MaoChip size="sm" />}</span>
@@ -310,9 +313,9 @@ export const Seat = memo(function Seat(p: SeatProps) {
           </span>
         )}
         {p.phase === 'bidding' && (
-          <CantadaBubble bid={player.bid} round={p.round} placement={p.y < 90 ? 'below' : 'above'} edge={p.edge} />
+          <CantadaBubble bid={player.bid} round={p.round} placement={p.y < 90 ? (p.side ?? 'right') : 'above'} edge={p.edge} compact={p.compact} />
         )}
-        <ReactionBubble reaction={p.reaction} placement={p.y < 90 ? 'below' : 'above'} edge={p.edge} />
+        <ReactionBubble reaction={p.reaction} placement={p.y < 90 ? (p.side ?? 'right') : 'above'} edge={p.edge} />
       </div>
       <span
         className={`mt-1 max-w-full truncate px-1 text-center text-xs font-bold texto-gravado transition-colors ${

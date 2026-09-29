@@ -32,5 +32,7 @@
     "VAPID_PUBLICO": "BIZT1wg09fx_bMxOdIGsShulUEtjS4u7FmVQ9BtNYLPLE6BRP0mkph05gFeLQhVOOrc98J7L80Anr78DWtQS4iQ",
     "VAPID_CONTATO": "https://fazquantas.pages.dev"
   },
-  "observability": { "enabled": true }
+  "observability": { "enabled": true },
+  // Automação do admin a cada 15 min e o resumo do dia às 00:00 UTC (21:00 BRT).
+  "triggers": { "crons": ["*/15 * * * *", "0 0 * * *"] }
 }

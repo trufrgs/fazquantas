@@ -18,14 +18,15 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { GameConnection, SeatInfo, ViewUpdate } from '../../lib/connection';
 import { leaveTable, startLocalGame } from '../../lib/game-actions';
 import { untilLabel } from '../setup/TuasSalas';
-import { useTimeLeft, MyTurnClock, TurnSpotlight } from './TurnClock';
-import { isUrgent } from '../../lib/tempo';
+import { InlineTurnTimer, TurnSpotlight, UrgentEdge, useTimeLeft } from './TurnClock';
+import { formatLeft, isUrgent } from '../../lib/tempo';
 import { haptic } from '../../lib/haptics';
 import { play } from '../../lib/sound';
 import { useApp } from '../../stores/app';
 import { useGame, type LiveReaction } from '../../stores/game';
 import { isHost, useOnline } from '../../stores/online';
 import { SPEED_MULTIPLIER, useSettings } from '../../stores/settings';
+import { AdminNotice } from '../ui/AdminNotice';
 import { Avatar } from '../ui/Avatar';
 import { Button } from '../ui/Button';
 import { Sheet } from '../ui/Sheet';
@@ -379,6 +380,20 @@ function Table({
   const asyncRoom = online && !!room && isAsyncTurn(room.turnTimeoutSec);
   const turnTotalMs = online && room?.turnTimeoutSec ? room.turnTimeoutSec * 1000 : null;
   const turnLeft = useTimeLeft(view.turnDeadline);
+  // Vez com tempo (tua ou de outra pessoa): o tempo vai no aviso da tua faixa, nada por cima das
+  // cartas; vermelho quando aperta. Avisos passageiros (tempo esgotado, erro) usam o mesmo lugar.
+  const comTempo = online && !!view.actor && turnLeft !== null;
+  const apertado = comTempo && isUrgent(turnLeft, turnTotalMs);
+  const statusComTempo: { text: string; tone: StatusTone } = toast
+    ? { text: toast, tone: 'bad' }
+    : notice
+      ? { text: notice.text, tone: 'info' }
+      : comTempo
+        ? {
+            text: `${status.text} · ${formatLeft(turnTotalMs ? Math.min(turnLeft, turnTotalMs) : turnLeft)}`,
+            tone: apertado ? 'bad' : status.tone,
+          }
+        : status;
   const park = () => {
     useOnline.getState().park();
     leaveTable();
@@ -444,9 +459,9 @@ function Table({
                     reaction={reactionFor(p.id)}
                     compact={compact}
                     isMao={view.order[0] === p.id}
-                    turnTotalMs={turnTotalMs}
                     round={view.roundNumber}
                     edge={at.x < 80 ? 'left' : at.x > table.width - 80 ? 'right' : null}
+                    side={at.x < table.width / 2 ? 'right' : 'left'}
                   />
                 );
               })}
@@ -488,35 +503,17 @@ function Table({
             bottom={panelBottom}
             clock={
               myTurn && view.turnDeadline ? (
-                <MyTurnClock key={view.turnDeadline} deadline={view.turnDeadline} totalMs={turnTotalMs} />
+                <InlineTurnTimer key={view.turnDeadline} deadline={view.turnDeadline} totalMs={turnTotalMs} />
               ) : null
             }
           />
-          <AnimatePresence>
-            {(toast ?? notice?.text) && (
-              <motion.div
-                className="absolute left-1/2 top-3 z-50 max-w-[90%] -translate-x-1/2 rounded-2xl bg-tinta px-4 py-2 text-center text-sm font-semibold text-papel shadow-xl"
-                initial={{ opacity: 0, y: -10 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -10 }}
-                role="status"
-              >
-                {toast ?? notice?.text}
-              </motion.div>
-            )}
-          </AnimatePresence>
+          <UrgentEdge on={myTurn && apertado} />
         </div>
 
         <div
           className="relative z-20"
           style={{ paddingBottom: 'calc(0.25rem + var(--safe-bottom))' }}
         >
-          {/* Tua vez de jogar carta com tempo: o relógio fica logo acima da tua mão. */}
-          {myTurn && !bidding && view.turnDeadline && (
-            <div className="pointer-events-none absolute bottom-full left-1/2 z-30 mb-2 -translate-x-1/2">
-              <MyTurnClock key={view.turnDeadline} deadline={view.turnDeadline} totalMs={turnTotalMs} />
-            </div>
-          )}
           {me && (
             <div
               ref={mySeatRef}
@@ -529,7 +526,7 @@ function Table({
                 phase={view.phase}
                 remaining={remaining}
                 startingLives={view.rules.startingLives}
-                status={status}
+                status={statusComTempo}
                 reaction={reactionFor(me.id)}
                 isTurn={myTurn && !(view.phase === 'playing' && view.handHidden)}
                 deadline={myTurn ? view.turnDeadline : null}
@@ -645,6 +642,7 @@ function Table({
         onPace={online && isHost() ? (pace) => void useOnline.getState().update({ pace }) : undefined}
       />
       {meAway && <AwayBanner />}
+      {online && <AdminNotice />}
       <ReactionPicker
         open={picker}
         onClose={closePicker}

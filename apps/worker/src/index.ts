@@ -4,12 +4,15 @@ import {
   profileIdFromKey,
   ROOM_CODE_ALPHABET,
   ROOM_CODE_LENGTH,
+  WS_CLOSE,
   type RankingPeriod,
   type RankingScope,
 } from '@fodinha/engine';
 import { allowedOrigin, corsHeaders } from './origens';
 import type { PushSubscriptionJSON } from './push';
 
+import { rodarAutomacao, enviarResumo } from './automacao';
+import { painelStub } from './painel-do';
 import { rotasDeConta } from './rotas';
 
 export { AvisosDO } from './avisos-do';
@@ -34,6 +37,32 @@ function newCode(): string {
 
 function json(body: unknown, headers: Record<string, string>, status = 200): Response {
   return Response.json(body, { status, headers: { ...headers, 'Cache-Control': 'no-store' } });
+}
+
+/** Resumo do endereço de quem cria sala (para o limite por hora): o IP em si não é guardado. */
+async function ipKey(request: Request): Promise<string> {
+  const ip = request.headers.get('CF-Connecting-IP') ?? 'desconhecido';
+  const bytes = new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(`fazquantas:ip:${ip}`)));
+  return [...bytes.slice(0, 8)].map((b) => b.toString(16).padStart(2, '0')).join('');
+}
+
+/** Corta o texto para caber no motivo de fechamento do WebSocket (até 123 bytes em UTF-8). */
+function cabeNoMotivo(texto: string): string {
+  let out = '';
+  for (const ch of texto) {
+    if (new TextEncoder().encode(out + ch).length > 120) break;
+    out += ch;
+  }
+  return out;
+}
+
+/** Aceita o WebSocket só para fechar na hora com o recado (o app mostra o texto). */
+function recusarWs(code: number, motivo: string): Response {
+  const pair = new WebSocketPair();
+  const [client, server] = Object.values(pair) as [WebSocket, WebSocket];
+  server.accept();
+  server.close(code, cabeNoMotivo(motivo));
+  return new Response(null, { status: 101, webSocket: client });
 }
 
 async function room(request: Request, env: Env, code: string, cors: Record<string, string>, info: boolean): Promise<Response> {
@@ -111,7 +140,15 @@ export default {
     if (path === '/api/saude') return json({ ok: true }, cors);
     const conta = await rotasDeConta(request, env, path, cors);
     if (conta) return conta;
-    if (path === '/api/salas/nova') return room(request, env, newCode(), cors, false);
+    if (path === '/api/status') return json({ ok: true, manutencao: await painelStub(env).manutencao() }, cors);
+    if (path === '/api/salas/nova') {
+      // Manutenção ou limite de salas por hora deste endereço: recusa com recado.
+      if (request.headers.get('Upgrade')?.toLowerCase() === 'websocket' && allowedOrigin(request.headers.get('Origin'), env.ORIGENS)) {
+        const pode = await painelStub(env).podeCriarSala(await ipKey(request));
+        if (!pode.ok) return recusarWs(pode.motivo === 'manutencao' ? WS_CLOSE.maintenance : WS_CLOSE.rateLimited, pode.mensagem);
+      }
+      return room(request, env, newCode(), cors, false);
+    }
     const salas = /^\/api\/salas\/([A-Za-z0-9]{1,8})(\/info)?$/.exec(path);
     if (salas) {
       const code = salas[1]!.toUpperCase();
@@ -124,5 +161,11 @@ export default {
       return avisos(request, env, cors, path.endsWith('assinar'));
     }
     return new Response('Não encontrado.', { status: 404, headers: cors });
+  },
+
+  /** Cron: a cada 15 min, a automação do admin; às 00:00 UTC (21:00 BRT), o resumo do dia. */
+  async scheduled(controller: ScheduledController, env: Env, ctx: ExecutionContext): Promise<void> {
+    if (controller.cron === '0 0 * * *') ctx.waitUntil(enviarResumo(env).then(() => undefined));
+    else ctx.waitUntil(rodarAutomacao(env).then(() => undefined));
   },
 } satisfies ExportedHandler<Env>;

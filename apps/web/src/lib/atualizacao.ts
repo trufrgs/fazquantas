@@ -1,4 +1,5 @@
 import { useApp } from '../stores/app';
+import { useOnline } from '../stores/online';
 
 /**
  * Versão nova do jogo chegando em aba aberta e em app instalado, sem depender de fechar tudo:
@@ -47,7 +48,14 @@ function markHardReset(build: string): void {
   }
 }
 
+/**
+ * Hora segura de recarregar: fora de qualquer sala online (nem conectando, nem voltando para ela) e
+ * fora da mesa, ou com a aba escondida numa partida local (que fica salva). Recarregar no meio da
+ * volta para a sala já apagou a mensagem de erro e largou gente no início (28/09/2026).
+ */
 function safeToReload(): boolean {
+  const { room, status } = useOnline.getState();
+  if (room !== null || status !== 'idle') return false;
   return useApp.getState().screen !== 'game' || document.visibilityState === 'hidden';
 }
 
@@ -119,6 +127,7 @@ export function startUpdates(registerSW: Registrar): void {
     applyWhenSafe();
   });
   useApp.subscribe(applyWhenSafe);
+  useOnline.subscribe(applyWhenSafe);
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'visible') void check();
     else applyWhenSafe();

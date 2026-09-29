@@ -109,6 +109,9 @@ export class SalaDO extends DurableObject<Env> {
   private ultimoResumo = '';
   /** A sala deste código já acabou (marca guardada): link antigo ouve "já acabou". */
   private acabou = false;
+  /** Última vez que uma pessoa mexeu na sala (mensagem ou conexão); bot jogando sozinho não conta. */
+  private atividade: number | null = null;
+  private atividadeAvisada = 0;
 
   constructor(ctx: DurableObjectState, env: Env) {
     super(ctx, env);
@@ -118,6 +121,7 @@ export class SalaDO extends DurableObject<Env> {
     void ctx.blockConcurrencyWhile(async () => {
       const salva = await ctx.storage.get<SalaSalva>('sala');
       this.acabou = !salva && (await ctx.storage.get<number>('fim')) !== undefined;
+      this.atividade = (await ctx.storage.get<number>('atividade')) ?? salva?.criadaEm ?? null;
       const sockets = ctx.getWebSockets();
       if (salva) {
         this.servidorPara(salva.code).restore(
@@ -141,6 +145,7 @@ export class SalaDO extends DurableObject<Env> {
       return new Response('Esperava um WebSocket.', { status: 426 });
     }
     this.servidorPara(this.code || code);
+    this.marcarAtividade();
     const pair = new WebSocketPair();
     const [client, server] = Object.values(pair) as [WebSocket, WebSocket];
     this.ctx.acceptWebSocket(server);
@@ -149,6 +154,7 @@ export class SalaDO extends DurableObject<Env> {
   }
 
   override async webSocketMessage(ws: WebSocket, message: string | ArrayBuffer): Promise<void> {
+    this.marcarAtividade();
     await this.servidor?.receive(this.conexao(ws), message);
   }
 
@@ -244,12 +250,40 @@ export class SalaDO extends DurableObject<Env> {
     this.ctx.waitUntil(Promise.all(tarefas).catch((e: unknown) => console.error('[painel]', e)));
   }
 
-  /** Admin: encerra a sala na hora (todo mundo sai). */
-  async encerrarPeloAdmin(): Promise<boolean> {
+  /** Alguém mexeu na sala: guarda (e avisa o painel no máximo a cada 5 min). */
+  private marcarAtividade(): void {
+    const now = Date.now();
+    this.atividade = now;
+    if (now - this.atividadeAvisada < 5 * 60_000 || !this.code) return;
+    this.atividadeAvisada = now;
+    this.ctx.waitUntil(
+      Promise.all([this.ctx.storage.put('atividade', now), painelStub(this.env).atividade(this.code, now)]).catch((e: unknown) =>
+        console.error('[atividade]', e),
+      ),
+    );
+  }
+
+  /** Para a automação e o admin: a sala existe? Em que pé está? Quando alguém mexeu por último? */
+  async estadoAdmin(): Promise<{ existe: boolean; status?: string; conectados?: number; atividade?: number | null }> {
+    const sala = this.servidor?.room;
+    if (!sala || sala.isDisposed) return { existe: false };
+    const resumo = sala.summary();
+    return { existe: true, status: resumo.status, conectados: resumo.conectados, atividade: this.atividade };
+  }
+
+  /** Admin: encerra a sala na hora (todo mundo sai), com o motivo no histórico. */
+  async encerrarPeloAdmin(motivo = 'admin'): Promise<boolean> {
     const sala = this.servidor?.room;
     if (!sala || sala.isDisposed) return false;
-    sala.closeByAdmin();
+    sala.closeByAdmin(motivo);
     return true;
+  }
+
+  /** Admin: recado para quem está na sala. Devolve quantas pessoas receberam. */
+  async avisoAdmin(texto: string): Promise<number> {
+    const sala = this.servidor?.room;
+    if (!sala || sala.isDisposed) return 0;
+    return sala.notice(texto);
   }
 
   private encerrar(motivo: string): void {

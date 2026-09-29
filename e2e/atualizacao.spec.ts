@@ -1,11 +1,10 @@
-import { execFileSync } from 'node:child_process';
-import { createReadStream, existsSync, mkdtempSync, rmSync, statSync } from 'node:fs';
-import http from 'node:http';
+import { mkdtempSync, rmSync } from 'node:fs';
+import type http from 'node:http';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test } from '@playwright/test';
 import { presetSettings } from './helpers';
+import { buildOf, buildWeb, comeBack, servePages } from './producao';
 
 /**
  * Versão nova chegando numa aba que ficou aberta (o problema do service worker preso na versão
@@ -16,70 +15,17 @@ import { presetSettings } from './helpers';
  * build, index.html para as rotas do app, sw.js/index.html/version.json sem cache.
  */
 
-const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const PORT = 4180;
 const BASE = `http://localhost:${PORT}`;
 let dir = '';
 let server: http.Server;
-
-function build(id: string) {
-  execFileSync('pnpm', ['--filter', '@fodinha/web', 'exec', 'vite', 'build', '--outDir', dir, '--emptyOutDir'], {
-    cwd: ROOT,
-    env: { ...process.env, VITE_BUILD_ID: id, VITE_SERVER_URL: 'http://localhost:8787' },
-    stdio: 'ignore',
-  });
-}
-
-const TYPES: Record<string, string> = {
-  '.html': 'text/html; charset=utf-8',
-  '.js': 'text/javascript',
-  '.css': 'text/css',
-  '.json': 'application/json',
-  '.webmanifest': 'application/manifest+json',
-  '.svg': 'image/svg+xml',
-  '.png': 'image/png',
-  '.webp': 'image/webp',
-  '.ico': 'image/vnd.microsoft.icon',
-  '.woff2': 'font/woff2',
-  '.mp3': 'audio/mpeg',
-};
-
-/** Build que a aba está rodando ('' enquanto recarrega). */
-async function buildOf(page: Page) {
-  return page.evaluate(() => document.documentElement.dataset.build ?? '').catch(() => '');
-}
-
-/** A aba "volta para a frente" (é quando o app confere se tem versão nova). */
-async function comeBack(page: Page) {
-  await page.evaluate(() => {
-    for (const state of ['hidden', 'visible']) {
-      Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => state });
-      document.dispatchEvent(new Event('visibilitychange'));
-    }
-  });
-}
+const build = (id: string) => buildWeb(dir, id);
 
 test.describe.configure({ mode: 'serial' });
 
 test.beforeAll(async () => {
   dir = mkdtempSync(path.join(tmpdir(), 'fazquantas-atualizacao-'));
-  server = http.createServer((req, res) => {
-    const url = new URL(req.url ?? '/', BASE);
-    let file = path.join(dir, decodeURIComponent(url.pathname));
-    if (!file.startsWith(dir) || !existsSync(file) || statSync(file).isDirectory()) file = path.join(dir, 'index.html');
-    const name = path.basename(file);
-    const cache =
-      name === 'sw.js' || name === 'index.html' || name.startsWith('workbox-')
-        ? 'no-cache'
-        : name === 'version.json'
-          ? 'no-store'
-          : url.pathname.startsWith('/assets/')
-            ? 'public, max-age=31536000, immutable'
-            : 'public, max-age=0, must-revalidate';
-    res.writeHead(200, { 'Content-Type': TYPES[path.extname(file)] ?? 'application/octet-stream', 'Cache-Control': cache });
-    createReadStream(file).pipe(res);
-  });
-  await new Promise<void>((resolve) => server.listen(PORT, resolve));
+  server = await servePages(dir, PORT);
 });
 
 test.afterAll(() => {

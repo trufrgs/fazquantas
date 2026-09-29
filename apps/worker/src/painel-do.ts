@@ -1,5 +1,6 @@
 import { DurableObject } from 'cloudflare:workers';
 import { brtDay } from './contas';
+import type { PushSubscriptionJSON } from './push';
 
 /** Uma visita ao jogo: um por perfil por dia (a primeira e a última hora ficam). */
 export type Visita = {
@@ -17,6 +18,8 @@ export interface ResumoSala {
   code: string;
   status: string;
   humanos: string[];
+  /** Cada pessoa sentada: perfil, se está conectada e se a mesa está jogando por ela. */
+  jogadores?: { nome: string; perfil: string | null; conectado: boolean; ausente: boolean }[];
   bots: number;
   conectados: number;
   assincrona: boolean;
@@ -24,16 +27,66 @@ export interface ResumoSala {
   senha: boolean;
 }
 
-export type Contador = 'salas' | 'partidas' | 'partidas_fim' | 'ranqueadas' | 'avisos';
+export type Contador = 'salas' | 'partidas' | 'partidas_fim' | 'ranqueadas' | 'avisos' | 'recusadas';
+
+/** O que a automação faz sozinha (o admin ajusta; 0 desliga a regra). */
+export interface Automacao {
+  /** Mesa no lobby sem ninguém mexer há tantas horas: encerra. */
+  lobbyParadoHoras: number;
+  /** Partida terminada e ninguém puxa a próxima há tantas horas: encerra. */
+  fimParadoHoras: number;
+  /** Resumo do dia por push para os aparelhos do admin, às 21:00 BRT. */
+  resumoDiario: boolean;
+  /** Salas criadas por hora por endereço de internet (protege o plano gratuito). */
+  limiteSalasPorHora: number;
+}
+
+export const AUTOMACAO_PADRAO: Automacao = { lobbyParadoHoras: 12, fimParadoHoras: 2, resumoDiario: true, limiteSalasPorHora: 30 };
+
+export interface Manutencao {
+  ativa: boolean;
+  mensagem: string;
+  desde: number | null;
+}
+
+export interface RodadaAutomacao {
+  quando: number;
+  verificadas: number;
+  sumidas: string[];
+  encerradas: { code: string; motivo: string }[];
+}
+
+export interface SalaAberta {
+  code: string;
+  status: string;
+  assincrona: boolean;
+  conectados: number;
+  criada: number;
+  atividade: number;
+}
+
+export type Acao = {
+  quando: number;
+  acao: string;
+  alvo: string;
+  detalhe: string;
+};
 
 export interface PainelDados {
   hoje: string;
   dias: { dia: string; acessos: number; pessoas: number; salas: number; partidas: number; partidasFim: number; ranqueadas: number; avisos: number }[];
-  salasAbertas: (ResumoSala & { criada: number; atualizada: number })[];
+  salasAbertas: (ResumoSala & { criada: number; atualizada: number; atividade: number })[];
   salasRecentes: (ResumoSala & { criada: number; encerrada: number; motivo: string })[];
   acessos: (Visita & { dia: string; primeira: number; ultima: number; vezes: number })[];
   paises: { pais: string; pessoas: number }[];
   jogadores: { profileId: string; nome: string; avatar: string; primeira: number; ultima: number; dias: number; ip: string; cidade: string; aparelho: string }[];
+  /** Quem está numa sala agora (perfil → sala e se está conectado). */
+  naMesa: { perfil: string; nome: string; code: string; conectado: boolean }[];
+  auditoria: Acao[];
+  automacao: Automacao;
+  ultimaAutomacao: RodadaAutomacao | null;
+  manutencao: Manutencao;
+  avisosAdmin: number;
 }
 
 const DIAS_GUARDADOS = 90;
@@ -78,7 +131,119 @@ export class PainelDO extends DurableObject<Env> {
         valor INTEGER NOT NULL,
         PRIMARY KEY (dia, nome)
       );
+      CREATE TABLE IF NOT EXISTS auditoria (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        quando INTEGER NOT NULL,
+        acao TEXT NOT NULL,
+        alvo TEXT NOT NULL,
+        detalhe TEXT NOT NULL
+      );
+      CREATE TABLE IF NOT EXISTS criacoes (
+        ip TEXT NOT NULL,
+        quando INTEGER NOT NULL
+      );
+      CREATE INDEX IF NOT EXISTS criacoes_ip ON criacoes (ip, quando);
     `);
+    // Coluna nova numa tabela que já existe em produção.
+    try {
+      this.sql.exec('ALTER TABLE salas ADD COLUMN atividade INTEGER');
+    } catch {
+      // já existe
+    }
+  }
+
+  // --- configuração e manutenção --------------------------------------------
+
+  async automacao(): Promise<Automacao> {
+    return { ...AUTOMACAO_PADRAO, ...((await this.ctx.storage.get<Partial<Automacao>>('automacao')) ?? {}) };
+  }
+
+  async salvarAutomacao(patch: Partial<Automacao>): Promise<Automacao> {
+    const nova = { ...(await this.automacao()), ...patch };
+    await this.ctx.storage.put('automacao', nova);
+    return nova;
+  }
+
+  async manutencao(): Promise<Manutencao> {
+    return (await this.ctx.storage.get<Manutencao>('manutencao')) ?? { ativa: false, mensagem: '', desde: null };
+  }
+
+  async salvarManutencao(ativa: boolean, mensagem: string): Promise<Manutencao> {
+    const m: Manutencao = { ativa, mensagem: mensagem.slice(0, 200), desde: ativa ? Date.now() : null };
+    await this.ctx.storage.put('manutencao', m);
+    return m;
+  }
+
+  /**
+   * Pode criar sala? Não em manutenção, nem acima do limite de salas por hora do mesmo endereço
+   * (`ip` já chega resumido: o endereço em si não é guardado).
+   */
+  async podeCriarSala(ip: string): Promise<{ ok: true } | { ok: false; motivo: 'manutencao' | 'limite'; mensagem: string }> {
+    const m = await this.manutencao();
+    if (m.ativa) return { ok: false, motivo: 'manutencao', mensagem: m.mensagem || 'O jogo está em manutenção. Volta daqui a pouco.' };
+    const { limiteSalasPorHora } = await this.automacao();
+    const now = Date.now();
+    if (limiteSalasPorHora > 0) {
+      const n = this.sql.exec<{ n: number }>('SELECT COUNT(*) AS n FROM criacoes WHERE ip = ? AND quando > ?', ip, now - 3_600_000).one().n;
+      if (n >= limiteSalasPorHora) {
+        await this.contar('recusadas');
+        return { ok: false, motivo: 'limite', mensagem: 'Muitas salas criadas daqui na última hora. Espera um pouco e tenta de novo.' };
+      }
+    }
+    this.sql.exec('INSERT INTO criacoes (ip, quando) VALUES (?, ?)', ip, now);
+    return { ok: true };
+  }
+
+  async assinaturasAdmin(): Promise<PushSubscriptionJSON[]> {
+    return (await this.ctx.storage.get<PushSubscriptionJSON[]>('admin:assinaturas')) ?? [];
+  }
+
+  async assinarAdmin(sub: PushSubscriptionJSON): Promise<number> {
+    const outras = (await this.assinaturasAdmin()).filter((s) => s.endpoint !== sub.endpoint);
+    const todas = [sub, ...outras].slice(0, 5);
+    await this.ctx.storage.put('admin:assinaturas', todas);
+    return todas.length;
+  }
+
+  async cancelarAdmin(endpoint: string): Promise<number> {
+    const restantes = (await this.assinaturasAdmin()).filter((s) => s.endpoint !== endpoint);
+    await this.ctx.storage.put('admin:assinaturas', restantes);
+    return restantes.length;
+  }
+
+  // --- histórico e automação ------------------------------------------------
+
+  async registrar(acao: string, alvo: string, detalhe = ''): Promise<void> {
+    this.sql.exec('INSERT INTO auditoria (quando, acao, alvo, detalhe) VALUES (?, ?, ?, ?)', Date.now(), acao.slice(0, 80), alvo.slice(0, 80), detalhe.slice(0, 300));
+  }
+
+  async salvarRodada(r: RodadaAutomacao): Promise<void> {
+    await this.ctx.storage.put('automacao:ultima', r);
+  }
+
+  /** Salas que o painel acha abertas, com a última atividade (para a automação conferir). */
+  async abertas(): Promise<SalaAberta[]> {
+    return this.sql
+      .exec<{ code: string; resumo: string; criada: number; atividade: number | null; atualizada: number }>(
+        'SELECT code, resumo, criada, atividade, atualizada FROM salas WHERE encerrada IS NULL ORDER BY COALESCE(atividade, atualizada) ASC',
+      )
+      .toArray()
+      .map((r) => {
+        const resumo = JSON.parse(r.resumo) as ResumoSala;
+        return {
+          code: r.code,
+          status: resumo.status,
+          assincrona: resumo.assincrona,
+          conectados: resumo.conectados,
+          criada: r.criada,
+          atividade: Math.max(r.atividade ?? 0, r.atualizada),
+        };
+      });
+  }
+
+  /** Alguém mexeu na sala (a sala avisa no máximo a cada poucos minutos). */
+  async atividade(code: string, at: number): Promise<void> {
+    this.sql.exec('UPDATE salas SET atividade = ? WHERE code = ? AND encerrada IS NULL', at, code);
   }
 
   async visita(v: Visita): Promise<void> {
@@ -125,6 +290,7 @@ export class PainelDO extends DurableObject<Env> {
         now,
         now,
       ).rowsWritten > 0;
+    this.sql.exec('UPDATE salas SET atividade = ? WHERE code = ?', now, resumo.code);
     if (nova) await this.contar('salas');
     else {
       // O mesmo código pode voltar depois de encerrado: reabre a linha.
@@ -176,8 +342,8 @@ export class PainelDO extends DurableObject<Env> {
       });
     }
     const salas = this.sql
-      .exec<{ resumo: string; criada: number; atualizada: number; encerrada: number | null; motivo: string | null }>(
-        `SELECT resumo, criada, atualizada, encerrada, motivo FROM salas
+      .exec<{ resumo: string; criada: number; atualizada: number; atividade: number | null; encerrada: number | null; motivo: string | null }>(
+        `SELECT resumo, criada, atualizada, atividade, encerrada, motivo FROM salas
           WHERE encerrada IS NULL OR encerrada > ? ORDER BY atualizada DESC LIMIT 200`,
         now - 7 * 86_400_000,
       )
@@ -186,7 +352,8 @@ export class PainelDO extends DurableObject<Env> {
     const salasRecentes: PainelDados['salasRecentes'] = [];
     for (const s of salas) {
       const resumo = JSON.parse(s.resumo) as ResumoSala;
-      if (s.encerrada === null) salasAbertas.push({ ...resumo, criada: s.criada, atualizada: s.atualizada });
+      if (s.encerrada === null)
+        salasAbertas.push({ ...resumo, criada: s.criada, atualizada: s.atualizada, atividade: Math.max(s.atividade ?? 0, s.atualizada) });
       else salasRecentes.push({ ...resumo, criada: s.criada, encerrada: s.encerrada, motivo: s.motivo ?? '' });
     }
     const acessos = this.sql
@@ -211,7 +378,28 @@ export class PainelDO extends DurableObject<Env> {
            FROM acessos a GROUP BY a.perfil ORDER BY ultima DESC LIMIT 500`,
       )
       .toArray();
-    return { hoje, dias, salasAbertas, salasRecentes, acessos, paises, jogadores };
+    const naMesa: PainelDados['naMesa'] = [];
+    for (const s of salasAbertas) {
+      for (const j of s.jogadores ?? []) if (j.perfil) naMesa.push({ perfil: j.perfil, nome: j.nome, code: s.code, conectado: j.conectado });
+    }
+    const auditoria = this.sql
+      .exec<Acao>('SELECT quando, acao, alvo, detalhe FROM auditoria ORDER BY id DESC LIMIT 150')
+      .toArray();
+    return {
+      hoje,
+      dias,
+      salasAbertas,
+      salasRecentes,
+      acessos,
+      paises,
+      jogadores,
+      naMesa,
+      auditoria,
+      automacao: await this.automacao(),
+      ultimaAutomacao: (await this.ctx.storage.get<RodadaAutomacao>('automacao:ultima')) ?? null,
+      manutencao: await this.manutencao(),
+      avisosAdmin: (await this.assinaturasAdmin()).length,
+    };
   }
 
   /** Acessos e salas com mais de 90 dias saem (uma vez por dia basta). */
@@ -223,6 +411,8 @@ export class PainelDO extends DurableObject<Env> {
     this.sql.exec('DELETE FROM acessos WHERE dia < ?', corte);
     this.sql.exec('DELETE FROM contadores WHERE dia < ?', corte);
     this.sql.exec('DELETE FROM salas WHERE encerrada IS NOT NULL AND encerrada < ?', now - DIAS_GUARDADOS * 86_400_000);
+    this.sql.exec('DELETE FROM criacoes WHERE quando < ?', now - 86_400_000);
+    this.sql.exec('DELETE FROM auditoria WHERE quando < ?', now - 180 * 86_400_000);
   }
 }
 

@@ -69,7 +69,8 @@ export function App() {
       .join(session.code)
       .then((ok) => {
         if (ok && useApp.getState().screen === 'home') useApp.getState().reset('lobby');
-        else if (!ok) useOnline.getState().clearError();
+        // Não deu para voltar: mostra o porquê (sala acabou, lugar perdido) em vez de largar calado.
+        else if (!ok && useOnline.getState().error && useApp.getState().screen === 'home') useApp.getState().reset('online');
       });
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 

@@ -138,6 +138,9 @@ interface OnlineState {
   kicked: boolean;
   /** Código da sala que pediu senha: a tela mostra o campo. */
   passwordFor: string | null;
+  /** Recado da administração para a sala (faixa no alto até a pessoa fechar). */
+  notice: { text: string; at: number } | null;
+  dismissNotice: () => void;
   create: (settings?: RoomUpdatePayload) => Promise<boolean>;
   join: (code: string, opts?: { useToken?: boolean; password?: string }) => Promise<boolean>;
   leave: () => void;
@@ -213,7 +216,7 @@ function openSocket(code: string): SalaSocket {
   s.on('connect', () => {
     if (useOnline.getState().status === 'reconnecting') void rejoin();
   });
-  s.on('disconnect', (reason) => {
+  s.on('disconnect', (reason, detail) => {
     if (socket !== s) return;
     if (reason === 'network') {
       if (useOnline.getState().room) useOnline.setState({ status: 'reconnecting' });
@@ -222,7 +225,7 @@ function openSocket(code: string): SalaSocket {
     if (reason === 'closed' || reason === 'left') return;
     s.removeAllListeners();
     socket = null;
-    dropToOnlineScreen(REASONS[reason] ?? 'A conexão com a sala caiu.', { keepSession: reason === 'replaced' });
+    dropToOnlineScreen(detail ?? REASONS[reason] ?? 'A conexão com a sala caiu.', { keepSession: reason === 'replaced' });
     if (reason === 'kicked') useOnline.setState({ kicked: true });
   });
   s.on('room:state', (room) => {
@@ -260,6 +263,10 @@ function openSocket(code: string): SalaSocket {
   });
   s.on('game:reaction', (r) => connection?.pushReaction({ playerId: r.playerId, reaction: r.reaction }));
   s.on('room:kicked', () => useOnline.setState({ kicked: true }));
+  s.on('room:notice', (n) => {
+    useOnline.setState({ notice: n });
+    warnRoom(`Recado da administração: ${n.text}`, 'recado');
+  });
   return s;
 }
 
@@ -304,7 +311,7 @@ function resetOnline() {
   if (useGame.getState().conn?.kind === 'online') useGame.getState().detach();
   connection = null;
   rejoinAttempt++; // uma volta ao assento ainda pendente não ressuscita a sala
-  useOnline.setState({ room: null, status: 'idle', passwordFor: null });
+  useOnline.setState({ room: null, status: 'idle', passwordFor: null, notice: null });
 }
 
 async function request<T extends object = object>(event: Parameters<SalaSocket['request']>[0], payload?: unknown): Promise<Ack<T>> {
@@ -319,6 +326,8 @@ export const useOnline = create<OnlineState>((set) => ({
   room: null,
   kicked: false,
   passwordFor: null,
+  notice: null,
+  dismissNotice: () => set({ notice: null }),
 
   create: async (settings) => {
     // Estava numa sala: sai dela antes (uma conexão por sala).
@@ -339,6 +348,8 @@ export const useOnline = create<OnlineState>((set) => ({
       const r = await s.request<JoinResult>('room:create', { ...profile(), settings: withRules });
       if (socket !== s) return false; // desistiu no meio
       if (r.ok) {
+        // A partir de agora, reconectar é voltar para esta sala (não criar outra).
+        s.retarget(roomUrl(r.code));
         saveSession(r);
         set({ status: 'online' });
         sendPresence();

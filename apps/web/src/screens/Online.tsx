@@ -1,11 +1,13 @@
 import { PASSWORD_MAX_LENGTH, ROOM_CODE_ALPHABET, ROOM_CODE_LENGTH } from '@fodinha/engine';
 import { useEffect, useState } from 'react';
+import { ProfileEditor } from '../components/setup/ProfileEditor';
 import { TuasSalas, useTuasSalas } from '../components/setup/TuasSalas';
 import { Button } from '../components/ui/Button';
 import { Panel, ScreenFrame } from '../components/ui/ScreenFrame';
 import { serverUrl } from '../lib/platform';
 import { useApp } from '../stores/app';
 import { savedSession, useOnline } from '../stores/online';
+import { useSettings } from '../stores/settings';
 
 function cleanCode(raw: string): string {
   return raw
@@ -14,6 +16,11 @@ function cleanCode(raw: string): string {
     .filter((c) => ROOM_CODE_ALPHABET.includes(c))
     .join('')
     .slice(0, ROOM_CODE_LENGTH);
+}
+
+/** Sem apelido guardado neste aparelho, a tela pede antes de criar ou entrar. */
+function pedindoNomeAoAbrir(): boolean {
+  return !useSettings.getState().name.trim();
 }
 
 export function Online({ initialCode, onCodeUsed }: { initialCode?: string; onCodeUsed?: () => void }) {
@@ -25,6 +32,14 @@ export function Online({ initialCode, onCodeUsed }: { initialCode?: string; onCo
   const session = savedSession();
   const rooms = useTuasSalas();
   const askPassword = passwordFor !== null && passwordFor === code;
+  // Sem apelido, primeiro o apelido: ninguém senta como "Jogador" (nem chegando pelo convite).
+  const nome = useSettings((s) => s.name);
+  const [pedindoNome, setPedindoNome] = useState(pedindoNomeAoAbrir);
+  /** Código do convite esperando o apelido ficar pronto (decidido uma vez, ao abrir a tela). */
+  const [convite] = useState<string | null>(() => {
+    const c = cleanCode(initialCode ?? '');
+    return pedindoNomeAoAbrir() && c.length === ROOM_CODE_LENGTH && !useOnline.getState().kicked ? c : null;
+  });
 
   // O erro fica visível até a pessoa sair desta tela (a remontagem do StrictMode não conta).
   useEffect(
@@ -43,12 +58,29 @@ export function Online({ initialCode, onCodeUsed }: { initialCode?: string; onCo
     if (!initialCode) return;
     onCodeUsed?.();
     if (cleanCode(initialCode).length === ROOM_CODE_LENGTH && !useOnline.getState().kicked) {
-      void doJoin(cleanCode(initialCode));
+      if (!convite) void doJoin(cleanCode(initialCode));
     }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <ScreenFrame title="Jogar com a gurizada">
+      {pedindoNome && (
+        <Panel title={convite ? `Antes de entrar na sala ${convite}` : 'Antes de tudo'}>
+          <ProfileEditor />
+          <Button
+            variant="ouro"
+            size="lg"
+            className="mt-3 w-full"
+            disabled={[...nome.trim()].length < 1}
+            onClick={() => {
+              setPedindoNome(false);
+              if (convite) void doJoin(convite);
+            }}
+          >
+            {convite ? `Entrar na sala ${convite}` : 'Pronto'}
+          </Button>
+        </Panel>
+      )}
       {rooms && rooms.length > 0 && (
         <Panel title="Tuas salas">
           <TuasSalas rooms={rooms} busy={busy} onOpen={(c) => void doJoin(c)} />
@@ -60,7 +92,7 @@ export function Online({ initialCode, onCodeUsed }: { initialCode?: string; onCo
           variant="ouro"
           size="lg"
           className="w-full"
-          disabled={busy}
+          disabled={busy || pedindoNome}
           onClick={async () => {
             if (await create()) reset('lobby');
           }}
@@ -109,7 +141,7 @@ export function Online({ initialCode, onCodeUsed }: { initialCode?: string; onCo
             type="submit"
             variant="papel"
             size="lg"
-            disabled={busy || code.length !== ROOM_CODE_LENGTH || (askPassword && !password.trim())}
+            disabled={busy || pedindoNome || code.length !== ROOM_CODE_LENGTH || (askPassword && !password.trim())}
           >
             Entrar
           </Button>

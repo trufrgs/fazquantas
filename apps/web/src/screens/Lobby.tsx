@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { RoomSettings, roomSummary } from '../components/setup/RoomSettings';
 import { RulesEditor, rulesSummary } from '../components/setup/RulesEditor';
 import { Avatar } from '../components/ui/Avatar';
+import { AdminNotice } from '../components/ui/AdminNotice';
 import { Button } from '../components/ui/Button';
 import { Segmented } from '../components/ui/Controls';
 import { Panel, ScreenFrame } from '../components/ui/ScreenFrame';
@@ -242,6 +243,7 @@ export function Lobby() {
         </Panel>
       ) : null}
 
+      <AdminNotice fixed />
       <Sheet open={confirmLeave} onClose={() => setConfirmLeave(false)} label="Sair da sala">
         {asyncRoom ? (
           <>
