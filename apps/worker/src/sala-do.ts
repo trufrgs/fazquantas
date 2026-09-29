@@ -290,7 +290,7 @@ export class SalaDO extends DurableObject<Env> {
     const antes = this.ultimoResumo ? (JSON.parse(this.ultimoResumo) as ResumoSala).status : null;
     this.ultimoResumo = json;
     const painel = painelStub(this.env);
-    const tarefas: Promise<unknown>[] = [painel.sala(resumo)];
+    const tarefas: Promise<unknown>[] = [painel.sala({ ...resumo, em: Date.now() })];
     if (antes !== null && antes !== 'playing' && resumo.status === 'playing') tarefas.push(painel.contar('partidas'));
     if (antes === 'playing' && resumo.status === 'finished') tarefas.push(painel.contar('partidas_fim'));
     this.ctx.waitUntil(Promise.all(tarefas).catch((e: unknown) => console.error('[painel]', e)));
@@ -335,7 +335,7 @@ export class SalaDO extends DurableObject<Env> {
   private encerrar(motivo: string): void {
     console.log(`[${this.code}] sala encerrada: ${motivo}`);
     this.ultimoResumo = '';
-    this.ctx.waitUntil(painelStub(this.env).salaEncerrada(this.code, motivo).catch((e: unknown) => console.error('[painel]', e)));
+    this.ctx.waitUntil(painelStub(this.env).salaEncerrada(this.code, motivo, Date.now()).catch((e: unknown) => console.error('[painel]', e)));
     this.relogio.clear();
     // Apaga tudo e deixa só a marca de que acabou, com o motivo (o link velho ouve o porquê).
     this.fimMotivo = motivo;

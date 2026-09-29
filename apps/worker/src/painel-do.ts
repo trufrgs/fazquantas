@@ -1,4 +1,5 @@
 import { DurableObject } from 'cloudflare:workers';
+import { resumoAtrasado } from './automacao-regras';
 import { brtDay } from './contas';
 import type { PushSubscriptionJSON } from './push';
 
@@ -16,6 +17,8 @@ export type Visita = {
 /** Como a sala está, para a lista do admin. */
 export interface ResumoSala {
   code: string;
+  /** Quando a sala fez este resumo (relógio dela): resumo atrasado não reabre sala encerrada. */
+  em?: number;
   status: string;
   humanos: string[];
   /** Cada pessoa sentada: perfil, se está conectada e se a mesa está jogando por ela. */
@@ -298,8 +301,10 @@ export class PainelDO extends DurableObject<Env> {
       await this.contar('salas');
     }
     else {
-      // O mesmo código pode voltar depois de encerrado: reabre a linha.
+      // O mesmo código pode voltar depois de encerrado: reabre a linha. Resumo feito antes do fim
+      // (chegou depois do "encerrada") é descartado.
       const antiga = this.sql.exec<{ encerrada: number | null }>('SELECT encerrada FROM salas WHERE code = ?', resumo.code).toArray()[0];
+      if (resumoAtrasado(resumo.em, antiga?.encerrada ?? null)) return;
       const reaberta = antiga?.encerrada != null;
       this.sql.exec(
         `UPDATE salas SET resumo = ?, atualizada = ?, encerrada = NULL, motivo = NULL${reaberta ? ', criada = ?, atividade = ?' : ''} WHERE code = ?`,
@@ -309,8 +314,9 @@ export class PainelDO extends DurableObject<Env> {
     }
   }
 
-  async salaEncerrada(code: string, motivo: string): Promise<void> {
-    this.sql.exec('UPDATE salas SET encerrada = ?, motivo = ? WHERE code = ? AND encerrada IS NULL', Date.now(), motivo.slice(0, 120), code);
+  /** A sala acabou; `quando` vem do relógio da sala (o mesmo dos resumos dela). */
+  async salaEncerrada(code: string, motivo: string, quando = Date.now()): Promise<void> {
+    this.sql.exec('UPDATE salas SET encerrada = ?, motivo = ? WHERE code = ? AND encerrada IS NULL', quando, motivo.slice(0, 120), code);
   }
 
   async dados(): Promise<PainelDados> {

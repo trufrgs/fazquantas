@@ -64,3 +64,14 @@ export function descreverAutomacao(patch: Partial<Automacao>): string {
   if (patch.resumoDiario !== undefined) partes.push(`resumo do dia: ${patch.resumoDiario ? 'sim' : 'não'}`);
   return partes.join(', ') || 'nada';
 }
+
+/**
+ * Resumo que chegou atrasado ao painel: a sala mandou o último resumo e o "encerrada" quase juntos,
+ * por conexões diferentes (sem ordem garantida). Se o resumo foi feito antes do fim (mesmo relógio,
+ * o da sala), ele não reabre a linha (reabria como sala nova "jogando", com a hora do fim como
+ * criação, e contava uma sala a mais no dia). 1 s de folga para relógios de máquinas diferentes.
+ */
+export function resumoAtrasado(resumoEm: number | undefined, encerrada: number | null): boolean {
+  if (encerrada === null || resumoEm === undefined) return false;
+  return resumoEm <= encerrada + 1000;
+}

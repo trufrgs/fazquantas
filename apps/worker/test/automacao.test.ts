@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { descreverAutomacao, motivoParaEncerrar, paraConferir } from '../src/automacao-regras';
+import { descreverAutomacao, motivoParaEncerrar, paraConferir, resumoAtrasado } from '../src/automacao-regras';
 import type { Automacao, SalaAberta } from '../src/painel-do';
 
 const cfg: Automacao = { lobbyParadoHoras: 12, fimParadoHoras: 2, resumoDiario: true, limiteSalasPorHora: 30 };
@@ -65,5 +65,18 @@ describe('automação: histórico legível', () => {
     expect(descreverAutomacao({ lobbyParadoHoras: 6, resumoDiario: false })).toBe('lobby parado: 6 h, resumo do dia: não');
     expect(descreverAutomacao({ fimParadoHoras: 0, limiteSalasPorHora: 0 })).toBe('partida terminada parada: desligado, salas por hora por endereço: sem limite');
     expect(descreverAutomacao({})).toBe('nada');
+  });
+});
+
+describe('painel: resumo atrasado não reabre sala encerrada', () => {
+  const fim = Date.parse('2026-09-29T04:21:00Z');
+  it('resumo feito antes do fim (chegou depois do "encerrada"): ignora', () => {
+    expect(resumoAtrasado(fim - 5, fim)).toBe(true);
+    expect(resumoAtrasado(fim + 500, fim)).toBe(true);
+  });
+  it('sala nova com o mesmo código, bem depois: reabre; linha aberta ou sala antiga sem carimbo: segue como antes', () => {
+    expect(resumoAtrasado(fim + 60_000, fim)).toBe(false);
+    expect(resumoAtrasado(fim, null)).toBe(false);
+    expect(resumoAtrasado(undefined, fim)).toBe(false);
   });
 });
