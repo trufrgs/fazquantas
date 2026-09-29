@@ -27,7 +27,7 @@ export function serverUrl(): string {
 /** Link de convite para uma sala. */
 export function inviteLink(code: string): string {
   // No app nativo a origem é "localhost": o convite aponta para o site.
-  const base = isNative ? (import.meta.env.VITE_SITE_URL ?? 'https://fazquantas.pages.dev') : window.location.origin;
+  const base = isNative ? (import.meta.env.VITE_SITE_URL || 'https://fazquantas.pages.dev') : window.location.origin;
   return `${base}/?sala=${code}`;
 }
 

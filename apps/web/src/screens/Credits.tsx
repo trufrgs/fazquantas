@@ -15,6 +15,27 @@ const CREDITS: { what: string; who: string; license: string; url: string }[] = [
   { what: 'Fontes Fraunces, Figtree e Caveat', who: 'Undercase Type, Erik Kennedy, Impallari Type', license: 'SIL OFL 1.1', url: 'https://fonts.google.com' },
 ];
 
+const REPO_DONO = 'trufrgs';
+const REPO = `https://github.com/${REPO_DONO}/fazquantas`;
+const LINK = 'font-semibold text-espadas underline underline-offset-2';
+
+/** Para quem quiser olhar o código, contribuir ou fazer a sua versão. */
+const ABERTO: { titulo: string; detalhe: string; url: string }[] = [
+  { titulo: 'O código no GitHub', detalhe: 'Tudo: o jogo, o servidor, os testes e a documentação.', url: REPO },
+  {
+    titulo: 'Relatar um problema ou sugerir uma ideia',
+    detalhe: 'Conta o aparelho, o navegador e o que aconteceu; print ajuda.',
+    url: `${REPO}/issues/new/choose`,
+  },
+  { titulo: 'Como contribuir', detalhe: 'Rodar no teu computador, testar e mandar um pull request.', url: `${REPO}/blob/main/CONTRIBUTING.md` },
+  {
+    titulo: 'Fazer o teu (fork)',
+    detalhe: 'Tua cópia no ar, de graça no Cloudflare, publicada sozinha pelo GitHub.',
+    url: `${REPO}/blob/main/CONTRIBUTING.md#fazer-o-teu-fork-publicado`,
+  },
+  { titulo: 'Licença MIT', detalhe: 'Pode usar, mudar e distribuir, mantendo o aviso de autoria.', url: `${REPO}/blob/main/LICENSE` },
+];
+
 export function Credits() {
   return (
     <ScreenFrame title="Créditos">
@@ -40,8 +61,30 @@ export function Credits() {
         </ul>
       </Panel>
       <Panel title="Código aberto">
-        <p className="text-sm text-tinta-2">
-          React, Motion, Tailwind CSS, zustand, howler.js, zod, Cloudflare Workers (wrangler), Capacitor, DiceBear e canvas-confetti, sob licença MIT/ISC.
+        <p>
+          O Faz quantas? tem código aberto, sob licença MIT: dá para ver como é feito, relatar problema, sugerir ideia, mandar melhoria e
+          fazer a tua própria versão. Criado por Thomas Rodrigues (
+          <a href={`https://github.com/${REPO_DONO}`} target="_blank" rel="noreferrer" className={LINK}>
+            @{REPO_DONO}
+          </a>
+          ).
+        </p>
+        <ul className="mt-3 flex flex-col divide-y divide-tinta/10">
+          {ABERTO.map((l) => (
+            <li key={l.url} className="py-2.5">
+              <a href={l.url} target="_blank" rel="noreferrer" className={LINK}>
+                {l.titulo}
+              </a>
+              <span className="block text-sm text-tinta-2">{l.detalhe}</span>
+            </li>
+          ))}
+        </ul>
+        <p className="mt-3 text-sm text-tinta-2">
+          Vai publicar a tua versão para outras pessoas? Usa outro nome e outra marca: "Faz quantas?" e o Gaudério identificam este jogo.
+        </p>
+        <p className="mt-3 text-sm text-tinta-2">
+          Feito com React, Motion, Tailwind CSS, zustand, howler.js, zod, Cloudflare Workers (wrangler), Capacitor, DiceBear e canvas-confetti, sob
+          licença MIT/ISC.
         </p>
       </Panel>
       <Panel title="Privacidade">

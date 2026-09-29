@@ -8,8 +8,11 @@
 
 Jogo de Fodinha (baralho espanhol, regra gaúcha) para jogar contra bots ou com amigos online:
 <https://fazquantas.pages.dev>. Projeto **pessoal** do Thomas (`@trufrgs`), sem relação com a
-Aegro: conta pessoal do GitHub (`trufrgs/fazquantas`, privado) e do Cloudflare
-(`conta pessoal`), e só serviços gratuitos.
+Aegro: conta pessoal do GitHub e do Cloudflare, e só serviços gratuitos.
+
+**Código aberto** ([MIT](LICENSE)): o repositório `trufrgs/fazquantas` é público. Nada de segredo,
+dado de jogador, print com dado de produção nem dado pessoal em arquivo, commit, issue ou PR.
+Contribuição, fork e publicação da própria cópia: [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Mapa
 

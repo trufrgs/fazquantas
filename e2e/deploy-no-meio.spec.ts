@@ -7,8 +7,8 @@ import { presetSettings, watchErrors } from './helpers';
 import { buildOf, buildWeb, comeBack, restartWorker, servePages } from './producao';
 
 /**
- * Deploy no meio da partida (bug de 28/09/2026: dois jogadores, cada um no seu celular,
- * perderam a partida quando o deploy saiu): o Worker reinicia duas vezes (código e segredos) e o
+ * Deploy no meio da partida (bug de 28/09/2026: dois jogadores, cada um no seu celular, perderam
+ * a partida quando o deploy saiu): o Worker reinicia duas vezes (código e segredos) e o
  * site ganha versão nova. Ninguém pode cair da mesa: reconecta, continua na partida, e a versão nova
  * só entra quando a pessoa sai da mesa.
  */

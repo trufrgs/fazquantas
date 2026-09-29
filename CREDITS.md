@@ -1,6 +1,11 @@
 # Créditos
 
-Recursos de terceiros usados no jogo, todos com licença que permite uso comercial.
+O Faz quantas? tem código aberto, sob [licença MIT](LICENSE), criado por Thomas Rodrigues
+([@trufrgs](https://github.com/trufrgs)). Para contribuir ou fazer a tua versão, veja o
+[CONTRIBUTING.md](CONTRIBUTING.md).
+
+Recursos de terceiros usados no jogo, todos com licença que permite uso comercial e redistribuição
+(seguem as licenças deles, não a MIT):
 
 | Recurso | Autor | Licença | Fonte |
 |---|---|---|---|

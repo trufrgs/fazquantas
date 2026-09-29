@@ -1,0 +1,42 @@
+name: Deu problema
+description: Algo não funcionou como devia no jogo.
+labels: [bug]
+body:
+  - type: textarea
+    id: oque
+    attributes:
+      label: O que aconteceu
+      description: E o que tu esperava que acontecesse.
+    validations:
+      required: true
+  - type: textarea
+    id: passos
+    attributes:
+      label: Como chegar lá
+      description: Os passos, do início. Se foi online, conta quantas pessoas estavam na mesa e o que cada uma fez.
+      placeholder: |
+        1. Criei uma sala com senha
+        2. Um amigo entrou pelo link
+        3. Na primeira cantada, ...
+    validations:
+      required: true
+  - type: input
+    id: aparelho
+    attributes:
+      label: Aparelho e navegador
+      placeholder: "iPhone 15, Safari (app instalado) / Android, Chrome / Windows, Edge"
+    validations:
+      required: true
+  - type: dropdown
+    id: modo
+    attributes:
+      label: Modo
+      options:
+        - Contra bots
+        - Online (com a gurizada)
+        - Os dois
+  - type: textarea
+    id: prints
+    attributes:
+      label: Prints ou vídeo
+      description: Ajudam muito. Tira dado pessoal de quem aparecer, se tiver.

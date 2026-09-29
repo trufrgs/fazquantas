@@ -1,0 +1,22 @@
+name: Ideia
+description: Uma regra, um jeito de jogar ou uma melhoria.
+labels: [ideia]
+body:
+  - type: textarea
+    id: ideia
+    attributes:
+      label: A ideia
+      description: O que tu gostaria que o jogo tivesse ou fizesse diferente.
+    validations:
+      required: true
+  - type: textarea
+    id: porque
+    attributes:
+      label: Por quê
+      description: Em que situação isso faz falta. Se for regra, como se joga na tua região.
+  - type: checkboxes
+    id: ajudar
+    attributes:
+      label: Quer ajudar a fazer?
+      options:
+        - label: Posso mandar um pull request

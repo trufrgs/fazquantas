@@ -1,8 +1,12 @@
 # Faz quantas?
 
+[![CI](https://github.com/trufrgs/fazquantas/actions/workflows/ci.yml/badge.svg)](https://github.com/trufrgs/fazquantas/actions/workflows/ci.yml)
+[![Licença MIT](https://img.shields.io/badge/licen%C3%A7a-MIT-blue.svg)](LICENSE)
+[![Jogar](https://img.shields.io/badge/jogar-fazquantas.pages.dev-e3a82b.svg)](https://fazquantas.pages.dev)
+
 A Fodinha com baralho espanhol e regra gaúcha: diz quantas faz, faz quantas disse. Dá para jogar contra
-bots no navegador ou com amigos online em <https://fazquantas.pages.dev>. É um webapp pronto para
-virar app Android e iOS com Capacitor.
+bots no navegador ou com amigos online em <https://fazquantas.pages.dev>, e instalar como app no
+computador, no Android e no iPhone, sem loja. Código aberto, sob [licença MIT](LICENSE).
 
 <p>
   <img src="docs/img/inicio.webp" alt="Tela inicial" width="250" />
@@ -88,10 +92,19 @@ Cenas de desenvolvimento para revisar o visual: `http://localhost:5173/?cena=emp
 `palpite`, `mao`, `cega`, `cega8`, `muitas`, `fimrodada`, `fimjogo`, `espectador`, `vira`) e `?galeria` com
 o baralho inteiro.
 
-## Contribuir
+## Código aberto
 
-Preparar o ambiente, rodar os testes, commits, CI e segredos: [CONTRIBUTING.md](CONTRIBUTING.md).
-Agentes de IA: [AGENTS.md](AGENTS.md).
+- **Licença:** [MIT](LICENSE) para o código e a arte feita para o jogo. Cartas, sons, avatares e
+  fontes de terceiros seguem as licenças deles (domínio público, CC0, SIL OFL), listadas em
+  [CREDITS.md](CREDITS.md).
+- **Contribuir:** problema, ideia ou pull request, do jeito que tu preferir:
+  [CONTRIBUTING.md](CONTRIBUTING.md). Quem participa segue o [código de conduta](CODE_OF_CONDUCT.md).
+  Agentes de IA: [AGENTS.md](AGENTS.md).
+- **Fazer o teu:** o fork roda inteiro no plano gratuito do Cloudflare, e a CI publica sozinha; o
+  passo a passo está em [CONTRIBUTING.md → Fazer o teu](CONTRIBUTING.md#fazer-o-teu-fork-publicado).
+  Se for publicar para outras pessoas, use outro nome e outra marca: "Faz quantas?" e o Gaudério
+  identificam este jogo.
+- **Segurança:** relate em privado, como explica o [SECURITY.md](SECURITY.md).
 
 ## Produção e apps
 

@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Como se joga a Fodinha
+    url: https://github.com/trufrgs/fazquantas/blob/main/docs/REGRAS.md
+    about: Regras, variantes e a força das cartas.
+  - name: Vulnerabilidade de segurança
+    url: https://github.com/trufrgs/fazquantas/security/advisories/new
+    about: Relate em privado, não numa issue pública.

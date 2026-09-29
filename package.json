@@ -1,6 +1,16 @@
 {
   "name": "fodinha",
   "private": true,
+  "description": "Faz quantas?: a Fodinha com baralho espanhol e regra gaúcha, contra bots ou com a gurizada online.",
+  "license": "MIT",
+  "homepage": "https://fazquantas.pages.dev",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/trufrgs/fazquantas.git"
+  },
+  "bugs": {
+    "url": "https://github.com/trufrgs/fazquantas/issues"
+  },
   "type": "module",
   "packageManager": "pnpm@9.15.0",
   "engines": {

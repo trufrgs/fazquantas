@@ -1,6 +1,10 @@
 # Verifica todo push e PR (lint, tipos e testes de unidade) e, na main, publica no Cloudflare:
 # primeiro o Worker (servidor do jogo online, com os segredos), depois o site.
 # Os testes E2E (Playwright) rodam à mão por enquanto: ver CONTRIBUTING.md.
+#
+# PR (inclusive de fork) só verifica: nunca publica nem vê segredo. Um fork publica a própria cópia
+# com os segredos e as variáveis dele (PAGES_PROJETO, SITE_URL, API_URL): ver "Fazer o teu" no
+# CONTRIBUTING.md. Sem eles, a publicação só avisa e para.
 name: CI
 
 on:
@@ -45,10 +49,14 @@ jobs:
       cancel-in-progress: false
     environment:
       name: producao
-      url: https://fazquantas.pages.dev
+      url: ${{ vars.SITE_URL || 'https://fazquantas.pages.dev' }}
     env:
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+      # Um fork troca pelas variáveis dele; sem elas, vale o Faz quantas? daqui.
+      PAGES_PROJETO: ${{ vars.PAGES_PROJETO || 'fazquantas' }}
+      SITE_URL: ${{ vars.SITE_URL || 'https://fazquantas.pages.dev' }}
+      API_URL: ${{ vars.API_URL || 'https://fazquantas-api.fancy-night-938c.workers.dev' }}
     steps:
       - name: Tem acesso ao Cloudflare?
         id: acesso
@@ -91,13 +99,17 @@ jobs:
 
       - name: Site (Cloudflare Pages)
         if: steps.acesso.outputs.ok == 'true'
+        env:
+          # O site fala com o servidor deste deploy (vazio = o padrão do código, o daqui).
+          VITE_SERVER_URL: ${{ vars.API_URL }}
+          VITE_SITE_URL: ${{ vars.SITE_URL }}
         run: |
           pnpm --filter @fodinha/web build:pages
           pnpm --filter @fodinha/worker exec wrangler pages deploy ../web/dist \
-            --project-name fazquantas --branch main --commit-hash "$GITHUB_SHA" --commit-dirty=true
+            --project-name "$PAGES_PROJETO" --branch main --commit-hash "$GITHUB_SHA" --commit-dirty=true
 
       - name: Saúde da produção
         if: steps.acesso.outputs.ok == 'true'
         run: |
-          curl -fsS https://fazquantas-api.fancy-night-938c.workers.dev/api/saude
-          curl -fsS -o /dev/null https://fazquantas.pages.dev/
+          curl -fsS "$API_URL/api/saude"
+          curl -fsS -o /dev/null "$SITE_URL/"
