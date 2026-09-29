@@ -41,7 +41,7 @@ export function App() {
   useEffect(() => setSoundEnabled(sound), [sound]);
   // O tango de fundo toca só na sala (esperando) e na mesa; nos menus, não (nem no admin).
   const naSala = screen === 'lobby' || screen === 'game';
-  useEffect(() => ligarMusica(sound && musica && naSala && !isAdminPath), [sound, musica, naSala]);
+  useEffect(() => ligarMusica(musica && naSala && !isAdminPath), [musica, naSala]);
 
   // Imagens das cartas no cache antes da primeira distribuição.
   useEffect(() => {

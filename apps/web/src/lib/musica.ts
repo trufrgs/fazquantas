@@ -2,10 +2,10 @@ import { Howl } from 'howler';
 
 /**
  * A música de fundo: um tango, baixinho, em volta da mesa ("falta um tango ou um gaiteiro no fundo",
- * o Igor, 29/09/2026). Toca na sala e na mesa (não nos menus), com o som e a música ligados, só
- * depois do primeiro toque (o celular não deixa antes), e para quando o jogo sai da frente. Entra e
- * sai de fininho. O arquivo não entra no cache do aplicativo instalado (é grande): vem do servidor
- * quando toca pela primeira vez.
+ * o Igor, 29/09/2026). Toca na sala e na mesa (não nos menus), com a música ligada (uma chave só
+ * dela, separada dos efeitos), só depois do primeiro toque (o celular não deixa antes), e para quando
+ * o jogo sai da frente. Entra e sai de fininho. O arquivo não entra no cache do aplicativo instalado
+ * (é grande): vem do servidor quando toca pela primeira vez.
  */
 
 const ARQUIVO = 'music/tango-de-manzana.mp3';

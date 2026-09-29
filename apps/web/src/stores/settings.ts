@@ -19,6 +19,7 @@ export const SPEED_MULTIPLIER: Record<Speed, number> = { calma: 0.7, normal: 1, 
 export interface SettingsState {
   name: string;
   avatar: string;
+  /** Efeitos sonoros (cartas, golpes, avisos). A música é outra chave (`musica`). */
   sound: boolean;
   haptics: boolean;
   speed: Speed;
@@ -36,7 +37,7 @@ export interface SettingsState {
   notify: boolean;
   /** Apelido guardado com PIN (o nome fica fixo e vale em outros aparelhos), ou `null`. */
   claimed: string | null;
-  /** Tango de fundo, baixinho (toca com o som ligado). */
+  /** Tango de fundo, baixinho, na sala e na mesa (independente dos efeitos). */
   musica: boolean;
   set: (patch: Partial<Omit<SettingsState, 'set'>>) => void;
 }
@@ -64,7 +65,7 @@ export const useSettings = create<SettingsState>()(
     }),
     {
       name: 'fodinha:ajustes',
-      version: 5,
+      version: 6,
       storage: createJSONStorage(() => safeStateStorage),
       // v2: o padrão das cartas iguais virou "ninguém leva"; quem estava no padrão antigo acompanha.
       migrate: (persisted, version) => {
@@ -77,6 +78,9 @@ export const useSettings = create<SettingsState>()(
         if (version < 4 && antigo) p.avatar = GAUCHO_AVATARS[Number(antigo[1]) % GAUCHO_AVATARS.length]!.id;
         // v5: o padrão virou 3 vidas perdendo 1 por erro; quem nunca mexeu nas regras acompanha.
         if (version < 5 && p.rules) p.rules = atualizarRegrasAntigas(p.rules);
+        // v6: música e efeitos viraram chaves separadas (antes o "Som" calava os dois); quem estava
+        // com o som desligado continua no silêncio.
+        if (version < 6 && p.sound === false) p.musica = false;
         return p as SettingsState;
       },
       merge: (persisted, current) => {

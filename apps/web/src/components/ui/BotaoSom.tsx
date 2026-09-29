@@ -5,9 +5,9 @@ import { IconButton } from './Button';
 import { Toggle } from './Controls';
 
 /**
- * O som no alto da sala de espera: um toque abre duas chaves, só a música (o tango) ou todo o som
- * (efeitos e música). O ícone mostra o que está valendo: tudo ligado, só os efeitos ou mudo. Na mesa
- * não tem: o menu (☰) já traz as mesmas chaves.
+ * O som no alto da sala de espera: um toque abre as duas chaves, independentes, a música (o tango) e
+ * os efeitos. O ícone mostra o que está valendo: os dois, um só ou mudo. Na mesa não tem: o menu (☰)
+ * já traz as mesmas chaves.
  */
 export function BotaoSom() {
   const sound = useSettings((s) => s.sound);
@@ -31,8 +31,8 @@ export function BotaoSom() {
       window.removeEventListener('keydown', esc);
     };
   }, [aberto]);
-  const Icone = !sound ? VolumeX : musica ? Volume2 : Volume1;
-  const estado = !sound ? 'desligado' : musica ? 'efeitos e música' : 'só efeitos';
+  const Icone = sound && musica ? Volume2 : sound || musica ? Volume1 : VolumeX;
+  const estado = sound && musica ? 'efeitos e música' : sound ? 'só efeitos' : musica ? 'só música' : 'desligado';
   return (
     <div ref={caixa} className="relative">
       <IconButton label={`Som: ${estado}`} aria-haspopup="dialog" aria-expanded={aberto} onClick={() => setAberto((a) => !a)}>
@@ -44,13 +44,8 @@ export function BotaoSom() {
           aria-label="Som"
           className="papel absolute right-0 top-full z-50 mt-2 w-64 max-w-[calc(100vw-2rem)] rounded-2xl px-4 py-1 text-tinta shadow-[0_12px_30px_rgb(0_0_0/0.45)] ring-1 ring-black/10"
         >
-          <Toggle
-            checked={sound && musica}
-            onChange={(on) => set(on ? { musica: true, sound: true } : { musica: false })}
-            label="Música"
-            description="Só o tango de fundo"
-          />
-          <Toggle checked={sound} onChange={(on) => set({ sound: on })} label="Todo o som" description="Efeitos e música" />
+          <Toggle checked={musica} onChange={(on) => set({ musica: on })} label="Música" description="O tango de fundo" />
+          <Toggle checked={sound} onChange={(on) => set({ sound: on })} label="Efeitos" description="Cartas, golpes e avisos" />
         </div>
       )}
     </div>

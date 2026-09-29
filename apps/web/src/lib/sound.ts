@@ -79,10 +79,14 @@ export function preloadSounds(): void {
   }
 }
 
+/**
+ * Liga ou desliga os efeitos (cartas, golpes, avisos). A música é outra chave (`musica.ts`): o mudo
+ * vale só para os efeitos, não para o Howler inteiro, senão calava o tango junto.
+ */
 export function setSoundEnabled(on: boolean): void {
   enabled = on;
   try {
-    Howler.mute(!on);
+    for (const h of howls.values()) h.mute(!on);
   } catch {
     /* sem áudio */
   }

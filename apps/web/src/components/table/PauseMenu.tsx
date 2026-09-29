@@ -73,7 +73,7 @@ export function PauseMenu(p: PauseMenuProps) {
             </Button>
           </div>
           <div className="mt-2 divide-y divide-tinta/10 rounded-2xl bg-tinta/5 px-4">
-            <Toggle checked={s.sound} onChange={(sound) => s.set({ sound })} label="Som" />
+            <Toggle checked={s.sound} onChange={(sound) => s.set({ sound })} label="Efeitos" description="Cartas, golpes e avisos." />
             <Toggle checked={s.musica} onChange={(musica) => s.set({ musica })} label="Música" description="O tango de fundo." />
             <Toggle checked={s.hints} onChange={(hints) => s.set({ hints })} label="Sugerir palpite e carta" description="Na tua vez, marca o palpite e a carta que o jogo faria. Vem desligado." />
             {!p.online && (
