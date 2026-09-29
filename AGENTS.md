@@ -14,6 +14,27 @@ Aegro: conta pessoal do GitHub e do Cloudflare, e só serviços gratuitos.
 dado de jogador, print com dado de produção nem dado pessoal em arquivo, commit, issue ou PR.
 Contribuição, fork e publicação da própria cópia: [CONTRIBUTING.md](CONTRIBUTING.md).
 
+## O espírito do jogo (como decidir)
+
+O jogo é uma mesa de bar do Rio Grande do Sul, não um aplicativo corporativo. Quando uma decisão de
+produto, visual, som ou texto não está escrita, decida pelo que a turma acharia divertido numa
+Fodinha de verdade, com gaita tocando e alguém tragando o palheiro. A referência é quem joga: o
+feedback do Igor (29/09/2026) virou regra — "falta um tango no fundo", "barulhinho de puxando fumo
+quando o cara demora", "o belo tem que brilhar, apagando as demais", "as animações podem ser mais
+drásticas, tá muito educadinho".
+
+- **Drástico, não educadinho.** Efeito e animação têm impacto: carta cortada voa em pedaços, pancada
+  sacode a mesa, a manilha grita. Na dúvida entre discreto e teatral, vá de teatral (e deixe o
+  "reduzir movimento" do aparelho apagar o exagero).
+- **Cor local de verdade.** Baralho espanhol autêntico, fala gaúcha, tango e gaita, palheiro, mate;
+  nada de ícone genérico ou clichê de cassino. O que aparece na mesa tem cara de galpão.
+- **Som faz parte do jogo.** Efeito para o que acontece na mesa, música de fundo baixinha e humor
+  (a tragada de quem espera), sempre com botão para desligar.
+- **Humor com a mesa, nunca contra quem joga.** Provocação de bar (o grito da manilha, a tragada
+  impaciente), sem humilhar ninguém nem atrapalhar a jogada.
+- **Sem perguntar o óbvio.** Pedido nesse espírito é para fazer inteiro: implemente, teste com os
+  cenários (`?cena=`), publique e conte o que ficou; volte só com decisão que é mesmo do dono.
+
 ## Mapa
 
 | Pasta | O quê |

@@ -22,12 +22,16 @@ import {
 const played = (v: PlayerView) => v.completedTricks.reduce((n, t) => n + t.plays.length, 0) + (v.trick?.plays.length ?? 0);
 const bids = (v: PlayerView) => v.players.filter((p) => p.bid !== null).length;
 
+/** Quando a mesa começa a "puxar fumo" esperando quem está demorando, e de quanto em quanto repete. */
+const FUMO_PRIMEIRA_MS = 9000;
+const FUMO_DEPOIS_MS = 16000;
+
 /** O som de cada golpe de "Quem mata quem", na hora em que a arma acerta (os mesmos arquivos, em outro tom). */
 const SOM_GOLPE: Record<Golpe, { id: SoundId; rate: number }> = {
   corta: { id: 'bid', rate: 1.9 },
   bate: { id: 'play', rate: 0.55 },
   fura: { id: 'bid', rate: 1.7 },
-  moedas: { id: 'made', rate: 1.5 },
+  brilha: { id: 'made', rate: 1.2 },
   vinho: { id: 'pop', rate: 0.8 },
 };
 
@@ -42,7 +46,7 @@ function somDoGolpe(g: GolpeNaMao, ritmo: number) {
   const ms = (s: number) => (s * 1000) / ritmo;
   // O espadão varre a mesa inteira de uma vez; os outros acertam uma carta de cada vez (até três).
   if (g.golpe === 'corta') play('sweep', { delayMs: ms(acertoDe(g, 0) - 0.14), rate: 1.6 });
-  const vezes = g.golpe === 'corta' || g.golpe === 'moedas' ? 1 : Math.min(g.vitimas.length, 3);
+  const vezes = g.golpe === 'corta' || g.golpe === 'brilha' ? 1 : Math.min(g.vitimas.length, 3);
   for (let i = 0; i < vezes; i++) play(som.id, { delayMs: ms(acertoDe(g, i)), rate: som.rate });
 }
 
@@ -136,4 +140,18 @@ export function useTableEffects(update: ViewUpdate | null, online = false, ritmo
     }, 1000);
     return () => window.clearInterval(id);
   }, [deadline]);
+
+  // Alguém demorando (tu também): a mesa ouve alguém tragando o palheiro ("barulhinho de puxando fumo
+  // quando o cara demora", o Igor, 29/09/2026). Três vezes no máximo por vez, e só com o jogo na frente.
+  const view = update?.view;
+  const esperando = view?.actor && (view.phase === 'bidding' || view.phase === 'playing') ? `${view.seq}:${view.actor.playerId}` : null;
+  useEffect(() => {
+    if (!esperando) return undefined;
+    const timers = [0, 1, 2].map((i) =>
+      window.setTimeout(() => {
+        if (document.visibilityState === 'visible') play('fumo');
+      }, FUMO_PRIMEIRA_MS + i * FUMO_DEPOIS_MS),
+    );
+    return () => timers.forEach((t) => window.clearTimeout(t));
+  }, [esperando]);
 }

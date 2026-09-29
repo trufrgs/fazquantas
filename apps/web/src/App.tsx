@@ -4,6 +4,7 @@ import { preloadCards } from './components/cards/Card';
 import { CardSprite } from './components/cards/sprite';
 import { GameScreen } from './components/table/GameScreen';
 import { aoAbrir } from './lib/conta';
+import { destravarMusica, ligarMusica } from './lib/musica';
 import { isNative, multiplayer } from './lib/platform';
 import { preloadSounds, setSoundEnabled } from './lib/sound';
 import { useApp } from './stores/app';
@@ -33,10 +34,13 @@ function inviteCode(): string | undefined {
 export function App() {
   const screen = useApp((s) => s.screen);
   const sound = useSettings((s) => s.sound);
+  const musica = useSettings((s) => s.musica);
   // O código do convite vale uma vez só (depois de usado, não entra de novo sozinho).
   const [code, setCode] = useState(inviteCode);
 
   useEffect(() => setSoundEnabled(sound), [sound]);
+  // O tango de fundo (fora do admin).
+  useEffect(() => ligarMusica(sound && musica && !isAdminPath), [sound, musica]);
 
   // Imagens das cartas no cache antes da primeira distribuição.
   useEffect(() => {
@@ -48,6 +52,7 @@ export function App() {
   useEffect(() => {
     const unlock = () => {
       preloadSounds();
+      destravarMusica();
       window.removeEventListener('pointerdown', unlock);
     };
     window.addEventListener('pointerdown', unlock);

@@ -36,6 +36,8 @@ export interface SettingsState {
   notify: boolean;
   /** Apelido guardado com PIN (o nome fica fixo e vale em outros aparelhos), ou `null`. */
   claimed: string | null;
+  /** Tango de fundo, baixinho (toca com o som ligado). */
+  musica: boolean;
   set: (patch: Partial<Omit<SettingsState, 'set'>>) => void;
 }
 
@@ -57,6 +59,7 @@ export const useSettings = create<SettingsState>()(
       profileKey: randomToken(16),
       notify: false,
       claimed: null,
+      musica: true,
       set: (patch) => set(patch),
     }),
     {

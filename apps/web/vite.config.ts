@@ -70,7 +70,8 @@ export default defineConfig(({ mode }) => ({
           // Sem .json: o version.json nunca vem do cache (é ele que diz se a aba ficou para trás).
           globPatterns: ['**/*.{js,css,html,svg,png,webp,woff2,mp3,wav}'],
           // Só o subconjunto latino das fontes vai para o cache offline.
-          globIgnores: ['**/*-cyrillic*', '**/*-vietnamese*', '**/*-greek*', '**/*-latin-ext*'],
+          // A música de fundo (2 MB) fica fora do cache do aplicativo: vem do servidor quando toca.
+          globIgnores: ['**/*-cyrillic*', '**/*-vietnamese*', '**/*-greek*', '**/*-latin-ext*', '**/music/**'],
           maximumFileSizeToCacheInBytes: 3 * 1024 * 1024,
           navigateFallbackDenylist: [/^\/api\//, /^\/privacidade/],
           // Tocar na notificação traz o jogo para a frente; push do servidor vira notificação.

@@ -9,6 +9,18 @@ const CREDITS: { what: string; who: string; license: string; url: string }[] = [
   },
   { what: 'Sons de cartas e de interface', who: 'Kenney (Casino Audio, Interface Sounds)', license: 'CC0', url: 'https://kenney.nl' },
   { what: 'Música de vitória (bandoneón)', who: 'Fupi, "Win Jingle"', license: 'CC0', url: 'https://opengameart.org/content/win-jingle' },
+  {
+    what: 'Tango de fundo: "Tango de Manzana"',
+    who: 'Kevin MacLeod (incompetech.com)',
+    license: 'CC BY 3.0',
+    url: 'https://commons.wikimedia.org/wiki/File:Tango_de_Manzana_(ISRC_USUAN1100404).mp3',
+  },
+  {
+    what: 'Tragada do palheiro (quando alguém demora)',
+    who: 'Sintetizada para o jogo',
+    license: 'MIT, como o jogo',
+    url: 'https://github.com/trufrgs/fazquantas/tree/main/apps/web/public/sounds',
+  },
   { what: 'Trompete de eliminação', who: '0new4y, "Game Over Trumpet SFX"', license: 'CC0', url: 'https://opengameart.org/content/game-over-trumpet-sfx' },
   { what: 'Som de palito queimado', who: 'Robin Lamb, "UI Sound Effects"', license: 'CC0', url: 'https://opengameart.org/content/ui-sound-effects-button-clicks-user-feedback-notifications' },
   { what: 'Avatares "Notionists"', who: 'Zoish, via DiceBear', license: 'CC0', url: 'https://www.dicebear.com/styles/notionists/' },

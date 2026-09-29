@@ -21,6 +21,7 @@ export function Settings() {
       <Panel title="Jogo">
         <div className="divide-y divide-tinta/10">
           <Toggle checked={s.sound} onChange={(sound) => s.set({ sound })} label="Som" />
+          <Toggle checked={s.musica} onChange={(musica) => s.set({ musica })} label="Música" description="Um tango de fundo, baixinho (toca com o som ligado)." />
           <Toggle checked={s.haptics} onChange={(haptics) => s.set({ haptics })} label="Vibração" description="Na tua vez e quando perde palito." />
           <Toggle checked={s.hints} onChange={(hints) => s.set({ hints })} label="Sugerir palpite e carta" description="Na tua vez, marca o palpite e a carta que o jogo faria. Vem desligado." />
           {multiplayer && notifyState() !== 'unsupported' && (

@@ -130,7 +130,7 @@ export const SCENES: Record<string, Scene> = {
     until: () => true,
     roteiro: { maos: [['C4', 'O4'], ['E7', 'C5'], ['C6', 'O5'], ['E3', 'O3']] },
   },
-  // O sete belo manda: derruba a golpe de moeda.
+  // O sete belo manda: brilha como ouro e apaga as outras.
   setebelo: {
     players: 4,
     seed: 5,

@@ -2,6 +2,8 @@ import { DEFAULT_TIMING, MANILHA_PAUSE_FACTOR, type CardId } from '@fodinha/engi
 import { describe, expect, it } from 'vitest';
 import {
   acertoDe,
+  impactosDoGolpe,
+  tremor,
   chaveDoGolpe,
   contextoDaRodada,
   golpeComAnimacao,
@@ -26,7 +28,7 @@ describe('quem mata quem', () => {
     expect(manilhaDe('E1', gaucha)).toEqual({ golpe: 'corta', nome: 'Espadão' });
     expect(manilhaDe('P1', gaucha)).toEqual({ golpe: 'bate', nome: 'Bastião' });
     expect(manilhaDe('E7', gaucha)).toEqual({ golpe: 'fura', nome: 'Sete de espadas' });
-    expect(manilhaDe('O7', gaucha)).toEqual({ golpe: 'moedas', nome: 'Sete belo' });
+    expect(manilhaDe('O7', gaucha)).toEqual({ golpe: 'brilha', nome: 'Sete belo' });
     expect(manilhaDe('C7', gaucha)).toBeNull();
     expect(manilhaDe('C3', gaucha)).toBeNull();
   });
@@ -44,7 +46,7 @@ describe('quem mata quem', () => {
 
   it('a mais forte vem depois: ataca a manilha que mandava (e não bate duas vezes em ninguém)', () => {
     expect(resumo(mao('C4', 'O7', 'E1', 'C6'))).toEqual([
-      'entrada:lurdes>nice:moedas',
+      'entrada:lurdes>nice:brilha',
       'entrada:lia>lurdes:corta',
       'fim:lia>thomas:corta',
     ]);
@@ -81,7 +83,7 @@ describe('quem mata quem', () => {
     expect(manilhaDe('P4', mineira)).toEqual({ golpe: 'bate', nome: 'Zap' });
     expect(manilhaDe('C7', mineira)).toEqual({ golpe: 'vinho', nome: 'Copas' });
     expect(manilhaDe('E1', mineira)).toEqual({ golpe: 'corta', nome: 'Espadilha' });
-    expect(manilhaDe('O7', mineira)).toEqual({ golpe: 'moedas', nome: 'Pica-fumo' });
+    expect(manilhaDe('O7', mineira)).toEqual({ golpe: 'brilha', nome: 'Pica-fumo' });
     expect(manilhaDe('E7', mineira)).toBeNull();
   });
 
@@ -90,7 +92,7 @@ describe('quem mata quem', () => {
     expect(manilhaDe('P7', vira)).toEqual({ golpe: 'bate', nome: 'Zap' });
     expect(manilhaDe('C7', vira)).toEqual({ golpe: 'vinho', nome: 'Copas' });
     expect(manilhaDe('E7', vira)).toEqual({ golpe: 'corta', nome: 'Espadilha' });
-    expect(manilhaDe('O7', vira)).toEqual({ golpe: 'moedas', nome: 'Pica-fumo' });
+    expect(manilhaDe('O7', vira)).toEqual({ golpe: 'brilha', nome: 'Pica-fumo' });
   });
 
   it('grito grande para quem passa a mandar; a manilha que chega depois de uma mais forte, não', () => {
@@ -110,15 +112,15 @@ describe('quem mata quem', () => {
       ]),
       ...golpesDaMao(oito('C7', ...comuns.map((c) => (c === 'O6' ? 'E4' : c))), vira, true), // o vinho
     ];
-    expect(new Set(golpes.map((g) => g.golpe))).toEqual(new Set(['corta', 'bate', 'fura', 'moedas', 'vinho']));
+    expect(new Set(golpes.map((g) => g.golpe))).toEqual(new Set(['corta', 'bate', 'fura', 'brilha', 'vinho']));
     // A mão com manilha fica mais tempo na mesa (é o tempo dos golpes).
     const naMesa = (DEFAULT_TIMING.trickPauseMs * MANILHA_PAUSE_FACTOR) / 1000;
     for (const g of golpes) {
       expect(g.vitimas).toHaveLength(7);
-      // A última vítima apanha com folga para a pancada aparecer; a última moeda (ou gota) pousa antes
+      // A última vítima apanha com folga para a pancada aparecer; a última gota de vinho pousa antes
       // de a mão sair. A reação da carta pode ficar pela metade.
       expect(acertoDe(g, 6)).toBeLessThanOrEqual(naMesa - 0.15);
-      const cadencia = g.golpe === 'moedas' || g.golpe === 'vinho' ? 2 * TEMPO_GOLPE.cadencia : 0;
+      const cadencia = g.golpe === 'vinho' ? 4 * TEMPO_GOLPE.cadencia : 0;
       expect(acertoDe(g, 6) + cadencia).toBeLessThanOrEqual(naMesa - 0.02);
     }
   });
@@ -175,5 +177,26 @@ describe('o que a mesa já mostrou', () => {
     expect(mesaMudou(mesa, 1, ate(2), false)).toBe(false);
     expect(mesaMudou(mesa, 1, ate(3), false)).toBe(true);
     expect(mesaMudou(mesa, 2, ate(2), false)).toBe(true);
+  });
+});
+
+describe('a mesa treme com as pancadas', () => {
+  it('o bastão sacode a mesa em cada vítima; a luz do belo, não', () => {
+    const [bate] = golpesDaMao(mao('P1', 'C4', 'O5', 'C6'), gaucha, true);
+    expect(impactosDoGolpe(bate!).map((i) => i.t)).toEqual([0, 1, 2].map((o) => acertoDe(bate!, o)));
+    const [luz] = golpesDaMao(mao('O7', 'C4', 'O5', 'C6'), gaucha, true);
+    expect(luz!.golpe).toBe('brilha');
+    expect(impactosDoGolpe(luz!)).toEqual([]);
+    expect(tremor([])).toBeNull();
+  });
+
+  it('os quadros do tremor andam para a frente no tempo e terminam parados', () => {
+    const [bate] = golpesDaMao(mao('P1', 'C4', 'O5', 'C6'), gaucha, true);
+    const t = tremor(impactosDoGolpe(bate!))!;
+    expect(t.times[0]).toBe(0);
+    expect(t.times.at(-1)).toBe(1);
+    for (let i = 1; i < t.times.length; i++) expect(t.times[i]!).toBeGreaterThanOrEqual(t.times[i - 1]!);
+    expect([t.x.at(-1), t.y.at(-1)]).toEqual([0, 0]);
+    expect(Math.max(...t.x.map(Math.abs))).toBeGreaterThan(0);
   });
 });

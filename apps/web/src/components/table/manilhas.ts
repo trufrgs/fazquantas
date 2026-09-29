@@ -5,10 +5,11 @@ import { card, cardName, isManilha, specialName, strength, type CardId, type Pla
  * - `corta`: o espadão (e a espadilha) varre a mesa e corta as cartas ao meio;
  * - `bate`: o bastião (e o zap) desce o bastão em cada uma;
  * - `fura`: o sete de espadas fura com a espada fina;
- * - `moedas`: o sete belo (e o pica-fumo) derruba a golpe de moeda;
+ * - `brilha`: o sete belo (e o pica-fumo) brilha como ouro e apaga as outras (a moeda atirada saiu:
+ *   "o belo tem que brilhar, apagando as demais", o Igor, 29/09/2026);
  * - `vinho`: a manilha de copas, que só existe com vira ou na regra mineira, derrama vinho.
  */
-export type Golpe = 'corta' | 'bate' | 'fura' | 'moedas' | 'vinho';
+export type Golpe = 'corta' | 'bate' | 'fura' | 'brilha' | 'vinho';
 
 export interface Manilha {
   golpe: Golpe;
@@ -26,7 +27,7 @@ export function manilhaDe(id: CardId, ctx: StrengthCtx): Manilha | null {
   if (!isManilha(c, ctx)) return null;
   const nome = specialName(c, ctx) ?? cardName(c);
   if (ctx.mode === 'gaucha' && id === 'E7') return { golpe: 'fura', nome };
-  const golpe: Golpe = c.suit === 'E' ? 'corta' : c.suit === 'P' ? 'bate' : c.suit === 'O' ? 'moedas' : 'vinho';
+  const golpe: Golpe = c.suit === 'E' ? 'corta' : c.suit === 'P' ? 'bate' : c.suit === 'O' ? 'brilha' : 'vinho';
   return { golpe, nome };
 }
 
@@ -159,18 +160,18 @@ export function golpeComAnimacao(g: GolpeNaMao, plays: readonly Play[], mesa: Me
  * O tempo dos golpes, em segundos, no ritmo normal. Todo golpe começa `inicio` depois da jogada que o
  * dispara (a carta pousar; o fim vem na mesma jogada da última carta, então também espera). `passo` é
  * o intervalo entre uma vítima e a seguinte; `acerto`, quando a arma chega nela (o bastão em 55% da
- * descida, a espada fina em 60% da estocada, a moeda e a gota de vinho no fim do voo); `reacao`,
- * quanto a carta leva para reagir; `arma`, quanto dura cada arma inteira; `cadencia`, o intervalo
- * entre as três moedas (ou gotas); `grito`, quanto o grito fica. A mão com manilha fica 2,2 s na mesa
+ * descida, a espada fina em 60% da estocada, a luz do belo quando chega nela, a gota de vinho no
+ * fim do voo); `reacao`, quanto a carta leva para reagir; `arma`, quanto dura cada arma inteira;
+ * `cadencia`, o intervalo entre as gotas de vinho; `grito`, quanto o grito fica. A mão com manilha fica 2,2 s na mesa
  * no ritmo normal (`MANILHA_PAUSE_FACTOR`; bem menos no rápido): com a mesa cheia, o intervalo encurta
  * até o `espalho`, para a última vítima apanhar antes de as cartas saírem.
  */
 export const TEMPO_GOLPE = {
   inicio: 0.3,
-  passo: { corta: 0.12, bate: 0.36, fura: 0.3, moedas: 0.27, vinho: 0.27 },
-  acerto: { corta: 0.24, bate: 0.41, fura: 0.37, moedas: 0.66, vinho: 0.66 },
-  reacao: { corta: 0.55, bate: 0.45, fura: 0.38, moedas: 0.42, vinho: 0.42 },
-  arma: { bastao: 0.75, florete: 0.62, lascas: 0.6, depoisDoCorte: 0.3 },
+  passo: { corta: 0.12, bate: 0.36, fura: 0.3, brilha: 0.12, vinho: 0.27 },
+  acerto: { corta: 0.24, bate: 0.41, fura: 0.37, brilha: 0.38, vinho: 0.66 },
+  reacao: { corta: 0.6, bate: 0.5, fura: 0.42, brilha: 0.7, vinho: 0.42 },
+  arma: { bastao: 0.75, florete: 0.62, lascas: 0.6, depoisDoCorte: 0.3, luz: 1.5 },
   cadencia: 0.1,
   espalho: 0.6,
   grito: 1.6,
@@ -189,4 +190,33 @@ export function passoDe(g: GolpeNaMao): number {
 /** Quando a arma acerta a vítima `ordem` do golpe (segundos desde a jogada que o dispara, no ritmo normal). */
 export function acertoDe(g: GolpeNaMao, ordem: number): number {
   return TEMPO_GOLPE.inicio + ordem * passoDe(g) + TEMPO_GOLPE.acerto[g.golpe];
+}
+
+/** Quanto a mesa treme em cada pancada (em 1/60 da largura da carta): o bastão sacode; a luz, não. */
+export const TREMOR: Readonly<Record<Golpe, number>> = { corta: 5, bate: 10, fura: 6, brilha: 0, vinho: 3 };
+
+/** As pancadas deste golpe: quando (segundos desde a jogada, no ritmo normal) e com que força. */
+export function impactosDoGolpe(g: GolpeNaMao): { t: number; forca: number }[] {
+  const forca = TREMOR[g.golpe];
+  return forca ? g.vitimas.map((_, i) => ({ t: acertoDe(g, i), forca })) : [];
+}
+
+/**
+ * A mesa tremendo com as pancadas: um solavanco para um lado, para o outro e de volta em cada uma.
+ * Devolve os quadros (`x`, `y` na força de cada pancada, `times` de 0 a 1) e a duração em segundos.
+ */
+export function tremor(impactos: readonly { t: number; forca: number }[]): { x: number[]; y: number[]; times: number[]; duracao: number } | null {
+  if (impactos.length === 0) return null;
+  const SOLAVANCO = [
+    [0, 0, 0],
+    [0.03, 1, 0.6],
+    [0.07, -0.8, -0.45],
+    [0.11, 0.45, 0.25],
+    [0.16, 0, 0],
+  ] as const;
+  const pontos: [number, number, number][] = [[0, 0, 0]];
+  for (const { t, forca } of impactos) for (const [dt, fx, fy] of SOLAVANCO) pontos.push([t + dt, fx * forca, fy * forca]);
+  pontos.sort((a, b) => a[0] - b[0]);
+  const duracao = pontos.at(-1)![0];
+  return { x: pontos.map((p) => p[1]), y: pontos.map((p) => p[2]), times: pontos.map((p) => p[0] / duracao), duracao };
 }

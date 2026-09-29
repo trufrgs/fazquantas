@@ -29,3 +29,5 @@
   Cache-Control: public, max-age=604800, stale-while-revalidate=31536000
 /sounds/*
   Cache-Control: public, max-age=604800, stale-while-revalidate=31536000
+/music/*
+  Cache-Control: public, max-age=604800, stale-while-revalidate=31536000

@@ -14,7 +14,9 @@ export type SoundId =
   | 'pop'
   | 'lifeLost'
   | 'eliminated'
-  | 'win';
+  | 'win'
+  /** Alguém tragando o palheiro enquanto espera quem está demorando. */
+  | 'fumo';
 
 const FILES: Record<SoundId, string[]> = {
   deal: ['deal-1.mp3', 'deal-2.mp3', 'deal-3.mp3'],
@@ -31,6 +33,7 @@ const FILES: Record<SoundId, string[]> = {
   lifeLost: ['life-lost.mp3'],
   eliminated: ['eliminated.mp3'],
   win: ['win.mp3'],
+  fumo: ['fumo.mp3'],
 };
 
 const VOLUME: Partial<Record<SoundId, number>> = {
@@ -44,6 +47,7 @@ const VOLUME: Partial<Record<SoundId, number>> = {
   click: 0.5,
   melou: 0.8,
   win: 0.8,
+  fumo: 0.7,
 };
 
 const howls = new Map<string, Howl>();
