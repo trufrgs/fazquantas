@@ -1,8 +1,9 @@
-import { Settings } from 'lucide-react';
+import { Download, Settings } from 'lucide-react';
 import { motion } from 'motion/react';
 import { useState } from 'react';
 import { Card } from '../components/cards/Card';
 import { ConfirmNewGame } from '../components/setup/ConfirmNewGame';
+import { InstalarAppSheet, mostraBotaoInstalar } from '../components/setup/InstalarApp';
 import { ApelidoGuardado } from '../components/setup/ApelidoGuardado';
 import { ProfileEditor } from '../components/setup/ProfileEditor';
 import { Avatar } from '../components/ui/Avatar';
@@ -13,6 +14,7 @@ import { resumeLocalGame, startLocalGame } from '../lib/game-actions';
 import { hasSavedGame, savedGameSummary } from '../lib/local-connection';
 import { useMedia, useUiScale } from '../lib/ui-scale';
 import { useSize } from '../components/table/useSize';
+import { useComoInstalar } from '../lib/instalar';
 import { multiplayer } from '../lib/platform';
 import { useApp } from '../stores/app';
 import { untilLabel, useTuasSalas } from '../components/setup/TuasSalas';
@@ -31,6 +33,9 @@ export function Home() {
   /** Pedindo o apelido antes de seguir; `obrigatorio`: jogar online (ninguém senta sem nome). */
   const [ask, setAsk] = useState<null | { then: () => void; obrigatorio: boolean }>(null);
   const [confirmNew, setConfirmNew] = useState(false);
+  // No navegador, o botão dourado ao lado dos ajustes chama para instalar como app.
+  const comoInstalar = useComoInstalar();
+  const [instalando, setInstalando] = useState(false);
   const saved = hasSavedGame();
   const session = multiplayer ? savedSession() : null;
   const joining = useOnline((s) => s.status === 'connecting');
@@ -87,10 +92,22 @@ export function Home() {
             {name.trim() ? `Buenas, ${name.trim()}!` : 'Buenas!'}
           </span>
         </button>
-        <IconButton label="Ajustes" onClick={() => go('settings')}>
-          <Settings size={21} />
-        </IconButton>
+        <div className="flex items-center gap-2">
+          {mostraBotaoInstalar(comoInstalar) && (
+            <IconButton
+              label="Instalar o jogo como app"
+              onClick={() => setInstalando(true)}
+              className="chamar-atencao bg-ouros! text-tinta! ring-ouros-escuro/60!"
+            >
+              <Download size={21} strokeWidth={2.4} />
+            </IconButton>
+          )}
+          <IconButton label="Ajustes" onClick={() => go('settings')}>
+            <Settings size={21} />
+          </IconButton>
+        </div>
       </header>
+      <InstalarAppSheet open={instalando} onClose={() => setInstalando(false)} />
 
       <main
         ref={mainRef}

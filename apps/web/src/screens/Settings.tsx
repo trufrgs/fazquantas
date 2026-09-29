@@ -15,7 +15,6 @@ export function Settings() {
   const go = useApp((st) => st.go);
   return (
     <ScreenFrame title="Ajustes">
-      <InstalarApp />
       <Panel title="Perfil">
         <ProfileEditor onAvatar={sincronizarAvatar} />
       </Panel>
@@ -70,6 +69,8 @@ export function Settings() {
           <ApelidoGuardado />
         </Panel>
       )}
+      {/* O destaque fica no início (botão dourado ao lado dos ajustes); aqui é o atalho. */}
+      <InstalarApp />
       <div className="grid grid-cols-2 gap-2">
         <Button variant="vidro" onClick={() => go('rules')}>
           Como jogar

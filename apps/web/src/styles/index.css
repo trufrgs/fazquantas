@@ -249,3 +249,22 @@ html.app-ios,
 html.app-ios body {
   overflow: hidden;
 }
+
+/*
+ * Botão de destaque (instalar como app, no início): um halo dourado que sai de vez em quando. Quem
+ * pediu menos movimento vê só o botão dourado.
+ */
+@keyframes chamar-atencao {
+  0%,
+  60% {
+    box-shadow: 0 0 0 0 rgb(227 168 43 / 0.65);
+  }
+  100% {
+    box-shadow: 0 0 0 14px rgb(227 168 43 / 0);
+  }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .chamar-atencao {
+    animation: chamar-atencao 2.6s ease-out infinite;
+  }
+}
