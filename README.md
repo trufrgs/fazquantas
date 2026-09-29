@@ -49,7 +49,8 @@ pnpm dev
 - **Mesa:** baralho Heraclio Fournier de 1878 (domínio público), mesa de madeira, vidas como palitos
   de fósforo que queimam, caderneta com o placar anotado à mão, reações rápidas, sons e vibração.
 - **Continua de onde parou:** a partida local é salva a cada jogada.
-- **PWA:** dá para instalar pelo navegador e jogar contra bots offline.
+- **PWA:** instala como app pelo navegador, sem loja (Ajustes → Instalar como app, no computador, Android e
+  iPhone), e joga contra bots offline.
 - Funciona no celular em pé e deitado, no tablet e no desktop: a interface cresce com a tela, e as
   cartas na testa (rodada de 1 carta) ficam grandes, na frente de cada jogador. Aceita teclado: 0–9
   palpitam, ←/→ escolhem a carta, Enter joga, Esc abre o menu.
