@@ -134,8 +134,20 @@ function Login({ onToken }: { onToken: (t: string) => void }) {
           else setErro(r?.data.mensagem ?? 'Sem conexão com o servidor.');
         }}
       >
+        {/* Usuário fixo e escondido: gerenciadores de senha (Bitwarden, Chrome) reconhecem o login e preenchem. */}
+        <input
+          type="text"
+          name="username"
+          value="admin"
+          readOnly
+          autoComplete="username"
+          tabIndex={-1}
+          aria-hidden="true"
+          className="sr-only"
+        />
         <input
           type="password"
+          name="password"
           value={senha}
           onChange={(e) => setSenha(e.target.value)}
           autoFocus
