@@ -10,6 +10,10 @@ export interface GameOverProps {
   seats: SeatInfo[];
   onAgain?: () => void;
   againLabel?: string;
+  /** Online, convidado que já pediu a revanche: o botão fica marcado. */
+  againDisabled?: boolean;
+  /** Linha embaixo do botão (quem pediu revanche, como ela começa, ou o erro). */
+  note?: string | null;
   onExit: () => void;
   /** Online, anfitrião: volta a sala para o lobby. */
   onLobby?: () => void;
@@ -59,6 +63,8 @@ export function GameOver({
   seats,
   onAgain,
   againLabel = 'Mais uma?',
+  againDisabled = false,
+  note,
   onExit,
   onLobby,
   waitingText,
@@ -192,11 +198,16 @@ export function GameOver({
           )}
           <div className="mt-4 flex flex-col gap-2">
             {onAgain ? (
-              <Button variant="ouro" size="lg" onClick={onAgain}>
+              <Button variant={againDisabled ? 'papel' : 'ouro'} size="lg" onClick={onAgain} disabled={againDisabled}>
                 {againLabel}
               </Button>
             ) : (
               waitingText && <p className="text-center text-sm text-tinta-2">{waitingText}</p>
+            )}
+            {note && (
+              <p role="status" className="text-center text-sm font-semibold text-tinta-2">
+                {note}
+              </p>
             )}
             {onLobby && (
               <Button variant="papel" onClick={onLobby}>

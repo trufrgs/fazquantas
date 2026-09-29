@@ -106,6 +106,11 @@ export interface RoomState {
   capacity: number;
   /** Série em andamento (ou a última, depois do fim); `null` no lobby antes da primeira partida. */
   series: SeriesState | null;
+  /**
+   * Depois do fim da partida: quem já pediu a revanche (ou a próxima da série). Servidores de antes
+   * de 29/09/2026 não mandam.
+   */
+  revanche?: string[];
 }
 
 export interface JoinResult {
@@ -208,6 +213,10 @@ export interface ClientToServerEvents {
   ) => void;
   'room:removeSeat': (p: { playerId: string }, ack?: (r: Ack) => void) => void;
   'room:start': (ack?: (r: Ack) => void) => void;
+  /**
+   * Depois do fim: o anfitrião puxa a revanche na hora; os outros pedem, e quando todo mundo que está
+   * olhando a mesa pediu, ela começa sozinha.
+   */
   'room:rematch': (ack?: (r: Ack) => void) => void;
   /** Anfitrião, depois do fim de jogo: volta a sala para o lobby (trocar assentos, regras). */
   'room:lobby': (ack?: (r: Ack) => void) => void;

@@ -33,6 +33,7 @@ describe('criar e entrar', () => {
       password: null,
       capacity: ROOM_CAPACITY,
       series: null,
+      revanche: [],
     });
     expect(ana.events.slice(0, 2)).toEqual(['ack:room:create', 'room:state']);
     expect(JSON.stringify(ana.states)).not.toContain(res.token);

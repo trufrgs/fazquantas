@@ -119,8 +119,9 @@ describe('série melhor de X', () => {
     expect(state.series).toMatchObject({ bestOf: 3, target: 2, champion: null });
     expect(state.series!.games).toHaveLength(1);
     expect(Object.keys(state.series!.names).sort()).toEqual(state.seats.map((s) => s.playerId).sort());
-    // Só o anfitrião puxa a próxima.
-    expect(await beto.call('room:rematch')).toMatchObject({ ok: false, error: { code: 'NOT_HOST' } });
+    // O convidado pede a próxima; com a anfitriã olhando a mesa, ela é quem puxa.
+    ok(await beto.call('room:rematch'));
+    expect((await beto.waitForState((s) => (s.revanche ?? []).length === 1)).status).toBe('finished');
 
     let games = 1;
     while (!state.series!.champion) {

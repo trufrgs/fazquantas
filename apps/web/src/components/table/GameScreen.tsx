@@ -14,7 +14,7 @@ import {
   type Suit,
 } from '@fodinha/engine';
 import { AnimatePresence, motion } from 'motion/react';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { GameConnection, SeatInfo, ViewUpdate } from '../../lib/connection';
 import { leaveTable, startLocalGame } from '../../lib/game-actions';
 import { untilLabel } from '../setup/TuasSalas';
@@ -384,6 +384,44 @@ function Table({
   const series = online ? (room?.series ?? null) : null;
   const seriesOn = !!series && series.bestOf > 1;
   const hostName = room?.seats.find((x) => x.playerId === room.hostId)?.name ?? 'o anfitrião';
+  // Pós-jogo online: qualquer um pede a revanche; o anfitrião puxa, ou ela começa sozinha quando todo
+  // mundo que está na mesa pediu.
+  const revanche = room?.revanche ?? [];
+  const pediRevanche = !!room && revanche.includes(room.youId);
+  const proximaDaSerie = seriesOn && !series!.champion;
+  const [revancheErro, setRevancheErro] = useState<string | null>(null);
+  // (A revanche remonta a mesa: o erro de um pedido não sobra para a partida seguinte.)
+  const pedirRevanche = async () => setRevancheErro(await useOnline.getState().rematch());
+  // Alguém pediu revanche: o anfitrião ouve (ele é quem puxa).
+  const pedidosAntes = useRef(revanche.length);
+  useEffect(() => {
+    if (online && revanche.length > pedidosAntes.current && isHost()) play('pop');
+    pedidosAntes.current = revanche.length;
+  }, [revanche.length, online]);
+  const nomes = (ids: readonly string[]) => ids.map((id) => room?.seats.find((x) => x.playerId === id)?.name ?? '').filter(Boolean);
+  const juntos = (ns: string[]) => (ns.length <= 1 ? (ns[0] ?? '') : `${ns.slice(0, -1).join(', ')} e ${ns.at(-1)}`);
+  const quemPediu = nomes(revanche.filter((id) => id !== room?.youId));
+  const oQue = proximaDaSerie ? 'a próxima' : 'revanche';
+  const againLabel = !online
+    ? 'Mais uma?'
+    : isHost()
+      ? proximaDaSerie
+        ? `Próxima partida (${series!.games.length + 1}ª)`
+        : seriesOn
+          ? 'Nova série'
+          : 'Revanche'
+      : pediRevanche
+        ? proximaDaSerie
+          ? 'Tu pediu a próxima'
+          : 'Tu pediu revanche'
+        : proximaDaSerie
+          ? 'Quero a próxima'
+          : 'Quero revanche';
+  const revancheNota = isHost()
+    ? quemPediu.length > 0
+      ? `${juntos(quemPediu)} ${quemPediu.length === 1 ? 'quer' : 'querem'} ${oQue}!`
+      : null
+    : `${quemPediu.length > 0 ? `${juntos(quemPediu)} também ${quemPediu.length === 1 ? 'quer' : 'querem'}. ` : ''}Começa quando ${hostName} puxar ou todo mundo na mesa pedir.`;
   const reactionFor = (id: string) => [...reactions].reverse().find((r) => r.playerId === id);
   const spectating = !!me?.eliminated && view.phase !== 'gameOver';
 
@@ -611,20 +649,11 @@ function Table({
           view={view}
           seats={seats}
           series={seriesOn ? series : null}
-          onAgain={
-            online ? (isHost() ? () => void useOnline.getState().rematch() : undefined) : startLocalGame
-          }
-          againLabel={
-            !online ? 'Mais uma?' : seriesOn && !series!.champion ? `Próxima partida (${series!.games.length + 1}ª)` : seriesOn ? 'Nova série' : 'Revanche'
-          }
+          onAgain={online ? () => void pedirRevanche() : startLocalGame}
+          againLabel={againLabel}
+          againDisabled={online && !isHost() && pediRevanche}
+          note={online ? (revancheErro ?? revancheNota) : null}
           onLobby={online && isHost() ? () => useOnline.getState().backToLobby() : undefined}
-          waitingText={
-            online
-              ? seriesOn && !series!.champion
-                ? `Esperando ${hostName} puxar a próxima partida…`
-                : `Esperando ${hostName} chamar a revanche…`
-              : undefined
-          }
           onExit={exit}
         />
       )}

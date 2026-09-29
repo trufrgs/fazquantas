@@ -213,6 +213,8 @@ export interface SalaSalva {
   expulsos?: string[];
   /** Quem criou a sala: a coroa volta para ele quando ele volta (antes de 29/09/2026: o anfitrião). */
   criadorId?: string;
+  /** Quem pediu a revanche depois do fim da partida. */
+  revanche?: string[];
 }
 
 /**
@@ -229,6 +231,8 @@ export class Sala {
   /** Prazo da coroa do anfitrião que está fora (sala ao vivo). */
   private coroaTimer: unknown = null;
   private coroaPrazo: number | null = null;
+  /** Depois do fim da partida: quem já pediu a revanche. */
+  private revanche = new Set<string>();
   private currentStatus: RoomStatus = 'lobby';
   private rules: Rules = normalizeRules(DEFAULT_RULES);
   private turnTimeoutSec: number | null = DEFAULT_TURN_TIMEOUT_SEC;
@@ -352,6 +356,7 @@ export class Sala {
       password: youId === this.hostPlayerId ? this.password : null,
       capacity: ROOM_CAPACITY,
       series: this.series,
+      revanche: [...this.revanche],
     };
   }
 
@@ -665,6 +670,10 @@ export class Sala {
 
   start(requesterId: string): void {
     this.assertHost(requesterId);
+    this.comecar();
+  }
+
+  private comecar(): void {
     if (this.currentStatus === 'playing') throw fail('GAME_IN_PROGRESS', MESSAGES.alreadyPlaying);
     if (this.seats.length < 2) throw fail('NOT_ENOUGH_PLAYERS', MESSAGES.notEnoughPlayers);
     // Do lobby sempre começa série nova; depois do fim, segue a série se ela não acabou.
@@ -673,9 +682,24 @@ export class Sala {
     this.startGame(continuing ? this.series! : newSeries(this.bestOf));
   }
 
-  /** Próxima partida com os mesmos assentos: segue a série ou começa outra. */
+  /**
+   * Próxima partida com os mesmos assentos (segue a série ou começa outra). O anfitrião puxa na hora;
+   * os outros pedem, e quando todo mundo que está olhando a mesa pediu, ela começa sozinha (sem ficar
+   * esperando o anfitrião que saiu para o WhatsApp).
+   */
   rematch(requesterId: string): void {
-    this.start(requesterId);
+    if (requesterId === this.hostPlayerId || this.currentStatus !== 'finished') {
+      this.start(requesterId);
+      return;
+    }
+    if (!this.human(requesterId)) throw fail('NOT_IN_ROOM', MESSAGES.notInRoom);
+    this.revanche.add(requesterId);
+    this.markDirty();
+    const naMesa = this.humans().filter((seat) => seat.conexao !== null && seat.visivel);
+    if (naMesa.length > 0 && naMesa.every((seat) => this.revanche.has(seat.playerId))) {
+      this.deps.logger.info(`[${this.code}] todo mundo na mesa pediu revanche: começa.`);
+      this.comecar();
+    }
   }
 
   /** Depois do fim de jogo, volta para o lobby: dá para trocar assentos, regras e chamar gente. */
@@ -684,6 +708,7 @@ export class Sala {
     if (this.currentStatus === 'playing') throw fail('GAME_IN_PROGRESS', MESSAGES.alreadyPlaying);
     if (this.currentStatus === 'lobby') return;
     this.disposeGame();
+    this.revanche.clear();
     this.currentStatus = 'lobby';
     this.touch();
   }
@@ -751,6 +776,7 @@ export class Sala {
       idleSince: this.idleSinceMs,
       expulsos: this.expulsos,
       criadorId: this.criadorId,
+      revanche: [...this.revanche],
     };
   }
 
@@ -771,6 +797,7 @@ export class Sala {
     sala.password = saved.password;
     sala.series = saved.series;
     sala.expulsos = saved.expulsos ?? [];
+    sala.revanche = new Set(saved.status === 'finished' ? (saved.revanche ?? []) : []);
     sala.seats = saved.seats.map((seat) => (seat.kind === 'bot' ? { ...seat } : { ...seat, conexao: null }));
     const now = deps.relogio.now();
     for (const conexao of conexoes) {
@@ -933,6 +960,7 @@ export class Sala {
     const [seat] = this.seats.splice(index, 1);
     if (!seat) return;
     this.lastReactionAt.delete(seat.playerId);
+    this.revanche.delete(seat.playerId);
     if (seat.kind === 'human') this.unbind(seat);
     if (seat.playerId === this.criadorId) this.criadorId = '';
     if (seat.playerId === this.hostPlayerId) this.passCrown(index);
@@ -941,6 +969,7 @@ export class Sala {
 
   private replaceWithBot(index: number, seat: HumanSeat): void {
     this.unbind(seat);
+    this.revanche.delete(seat.playerId);
     if (seat.playerId === this.criadorId) this.criadorId = '';
     if (this.partida?.ranqueada && seat.profileId) {
       this.partida.abandonos.push({ profileId: seat.profileId, name: seat.name, avatar: seat.avatar });
@@ -1069,6 +1098,7 @@ export class Sala {
     // Quem está fora da tela entra na partida com a mesa jogando por ele, até voltar.
     for (const seat of this.humans()) if (!seat.conexao && !this.isAsync) game.setAway(seat.playerId, true);
     this.series = series;
+    this.revanche.clear();
     this.partida = {
       id: `${this.code}-${randomToken(9)}`,
       ranqueada: this.ranked,

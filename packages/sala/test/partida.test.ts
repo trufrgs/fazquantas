@@ -71,11 +71,10 @@ describe('partida online', () => {
     expect(playerA.errors).toEqual([]);
     expect(playerB.errors).toEqual([]);
 
-    // Revanche: só o anfitrião, e começa na hora com os mesmos assentos.
-    expect(await beto.call('room:rematch')).toMatchObject({
-      ok: false,
-      error: { code: 'NOT_HOST' },
-    });
+    // Revanche: o convidado pede (com a anfitriã olhando a mesa, espera por ela); ela puxa, e começa
+    // na hora com os mesmos assentos.
+    ok(await beto.call('room:rematch'));
+    expect(mundo.rooms.get(a.code)!.status).toBe('finished');
     const viewsBefore = beto.views.length;
     ok(await ana.call('room:rematch'));
     await beto.waitForState((s) => s.status === 'playing', 'revanche');

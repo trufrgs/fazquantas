@@ -369,10 +369,14 @@ export class SalaServidor {
         sala.removeSeat(playerId, target.playerId);
         return;
       }
-      case 'room:start':
-      case 'room:rematch': {
+      case 'room:start': {
         const { sala, playerId } = this.membership(conexao);
         sala.start(playerId);
+        return;
+      }
+      case 'room:rematch': {
+        const { sala, playerId } = this.membership(conexao);
+        sala.rematch(playerId);
         return;
       }
       case 'room:lobby': {
