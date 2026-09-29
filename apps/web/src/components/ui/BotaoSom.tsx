@@ -5,8 +5,9 @@ import { IconButton } from './Button';
 import { Toggle } from './Controls';
 
 /**
- * O som no alto da sala e da mesa: um toque abre duas chaves, só a música (o tango) ou todo o som
- * (efeitos e música). O ícone mostra o que está valendo: tudo ligado, só os efeitos ou mudo.
+ * O som no alto da sala de espera: um toque abre duas chaves, só a música (o tango) ou todo o som
+ * (efeitos e música). O ícone mostra o que está valendo: tudo ligado, só os efeitos ou mudo. Na mesa
+ * não tem: o menu (☰) já traz as mesmas chaves.
  */
 export function BotaoSom() {
   const sound = useSettings((s) => s.sound);

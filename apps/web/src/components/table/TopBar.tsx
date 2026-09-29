@@ -1,5 +1,4 @@
 import { Menu, NotebookPen, SmilePlus } from 'lucide-react';
-import { BotaoSom } from '../ui/BotaoSom';
 import { IconButton } from '../ui/Button';
 
 export interface TopBarProps {
@@ -17,7 +16,7 @@ export interface TopBarProps {
 export function TopBar(p: TopBarProps) {
   return (
     <header
-      className="relative z-40 flex items-center justify-between gap-2 px-3"
+      className="relative z-30 flex items-center justify-between gap-2 px-3"
       style={{ paddingTop: 'calc(0.5rem + var(--safe-top))' }}
     >
       <IconButton label="Menu" onClick={p.onMenu}>
@@ -40,7 +39,6 @@ export function TopBar(p: TopBarProps) {
         <IconButton label="Caderneta" onClick={p.onScore}>
           <NotebookPen size={20} />
         </IconButton>
-        <BotaoSom />
       </div>
     </header>
   );
