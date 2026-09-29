@@ -158,19 +158,22 @@ export function golpeComAnimacao(g: GolpeNaMao, plays: readonly Play[], mesa: Me
 /**
  * O tempo dos golpes, em segundos, no ritmo normal. Todo golpe começa `inicio` depois da jogada que o
  * dispara (a carta pousar; o fim vem na mesma jogada da última carta, então também espera). `passo` é
- * o intervalo entre uma vítima e a seguinte; `acerto`, quando a arma chega nela (o bastão no fim da
- * descida, a espada fina no fim da estocada, a moeda e a gota de vinho no fim do voo); `reacao`,
- * quanto a carta leva para reagir; `cadencia`, o intervalo entre as três moedas (ou gotas). A mão fica
- * 1,3 s na mesa no ritmo normal (e bem menos no rápido): com a mesa cheia, o intervalo encurta até o
- * `espalho`, para a última vítima apanhar antes de as cartas saírem.
+ * o intervalo entre uma vítima e a seguinte; `acerto`, quando a arma chega nela (o bastão em 55% da
+ * descida, a espada fina em 60% da estocada, a moeda e a gota de vinho no fim do voo); `reacao`,
+ * quanto a carta leva para reagir; `arma`, quanto dura cada arma inteira; `cadencia`, o intervalo
+ * entre as três moedas (ou gotas); `grito`, quanto o grito fica. A mão com manilha fica 2,2 s na mesa
+ * no ritmo normal (`MANILHA_PAUSE_FACTOR`; bem menos no rápido): com a mesa cheia, o intervalo encurta
+ * até o `espalho`, para a última vítima apanhar antes de as cartas saírem.
  */
 export const TEMPO_GOLPE = {
   inicio: 0.3,
-  passo: { corta: 0.08, bate: 0.24, fura: 0.2, moedas: 0.18, vinho: 0.18 },
-  acerto: { corta: 0.16, bate: 0.275, fura: 0.25, moedas: 0.46, vinho: 0.46 },
-  reacao: { corta: 0.38, bate: 0.32, fura: 0.26, moedas: 0.3, vinho: 0.3 },
-  cadencia: 0.07,
-  espalho: 0.36,
+  passo: { corta: 0.12, bate: 0.36, fura: 0.3, moedas: 0.27, vinho: 0.27 },
+  acerto: { corta: 0.24, bate: 0.41, fura: 0.37, moedas: 0.66, vinho: 0.66 },
+  reacao: { corta: 0.55, bate: 0.45, fura: 0.38, moedas: 0.42, vinho: 0.42 },
+  arma: { bastao: 0.75, florete: 0.62, lascas: 0.6, depoisDoCorte: 0.3 },
+  cadencia: 0.1,
+  espalho: 0.6,
+  grito: 1.6,
 } as const;
 
 /** O ritmo que os golpes usam (1 = normal; o turbo é 4): só protege contra valor estranho. */

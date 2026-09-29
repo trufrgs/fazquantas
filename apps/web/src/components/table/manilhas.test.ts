@@ -1,4 +1,4 @@
-import { DEFAULT_TIMING, type CardId } from '@fodinha/engine';
+import { DEFAULT_TIMING, MANILHA_PAUSE_FACTOR, type CardId } from '@fodinha/engine';
 import { describe, expect, it } from 'vitest';
 import {
   acertoDe,
@@ -111,7 +111,8 @@ describe('quem mata quem', () => {
       ...golpesDaMao(oito('C7', ...comuns.map((c) => (c === 'O6' ? 'E4' : c))), vira, true), // o vinho
     ];
     expect(new Set(golpes.map((g) => g.golpe))).toEqual(new Set(['corta', 'bate', 'fura', 'moedas', 'vinho']));
-    const naMesa = DEFAULT_TIMING.trickPauseMs / 1000;
+    // A mão com manilha fica mais tempo na mesa (é o tempo dos golpes).
+    const naMesa = (DEFAULT_TIMING.trickPauseMs * MANILHA_PAUSE_FACTOR) / 1000;
     for (const g of golpes) {
       expect(g.vitimas).toHaveLength(7);
       // A última vítima apanha com folga para a pancada aparecer; a última moeda (ou gota) pousa antes

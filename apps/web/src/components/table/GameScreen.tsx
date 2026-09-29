@@ -39,6 +39,7 @@ import { Hand } from './Hand';
 import {
   BID_PANEL,
   BID_TIP_H,
+  cantadasTop,
   cardSizes,
   compactBidPanel,
   isCompact,
@@ -561,7 +562,7 @@ function Table({
             />
           )}
           <RoundBanner view={view} shown={banner} />
-          <CantadasBanner view={view} seatOf={seatOf} />
+          <CantadasBanner view={view} seatOf={seatOf} top={cantadasTop(geometry, reveal, view.players.filter((p) => p.inRound).length, s)} />
           <CoachTip tip={bidding ? null : tip} />
           <BidPanel
             open={bidding}
@@ -745,7 +746,16 @@ function useRoundBanner(view: PlayerView): boolean {
  * As cantadas na mesa, antes da primeira carta (o "pré-flop" da Fodinha): quanto cada um cantou e se
  * a mesa está pesada (cantaram mais que as cartas) ou leve. Fica enquanto ninguém jogou carta.
  */
-function CantadasBanner({ view, seatOf }: { view: PlayerView; seatOf: (id: string) => { avatar: string } | undefined }) {
+function CantadasBanner({
+  view,
+  seatOf,
+  top,
+}: {
+  view: PlayerView;
+  seatOf: (id: string) => { avatar: string } | undefined;
+  /** Topo da faixa na mesa (px); `null`: no terço de cima (mesa cheia, sem espaço livre embaixo). */
+  top: number | null;
+}) {
   const inRound = view.players.filter((p) => p.inRound);
   const allBid = inRound.length > 0 && inRound.every((p) => p.bid !== null);
   const beforeFirstCard =
@@ -764,7 +774,8 @@ function CantadasBanner({ view, seatOf }: { view: PlayerView; seatOf: (id: strin
       {shown && (
         <motion.div
           key={view.roundNumber}
-          className="pointer-events-none absolute inset-x-3 top-[30%] z-30 mx-auto flex max-w-md flex-col items-center"
+          className="pointer-events-none absolute inset-x-3 z-30 mx-auto flex max-w-md flex-col items-center"
+          style={{ top: top ?? '30%' }}
           initial={{ opacity: 0, y: 16, scale: 0.92 }}
           animate={{ opacity: 1, y: 0, scale: 1 }}
           exit={{ opacity: 0, y: -12, transition: { duration: 0.25 } }}
@@ -772,8 +783,8 @@ function CantadasBanner({ view, seatOf }: { view: PlayerView; seatOf: (id: strin
           role="status"
           aria-label={`As cantadas: ${inRound.map((p) => `${p.name} ${p.bid}`).join(', ')}. Cantaram ${sum} pra ${cards}.`}
         >
-          <div className="papel flex w-full flex-col items-center gap-2 rounded-3xl px-4 py-3 shadow-[0_18px_40px_rgb(0_0_0/0.55)] ring-1 ring-black/10">
-            <span className="font-display text-2xl font-bold" style={{ fontVariationSettings: '"SOFT" 100, "WONK" 1' }}>
+          <div className="papel flex w-full flex-col items-center gap-1.5 rounded-3xl px-4 py-2.5 shadow-[0_18px_40px_rgb(0_0_0/0.55)] ring-1 ring-black/10">
+            <span className="font-display text-xl font-bold" style={{ fontVariationSettings: '"SOFT" 100, "WONK" 1' }}>
               As cantadas
             </span>
             <ul className="flex flex-wrap justify-center gap-x-3 gap-y-2">

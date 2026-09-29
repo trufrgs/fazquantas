@@ -37,14 +37,15 @@ export function MySeat({ player, avatar, phase, remaining, startingLives, status
       <div className="relative">
         {isTurn && !player.eliminated && <TurnRing key={deadline ?? 0} size={40} deadline={deadline} />}
         <Avatar seed={avatar} size={40} dim={player.eliminated} />
-        {!player.eliminated && (player.isDealer || isMao) && (
-          <span className="absolute -left-2 -top-1.5">{player.isDealer ? <DealerChip size="sm" /> : <MaoChip size="sm" />}</span>
-        )}
         {phase === 'bidding' && <CantadaBubble bid={player.bid} round={round} placement="above" edge="left" />}
         <ReactionBubble reaction={reaction} placement="above" edge="left" />
       </div>
       <div className="flex min-w-0 flex-col">
-        <span className={`truncate text-sm font-bold texto-gravado transition-colors ${isTurn && !player.eliminated ? 'text-ouros' : ''}`}>{player.name}</span>
+        {/* "mão"/"pé" ao lado do nome: em cima do avatar pequeno, cobria o rosto (relato de 29/09/2026). */}
+        <span className="flex min-w-0 items-center gap-1.5">
+          <span className={`truncate text-sm font-bold texto-gravado transition-colors ${isTurn && !player.eliminated ? 'text-ouros' : ''}`}>{player.name}</span>
+          {!player.eliminated && (player.isDealer || isMao) && (player.isDealer ? <DealerChip size="sm" /> : <MaoChip size="sm" />)}
+        </span>
         {player.eliminated ? (
           <span className="text-xs font-bold text-copas">fora</span>
         ) : (

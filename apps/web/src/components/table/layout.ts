@@ -66,6 +66,12 @@ function slots(
 ): Point[] | null {
   if (m <= 0) return [];
   if (m === 1) return [{ x: (L + R) / 2, y: T }];
+  if (m === 2) {
+    // Três na mesa: um de cada lado, no alto (um triângulo contigo embaixo). Lado a lado na fileira
+    // de cima, os balões e as cartas na testa se trombavam e o meio da mesa ficava vazio (29/09/2026).
+    const y = Math.max(T + box.h * 0.6, T + (B - T) * 0.3);
+    if (y <= B && R - L >= 3 * box.w) return [{ x: R, y }, { x: L, y }];
+  }
   const sideLen = Math.max(0, B - (T + box.h));
   const sideCap = Math.floor(sideLen / box.h) + 1;
   const topCap = (sides: boolean) => Math.floor((R - L - (sides ? 2 * box.w : 0)) / box.w) + 1;
@@ -524,6 +530,29 @@ function fallbackU(m: number, L: number, R: number, T: number, B: number): Point
     if (d <= side + top) return { x: R - (d - side), y: T };
     return { x: L, y: T + (d - side - top) };
   });
+}
+
+/**
+ * Onde a faixa "As cantadas" fica (o topo dela, em px na mesa): no espaço livre abaixo dos assentos e
+ * das cartas na testa, se ela couber ali; `null` quando não cabe (mesa cheia: fica no terço de cima,
+ * por cima de quem estiver ali, que é inevitável). Numa mesa de três, ela ficava em cima das cartas
+ * com meia mesa vazia embaixo (29/09/2026).
+ */
+export function cantadasTop(
+  g: TableGeometry,
+  reveal: { spots: ReadonlyMap<string, Point>; cardWidth: number } | null,
+  players: number,
+  s = 1,
+): number | null {
+  const embaixo = [...g.seats.values()].filter((p) => p.y < g.height).map((p) => p.y + g.seatBox.h / 2);
+  if (reveal) embaixo.push(...[...reveal.spots.values()].map((p) => p.y + (reveal.cardWidth * CARD_RATIO) / 2));
+  const baixo = Math.max(0, ...embaixo);
+  // Altura da faixa: título, uma linha a cada três jogadores (em tela estreita) e o recado embaixo.
+  const largura = Math.min(g.width - 24 * s, 448 * s);
+  const porLinha = Math.max(1, Math.floor((largura - 32 * s) / (110 * s)));
+  const altura = (86 + Math.ceil(players / porLinha) * 34) * s;
+  const livre = g.height - baixo;
+  return livre >= altura + 8 * s ? baixo + (livre - altura) / 2 : null;
 }
 
 /** Rotação levemente "jogada" de cada carta na vaza, estável por id. */

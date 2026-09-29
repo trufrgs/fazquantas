@@ -1,5 +1,7 @@
 import { decideBot, type BotDifficulty } from './bots';
-import { applyAction, createGame, currentActor, legalBids } from './game';
+import { card } from './cards';
+import { applyAction, createGame, currentActor, legalBids, strengthCtx } from './game';
+import { isManilha } from './hierarchy';
 import { createRng, type Rng } from './rng';
 import type { Rules } from './rules';
 import type { Action, ApplyResult, GameState, PlayerAction } from './types';
@@ -53,6 +55,12 @@ export interface HostTiming {
   /** Jogada automática de quem está desconectado. */
   awayActMs: number;
 }
+
+/**
+ * A mão com manilha fica mais tempo na mesa (a pausa vezes este fator): é quando a manilha ataca as
+ * cartas que ganhou ("Quem mata quem"), e o golpe precisa de tempo para ser visto.
+ */
+export const MANILHA_PAUSE_FACTOR = 1.7;
 
 export const DEFAULT_TIMING: Readonly<HostTiming> = Object.freeze({
   botThinkMs: [650, 1250] as [number, number],
@@ -372,7 +380,9 @@ export class GameHost {
     const s = this.current;
     if (s.phase === 'gameOver') return;
     if (s.phase === 'trickEnd') {
-      this.after(this.scaled(this.timing.trickPauseMs + extraMs), () => this.advance());
+      const ctx = strengthCtx(s);
+      const comManilha = s.round.completedTricks.at(-1)?.plays.some((p) => isManilha(card(p.cardId), ctx)) ?? false;
+      this.after(this.scaled(this.timing.trickPauseMs * (comManilha ? MANILHA_PAUSE_FACTOR : 1) + extraMs), () => this.advance());
       return;
     }
     if (s.phase === 'roundEnd') {

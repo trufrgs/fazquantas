@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { CARD_RATIO } from '../cards/Card';
 import {
   BID_PANEL,
+  cantadasTop,
   cardSizes,
   compactBidPanel,
   isCompact,
@@ -178,5 +179,28 @@ describe('cartas à mostra e cartas da vaza', () => {
     const desk = cardSizes(1436, 809, 4, 1.26);
     expect(desk.hand).toBeGreaterThan(phone.hand * 1.4);
     expect(desk.trick).toBeGreaterThan(phone.trick * 1.6);
+  });
+});
+
+describe('mesa de três e a faixa das cantadas', () => {
+  it('três na mesa: um de cada lado, no alto (um triângulo contigo embaixo)', () => {
+    for (const t of SCREENS.filter((x) => x.h >= 400)) {
+      const g = tableGeometry(t.w, t.h, ['p0', 'p1', 'p2'], 'p0', 48, SEAT_BOX.normal);
+      const [direita, esquerda] = [g.seats.get('p1')!, g.seats.get('p2')!];
+      expect(direita.x).toBeGreaterThan(t.w * 0.7);
+      expect(esquerda.x).toBeLessThan(t.w * 0.3);
+      expect(direita.y).toBe(esquerda.y);
+      expect(direita.y).toBeGreaterThan(62);
+    }
+  });
+
+  it('as cantadas ficam no espaço livre embaixo dos assentos quando cabem; na mesa cheia, no terço de cima', () => {
+    const tres = tableGeometry(390, 608, ['p0', 'p1', 'p2'], 'p0', 48, SEAT_BOX.normal);
+    const topo = cantadasTop(tres, null, 3);
+    const baixoDosAssentos = Math.max(...[...tres.seats.values()].filter((p) => p.y < tres.height).map((p) => p.y + tres.seatBox.h / 2));
+    expect(topo).not.toBeNull();
+    expect(topo!).toBeGreaterThan(baixoDosAssentos);
+    const oito = Array.from({ length: 8 }, (_, i) => `p${i}`);
+    expect(cantadasTop(tableGeometry(360, 430, oito, 'p0', 40, SEAT_BOX.compact), null, 8)).toBeNull();
   });
 });

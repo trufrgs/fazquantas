@@ -64,7 +64,7 @@ function Espada({ alvos, cortes, cw, atraso, ritmo }: { alvos: Point[]; cortes: 
     ...alvos.map((p, i) => pose(p, -26 + (n > 1 ? (10 * i) / (n - 1) : 5))),
     pose({ x: ultimo.x + cw * 1.2, y: ultimo.y + cw * 0.5 }, 12),
   ];
-  const total = cortes[n - 1]! + 0.18;
+  const total = cortes[n - 1]! + TEMPO_GOLPE.arma.depoisDoCorte;
   // Acelera até o primeiro corte, passa reto pelas vítimas e freia depois do último.
   const ease: Easing[] = ['easeIn', ...cortes.slice(1).map((): Easing => 'linear'), 'easeOut'];
   return (
@@ -106,7 +106,7 @@ function Bastao({ alvo, cw, atraso, ritmo }: { alvo: Point; cw: number; atraso: 
       style={{ left: alvo.x + cw * 0.06, top: alvo.y - h * 0.96, transformOrigin: '50% 100%' }}
       initial={{ opacity: 0, rotate: 58, x: cw * 0.13, y: -cw * 0.1 }}
       animate={{ opacity: [0, 1, 1, 1, 0], rotate: [58, 58, -8, -4, 10], x: [cw * 0.13, cw * 0.13, -cw * 0.13, -cw * 0.13, -cw * 0.13], y: [-cw * 0.1, -cw * 0.1, cw * 0.48, cw * 0.42, cw * 0.29] }}
-      transition={{ duration: 0.5 / ritmo, delay: atraso / ritmo, times: [0, 0.3, 0.55, 0.8, 1], ease: porTrecho([0.55, 0, 0.9, 0.45], 5) }}
+      transition={{ duration: TEMPO_GOLPE.arma.bastao / ritmo, delay: atraso / ritmo, times: [0, 0.3, 0.55, 0.8, 1], ease: porTrecho([0.55, 0, 0.9, 0.45], 5) }}
       aria-hidden="true"
     >
       <path d="M10 94 C8 74 6 44 7 24 C7 11 10 3 13 2 C17 3 20 11 19 24 C20 44 18 74 16 94 Z" fill="#5e8f3a" stroke="#2f5220" strokeWidth="1.3" />
@@ -133,7 +133,7 @@ function Florete({ de, alvo, cw, atraso, ritmo }: { de: Point; alvo: Point; cw: 
         className="block"
         initial={{ opacity: 0, x: volta }}
         animate={{ opacity: [0, 1, 1, 1, 0], x: [volta, volta + cw * 0.06, ida, ida - cw * 0.06, volta + cw * 0.06] }}
-        transition={{ duration: 0.42 / ritmo, delay: atraso / ritmo, times: [0, 0.35, 0.6, 0.75, 1], ease: porTrecho([0.7, 0, 0.3, 1], 5) }}
+        transition={{ duration: TEMPO_GOLPE.arma.florete / ritmo, delay: atraso / ritmo, times: [0, 0.35, 0.6, 0.75, 1], ease: porTrecho([0.7, 0, 0.3, 1], 5) }}
       >
         <rect x="0" y="3.5" width="14" height="3" rx="1.5" fill="#7a4a2a" />
         <rect x="13" y="0" width="4" height="10" rx="1.5" fill="#c9a24a" />
@@ -190,7 +190,7 @@ function Lascas({ alvo, cw, atraso, ritmo, quantas }: { alvo: Point; cw: number;
             style={{ left: alvo.x - 3, top: alvo.y - cw * 0.48, width: 6, height: 4, background: i % 2 ? '#8a5733' : '#c99a5c' }}
             initial={{ opacity: 0 }}
             animate={{ opacity: [1, 0], x: [0, Math.cos(ang) * cw * 0.74], y: [0, Math.sin(ang) * cw * 0.48 - 8], rotate: [0, i * 70] }}
-            transition={{ duration: 0.48 / ritmo, delay: atraso / ritmo, ease: [0.2, 0.8, 0.4, 1] }}
+            transition={{ duration: TEMPO_GOLPE.arma.lascas / ritmo, delay: atraso / ritmo, ease: [0.2, 0.8, 0.4, 1] }}
             aria-hidden="true"
           />
         );
@@ -416,7 +416,7 @@ export function CartaAtingida({ id, cw, golpe, manilha, acerto, ritmo }: { id: C
 export function GritoManilha({ nome, x, y, pequeno = false, ritmo = 1 }: { nome: string; x: number; y: number; pequeno?: boolean; ritmo?: number }) {
   const reduce = useReducedMotion();
   const POUSO = 0.18;
-  const DURA = 1.1;
+  const DURA = TEMPO_GOLPE.grito;
   return (
     <motion.span
       aria-hidden="true"

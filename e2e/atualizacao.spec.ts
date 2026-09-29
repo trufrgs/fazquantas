@@ -65,3 +65,40 @@ test('aba aberta passa sozinha para a versão nova; no meio da partida espera sa
   await page.getByRole('button', { name: 'Sair', exact: true }).click();
   await expect.poll(() => buildOf(page), { timeout: 60_000 }).toBe('versao-c');
 });
+
+test('versão velha aberta pelo convite vai para a nova antes de sentar na sala', async ({ browser }) => {
+  test.setTimeout(300_000);
+  build('versao-d');
+  // A anfitriã cria a sala na versão D.
+  const anfitria = await browser.newContext();
+  const ana = await anfitria.newPage();
+  await presetSettings(ana, { name: 'Ana' });
+  await ana.goto(BASE);
+  await ana.getByRole('button', { name: 'Jogar com a gurizada' }).click();
+  await ana.getByRole('button', { name: 'Criar sala' }).click();
+  const rotulo = await ana.locator('div[aria-label^="Código "]').getAttribute('aria-label');
+  const code = rotulo!.replace('Código ', '').replace(/ /g, '');
+
+  // O convidado já tinha aberto o jogo (o service worker guardou a D) e fechou.
+  const convidado = await browser.newContext();
+  const antes = await convidado.newPage();
+  await presetSettings(antes, { name: 'Beto' });
+  await antes.goto(BASE);
+  await expect.poll(() => antes.evaluate(() => navigator.serviceWorker.controller !== null), { timeout: 30_000 }).toBe(true);
+  await antes.close();
+
+  // Publica a E e o convidado abre o convite: a D (do cache) confere a versão e recarrega antes de sentar.
+  build('versao-e');
+  const beto = await convidado.newPage();
+  await presetSettings(beto, { name: 'Beto' });
+  const eventos: string[] = [];
+  beto.on('websocket', () => eventos.push('sala'));
+  beto.on('load', () => eventos.push('carregou'));
+  await beto.goto(`${BASE}/?sala=${code}`);
+  await expect(ana.getByText('Beto')).toBeVisible({ timeout: 60_000 });
+  expect(await buildOf(beto)).toBe('versao-e');
+  // Carregou a D, recarregou na E e só então abriu a conexão com a sala.
+  expect(eventos.slice(0, 3)).toEqual(['carregou', 'carregou', 'sala']);
+  await anfitria.close();
+  await convidado.close();
+});

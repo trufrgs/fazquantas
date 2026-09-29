@@ -13,6 +13,7 @@ import { create } from 'zustand';
 import type { GameConnection, ReactionEvent, SeatInfo, ViewUpdate } from '../lib/connection';
 import { syncPush, warnRoom } from '../lib/avisos';
 import { apelidoRecusado } from '../lib/conta';
+import { versaoConferida } from '../lib/versao';
 import { serverUrl } from '../lib/platform';
 import { SalaSocket, type DisconnectReason } from '../lib/sala-socket';
 import { forgetRoom, knownRoom, rememberRoom } from '../lib/minhas-salas';
@@ -515,6 +516,8 @@ export const useOnline = create<OnlineState>((set) => ({
     }
     limparSubstituida();
     set({ status: 'connecting', error: null, kicked: false, passwordFor: null, voltando: null });
+    // Versão velha aberta agora: vai para a nova antes de sentar (recarrega aqui mesmo).
+    await versaoConferida();
     const withRules: RoomUpdatePayload = { rules: useSettings.getState().rules, ...settings };
     for (let attempt = 1; attempt <= CREATE_ATTEMPTS; attempt++) {
       const s = openSocket('nova');
@@ -542,6 +545,8 @@ export const useOnline = create<OnlineState>((set) => ({
     const code = rawCode.trim().toUpperCase();
     const useToken = opts.useToken ?? true;
     set({ status: 'connecting', error: null, kicked: false, voltando: null });
+    // Versão velha aberta agora (pelo convite, pela sala salva): vai para a nova antes de sentar.
+    await versaoConferida();
     // Entrar de propósito devolve o lugar a esta aba, mesmo que outra tenha assumido antes.
     if (!opts.auto) limparSubstituida();
     // Estava em outra sala: sai dela antes (uma conexão por sala).

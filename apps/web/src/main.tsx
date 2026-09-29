@@ -5,11 +5,14 @@ import { isNative } from './lib/platform';
 import { startAltura } from './lib/altura';
 import { startInstalar } from './lib/instalar';
 import { startUiScale } from './lib/ui-scale';
+import { conferirVersaoAoAbrir } from './lib/versao';
 import './styles/index.css';
 
 // PWA: instala e deixa jogar contra bots offline (só no build web de produção); versão nova
 // entra sozinha (ver lib/atualizacao.ts).
 if (import.meta.env.PROD && !isNative) {
+  // Antes de sentar em qualquer sala (convite, sala salva), a versão velha vai para a nova.
+  conferirVersaoAoAbrir();
   void Promise.all([import('virtual:pwa-register'), import('./lib/atualizacao')]).then(([{ registerSW }, { startUpdates }]) =>
     startUpdates(registerSW),
   );
