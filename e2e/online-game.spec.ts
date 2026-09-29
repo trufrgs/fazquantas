@@ -37,7 +37,11 @@ test('partida online: anfitriã + convidado pelo link + bot, até o fim e de vol
   const overB = beto.getByRole('dialog', { name: 'Fim de jogo' });
   await expect(overA.getByRole('listitem')).toHaveCount(3);
   await expect(overA.getByRole('button', { name: 'Revanche' })).toBeVisible();
-  await expect(overB.getByText(/Esperando Ana chamar a revanche/)).toBeVisible();
+  // O convidado pede a revanche; a Ana vê o pedido (com ela olhando a mesa, a revanche espera por ela).
+  await overB.getByRole('button', { name: 'Quero revanche' }).click();
+  await expect(overB.getByRole('button', { name: 'Tu pediu revanche' })).toBeDisabled();
+  await expect(overB.getByText(/Começa quando Ana puxar/)).toBeVisible();
+  await expect(overA.getByText(/Beto quer revanche!/)).toBeVisible();
 
   // Ana volta todo mundo para a sala.
   await overA.getByRole('button', { name: 'Voltar pra sala' }).click();

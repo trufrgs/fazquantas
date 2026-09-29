@@ -656,6 +656,7 @@ function Table({
           againDisabled={online && !isHost() && pediRevanche}
           note={online ? (revancheErro ?? revancheNota) : null}
           onLobby={online && isHost() ? () => useOnline.getState().backToLobby() : undefined}
+          exitLabel={online ? 'Sair da sala' : 'Voltar ao início'}
           onExit={exit}
         />
       )}

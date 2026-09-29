@@ -104,7 +104,7 @@ test('três amigos: senha, série melhor de 3 valendo ranking, recarregar no mei
     await expect(over.getByLabel('Placar da série')).toBeVisible();
     const next = over.getByRole('button', { name: /Próxima partida/ });
     if (await next.isVisible()) {
-      await expect(beto.page.getByText(/Esperando Ana puxar a próxima partida/)).toBeVisible();
+      await expect(beto.page.getByRole('button', { name: 'Quero a próxima' })).toBeVisible();
       await next.click();
       for (const p of pages) await expect(p.getByRole('dialog', { name: 'Fim de jogo' })).toBeHidden();
       continue;

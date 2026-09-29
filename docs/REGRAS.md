@@ -16,8 +16,8 @@ status: active
 
 ## Objetivo
 
-Acertar, a cada rodada, **exatamente** quantas mãos tu vai fazer. Quem erra perde vidas (palitos).
-Vence quem sobrar por último.
+Acertar, a cada rodada, **exatamente** quantas mãos tu vai fazer. Quem erra perde vidas (palitos):
+por padrão, cada um começa com 3 e quem erra perde 1. Vence quem sobrar por último.
 
 ## Baralho e força das cartas
 
@@ -31,7 +31,7 @@ espadas e paus. Não é preciso seguir naipe: vence a carta mais forte.
 | 1 | 1 de espadas | Espadão |
 | 2 | 1 de paus | Bastião |
 | 3 | 7 de espadas | Sete de espadas |
-| 4 | 7 de ouros | Sete de ouros (sete belo) |
+| 4 | 7 de ouros | Sete belo |
 | 5 | os quatro 3 | |
 | 6 | os quatro 2 | |
 | 7 | 1 de copas e 1 de ouros | ases falsos |
@@ -57,8 +57,10 @@ espadas) > pica-fumo (7 de ouros) > 3 > 2 > 1 > 12 > 11 > 10 > 7 > 6 > 5 > 4.
 ## A rodada
 
 1. **Cartas:** a 1ª rodada dá 1 carta a cada um; a 2ª, 2; e assim até o máximo (⌊40 ÷ vivos⌋ na
-   gaúcha; ⌊39 ÷ vivos⌋ com vira, que reserva uma carta). Depois volta a 1 ("serrote") — ou desce de volta ("pirâmide"). Quando
-   alguém é eliminado, a rodada seguinte recomeça em 1.
+   gaúcha; ⌊39 ÷ vivos⌋ com vira, que reserva uma carta). Depois volta a 1 ("subindo", o serrote) —
+   ou desce de volta ("sobe e desce", a pirâmide). Na opção "descendo", começa com o máximo e desce
+   até 1, e depois volta ao máximo. Quando alguém é eliminado, a rodada seguinte recomeça do começo
+   (1 carta, ou o máximo descendo).
 2. **Palpites:** começando pelo jogador à direita do carteador, cada um diz quantas mãos vai fazer.
    O carteador palpita por último — é o **pé** — e não pode escolher o número que faria a soma dos
    palpites bater com o número de cartas. Assim, alguém sempre erra.
@@ -67,8 +69,9 @@ espadas) > pica-fumo (7 de ouros) > 3 > 2 > 1 > 12 > 11 > 10 > 7 > 6 > 5 > 4.
 4. **Empate:** se as cartas mais fortes da mão **empardam** (mesma força), ninguém leva a mão e quem
    começou começa de novo. Variantes: as iguais se anulam e leva a maior que sobrou, ou o naipe
    desempata.
-5. **Vidas:** cada um perde a diferença entre o palpite e as mãos que fez. Chegou a 0, está fora
-   ("deu pra ti").
+5. **Vidas:** quem erra perde 1, erre por quanto errar (padrão desde 29/09/2026, a pedido de quem
+   jogou: a partida ficava comprida). Variante: perde a diferença entre o palpite e as mãos que fez.
+   Chegou a 0, está fora ("deu pra ti").
 
 ## Rodada às cegas
 
@@ -82,10 +85,11 @@ ainda empatar, é empate.
 
 ## Configurações disponíveis
 
-Hierarquia (gaúcha, com vira, mineira) · vidas (1–12) · penalidade (diferença ou 1 por erro) ·
-empate (empardar, ninguém leva, naipe desempata) · rodada às cegas (toda de 1 carta, só a primeira,
-nunca) · regra do pé (e se vale na rodada às cegas) · progressão (serrote ou pirâmide) · recomeçar
-em 1 quando alguém sai · teto de cartas · tempo por jogada no online.
+Hierarquia (gaúcha, com vira, mineira) · vidas (1–12, padrão 3) · penalidade (1 por erro, o padrão,
+ou a diferença) · empate (empardar, ninguém leva, naipe desempata) · rodada às cegas (toda de 1 carta,
+só a primeira de 1 carta da partida, nunca) · regra do pé (e se vale na rodada às cegas) · cartas por
+rodada (subindo, descendo, sobe e desce) · recomeçar do começo quando alguém sai · teto de cartas ·
+tempo por jogada no online.
 
 ## Fontes
 

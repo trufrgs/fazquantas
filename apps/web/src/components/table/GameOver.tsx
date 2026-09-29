@@ -15,9 +15,10 @@ export interface GameOverProps {
   /** Linha embaixo do botão (quem pediu revanche, como ela começa, ou o erro). */
   note?: string | null;
   onExit: () => void;
+  /** Texto do botão de sair ("Sair da sala" online; no jogo local, "Voltar ao início"). */
+  exitLabel?: string;
   /** Online, anfitrião: volta a sala para o lobby. */
   onLobby?: () => void;
-  waitingText?: string;
   /** Online, série "melhor de X" (a partida que acabou já está contada). */
   series?: SeriesState | null;
 }
@@ -66,8 +67,8 @@ export function GameOver({
   againDisabled = false,
   note,
   onExit,
+  exitLabel = 'Voltar ao início',
   onLobby,
-  waitingText,
   series,
 }: GameOverProps) {
   const result = view.result;
@@ -197,12 +198,10 @@ export function GameOver({
             </p>
           )}
           <div className="mt-4 flex flex-col gap-2">
-            {onAgain ? (
+            {onAgain && (
               <Button variant={againDisabled ? 'papel' : 'ouro'} size="lg" onClick={onAgain} disabled={againDisabled}>
                 {againLabel}
               </Button>
-            ) : (
-              waitingText && <p className="text-center text-sm text-tinta-2">{waitingText}</p>
             )}
             {note && (
               <p role="status" className="text-center text-sm font-semibold text-tinta-2">
@@ -215,7 +214,7 @@ export function GameOver({
               </Button>
             )}
             <Button variant="papel" onClick={onExit}>
-              {onLobby || waitingText ? 'Sair da sala' : 'Voltar ao início'}
+              {exitLabel}
             </Button>
           </div>
         </motion.div>
