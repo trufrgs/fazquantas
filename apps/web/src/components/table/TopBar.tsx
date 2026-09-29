@@ -1,4 +1,5 @@
 import { Menu, NotebookPen, SmilePlus } from 'lucide-react';
+import { BotaoSom } from '../ui/BotaoSom';
 import { IconButton } from '../ui/Button';
 
 export interface TopBarProps {
@@ -33,6 +34,7 @@ export function TopBar(p: TopBarProps) {
         {p.note && <span className="text-xs font-bold text-ouros">{p.note}</span>}
       </div>
       <div className="flex gap-2">
+        <BotaoSom />
         <IconButton label="Reagir" onClick={p.onReact}>
           <SmilePlus size={21} />
         </IconButton>

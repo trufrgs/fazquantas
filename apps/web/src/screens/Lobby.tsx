@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { RoomSettings, roomSummary } from '../components/setup/RoomSettings';
 import { RulesEditor, rulesSummary } from '../components/setup/RulesEditor';
 import { Avatar } from '../components/ui/Avatar';
+import { BotaoSom } from '../components/ui/BotaoSom';
 import { AdminNotice } from '../components/ui/AdminNotice';
 import { Button } from '../components/ui/Button';
 import { Segmented } from '../components/ui/Controls';
@@ -97,6 +98,8 @@ export function Lobby() {
       title="Sala"
       onBack={() => setConfirmLeave(true)}
       right={
+        <div className="flex items-center gap-2">
+        <BotaoSom />
         <Button
           variant="vidro"
           size="sm"
@@ -109,6 +112,7 @@ export function Lobby() {
         >
           Convidar
         </Button>
+        </div>
       }
       footer={
         host ? (

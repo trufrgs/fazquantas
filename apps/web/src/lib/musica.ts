@@ -2,35 +2,52 @@ import { Howl } from 'howler';
 
 /**
  * A música de fundo: um tango, baixinho, em volta da mesa ("falta um tango ou um gaiteiro no fundo",
- * o Igor, 29/09/2026). Toca com o som e a música ligados nos ajustes, só depois do primeiro toque (o
- * celular não deixa antes), e para quando o jogo sai da frente. O arquivo não entra no cache do
- * aplicativo instalado (é grande): vem do servidor quando toca pela primeira vez.
+ * o Igor, 29/09/2026). Toca na sala e na mesa (não nos menus), com o som e a música ligados, só
+ * depois do primeiro toque (o celular não deixa antes), e para quando o jogo sai da frente. Entra e
+ * sai de fininho. O arquivo não entra no cache do aplicativo instalado (é grande): vem do servidor
+ * quando toca pela primeira vez.
  */
 
 const ARQUIVO = 'music/tango-de-manzana.mp3';
 const VOLUME = 0.22;
 const ENTRADA_MS = 2000;
+const SAIDA_MS = 700;
 
 let faixa: Howl | null = null;
 let ligada = false;
 let destravada = false;
 
+function querTocar(): boolean {
+  return ligada && destravada && document.visibilityState === 'visible';
+}
+
 function howl(): Howl {
-  faixa ??= new Howl({ src: [`${import.meta.env.BASE_URL}${ARQUIVO}`], html5: true, loop: true, volume: 0 });
+  if (!faixa) {
+    const h = new Howl({ src: [`${import.meta.env.BASE_URL}${ARQUIVO}`], html5: true, loop: true, volume: 0 });
+    // Acabou de sumir: pausa (a não ser que tenha voltado a querer tocar no meio do caminho).
+    h.on('fade', () => {
+      if (!querTocar() && h.playing()) h.pause();
+    });
+    faixa = h;
+  }
   return faixa;
 }
 
+/**
+ * Entra ou sai de fininho. O Howler só termina uma subida ou descida que muda o volume de verdade
+ * (de 0 para 0 o intervalo roda para sempre e a música nunca pausava): só pede o que muda.
+ */
 function aplicar(): void {
-  const tocar = ligada && destravada && document.visibilityState === 'visible';
   try {
-    if (tocar) {
+    if (querTocar()) {
       const h = howl();
-      if (!h.playing()) {
-        h.play();
-        h.fade(0, VOLUME, ENTRADA_MS);
-      }
+      if (!h.playing()) h.play();
+      const v = h.volume();
+      if (Math.abs(v - VOLUME) > 0.01) h.fade(v, VOLUME, ENTRADA_MS);
     } else if (faixa?.playing()) {
-      faixa.pause();
+      const v = faixa.volume();
+      if (v > 0.01) faixa.fade(v, 0, SAIDA_MS);
+      else faixa.pause();
     }
   } catch {
     // sem áudio
