@@ -12,3 +12,6 @@ blob-report/
 !.env.example
 *.tsbuildinfo
 .wrangler/
+
+# Segredos locais do wrangler dev
+.dev.vars*

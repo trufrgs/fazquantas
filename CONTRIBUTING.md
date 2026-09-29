@@ -36,8 +36,11 @@ pnpm typecheck
 pnpm test
 ```
 
-É o que a CI roda em todo push e PR ([.github/workflows/ci.yml](.github/workflows/ci.yml)). Mexeu na
-interface ou no jogo online? Rode também os de ponta a ponta:
+É o que a CI roda em todo push e PR ([.github/workflows/ci.yml](.github/workflows/ci.yml)), junto
+com o [gitleaks](https://github.com/gitleaks/gitleaks) no histórico inteiro: o repositório é público,
+e nenhum segredo, senha, token ou dado pessoal pode entrar, nem num commit antigo do PR (exceções em
+`.gitleaks.toml`). Para conferir antes: `gitleaks git .`. Mexeu na interface ou no jogo online? Rode
+também os de ponta a ponta:
 
 ```bash
 pnpm exec playwright test

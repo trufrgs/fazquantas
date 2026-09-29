@@ -1,0 +1,13 @@
+# Checagem de segredos (gitleaks) da CI e local: as regras padrão, menos o que é público por definição.
+title = "Faz quantas?"
+
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "Chave pública do Web Push (vai para o navegador) e as chaves falsas dos testes"
+regexTarget = "line"
+regexes = [
+  '''VAPID_PUBLICO''',
+  '''profileKey: '[A-Za-z]+[0-9]*'[\s,})]''',
+]
