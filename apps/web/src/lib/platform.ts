@@ -31,6 +31,16 @@ export function inviteLink(code: string): string {
   return `${base}/?sala=${code}`;
 }
 
+/**
+ * O código da sala num texto colado: a mensagem do convite inteira, só o link ou só o código. No
+ * iPhone o link do convite sempre abre no Safari (a Apple não deixa abrir no app da tela de início):
+ * no app, "Colar convite" lê o que a pessoa copiou no WhatsApp.
+ */
+export function codigoDoConvite(texto: string): string | null {
+  const m = /[?&]sala=([A-Za-z0-9]{4})\b/.exec(texto) ?? /\bsala\s+([A-Za-z0-9]{4})\b/i.exec(texto) ?? /^\s*([A-Za-z0-9]{4})\s*$/.exec(texto);
+  return m ? m[1]!.toUpperCase() : null;
+}
+
 /** Compartilha pelo menu nativo (Capacitor/Web Share) ou copia para a área de transferência. */
 export async function shareInvite(code: string): Promise<'shared' | 'copied' | 'failed'> {
   const url = inviteLink(code);

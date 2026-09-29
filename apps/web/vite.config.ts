@@ -60,6 +60,10 @@ export default defineConfig(({ mode }) => ({
           background_color: '#2a1a10',
           display: 'standalone',
           orientation: 'any',
+          // O link do convite abre no app instalado onde o sistema deixa (Android e computador; no
+          // iPhone a Apple sempre abre no Safari) e reaproveita a janela que já está aberta.
+          handle_links: 'preferred',
+          launch_handler: { client_mode: ['navigate-existing', 'auto'] },
           icons: [
             { src: '/icons/icon-192.png', sizes: '192x192', type: 'image/png' },
             { src: '/icons/icon-512.png', sizes: '512x512', type: 'image/png' },

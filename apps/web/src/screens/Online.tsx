@@ -1,11 +1,12 @@
 import { PASSWORD_MAX_LENGTH, ROOM_CODE_ALPHABET, ROOM_CODE_LENGTH } from '@fodinha/engine';
+import { ClipboardPaste } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { ProfileEditor } from '../components/setup/ProfileEditor';
 import { TuasSalas, useTuasSalas } from '../components/setup/TuasSalas';
 import { Button } from '../components/ui/Button';
 import { Panel, ScreenFrame } from '../components/ui/ScreenFrame';
 import { useDonoDoApelido } from '../lib/conta';
-import { serverUrl } from '../lib/platform';
+import { codigoDoConvite, serverUrl } from '../lib/platform';
 import { useManutencao } from '../lib/status';
 import { useApp } from '../stores/app';
 import { savedSession, useOnline } from '../stores/online';
@@ -29,6 +30,10 @@ export function Online({ initialCode, onCodeUsed }: { initialCode?: string; onCo
   const { status, error, create, join, clearError, passwordFor } = useOnline();
   const reset = useApp((s) => s.reset);
   const [code, setCode] = useState(cleanCode(initialCode ?? ''));
+  // No iPhone o link do convite sempre abre no Safari, nunca no app da tela de início: no app, a
+  // pessoa copia o convite no WhatsApp e cola aqui.
+  const podeColar = typeof navigator !== 'undefined' && typeof navigator.clipboard?.readText === 'function';
+  const [colarMsg, setColarMsg] = useState<string | null>(null);
   const [password, setPassword] = useState('');
   const busy = status === 'connecting';
   const session = savedSession();
@@ -164,6 +169,39 @@ export function Online({ initialCode, onCodeUsed }: { initialCode?: string; onCo
             Entrar
           </Button>
         </form>
+        {podeColar && (
+          <div className="mt-3 flex flex-col gap-1">
+            <button
+              type="button"
+              className="inline-flex items-center gap-1.5 self-start text-sm font-bold text-espadas disabled:opacity-50"
+              disabled={busy}
+              onClick={async () => {
+                let texto = '';
+                try {
+                  texto = await navigator.clipboard.readText();
+                } catch {
+                  // não deixou ler: cai no aviso abaixo
+                }
+                const c = codigoDoConvite(texto);
+                if (!c) {
+                  setColarMsg('Não achei convite no que foi copiado. No WhatsApp, segura o link do convite e toca em Copiar.');
+                  return;
+                }
+                setColarMsg(null);
+                setCode(c);
+                if (!precisaNome) void doJoin(c);
+              }}
+            >
+              <ClipboardPaste size={16} aria-hidden="true" />
+              Colar convite
+            </button>
+            {colarMsg && (
+              <p role="status" className="text-sm text-tinta-2">
+                {colarMsg}
+              </p>
+            )}
+          </div>
+        )}
         {session && session.code !== code && !rooms?.some((r) => r.code === session.code) && (
           <button type="button" className="mt-3 text-sm font-bold text-espadas" onClick={() => void doJoin(session.code)}>
             Voltar pra sala {session.code}

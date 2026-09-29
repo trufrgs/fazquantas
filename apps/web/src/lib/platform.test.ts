@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { shareInvite } from './platform';
+import { codigoDoConvite, shareInvite } from './platform';
 
 const SITE = 'https://fazquantas.pages.dev';
 
@@ -23,5 +23,20 @@ describe('convite para a sala', () => {
     vi.stubGlobal('navigator', { clipboard: { writeText } });
     expect(await shareInvite('RMT9')).toBe('copied');
     expect(writeText).toHaveBeenCalledWith(`Buenas! Bora uma Fodinha? Entra na sala RMT9: ${SITE}/?sala=RMT9`);
+  });
+});
+
+describe('código da sala no que foi colado', () => {
+  it('acha o código na mensagem do convite, no link ou sozinho', () => {
+    expect(codigoDoConvite(`Buenas! Bora uma Fodinha? Entra na sala RMT9: ${SITE}/?sala=RMT9`)).toBe('RMT9');
+    expect(codigoDoConvite(`${SITE}/?sala=rmt9`)).toBe('RMT9');
+    expect(codigoDoConvite('Entra na sala abcd')).toBe('ABCD');
+    expect(codigoDoConvite(' K7PQ ')).toBe('K7PQ');
+  });
+
+  it('texto sem convite não vira código', () => {
+    expect(codigoDoConvite('bora jogar hoje?')).toBeNull();
+    expect(codigoDoConvite('')).toBeNull();
+    expect(codigoDoConvite(`${SITE}/?sala=ABCDE`)).toBeNull();
   });
 });
