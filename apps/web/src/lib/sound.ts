@@ -47,7 +47,7 @@ const VOLUME: Partial<Record<SoundId, number>> = {
   click: 0.5,
   melou: 0.8,
   win: 0.8,
-  fumo: 0.7,
+  fumo: 0.45,
 };
 
 const howls = new Map<string, Howl>();

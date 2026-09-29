@@ -58,7 +58,7 @@ import { TopBar } from './TopBar';
 import { TrickArea } from './TrickArea';
 import { useSize } from './useSize';
 import { useUiScale } from '../../lib/ui-scale';
-import { useTableEffects } from './useTableEffects';
+import { DEMORA_MS, useTableEffects } from './useTableEffects';
 
 const SUIT_ORDER: Suit[] = ['O', 'C', 'E', 'P'];
 
@@ -389,6 +389,16 @@ function Table({
   const handWidth = Math.min(vw, 640 * s);
   const dealFrom = { x: 0, y: -(table.height - geometry.deck.y) - handCardW * 0.9 };
   const autoMs = DEFAULT_TIMING.roundPauseMs / ritmo;
+  // Alguém demorando na vez: depois de uns segundos, os outros avatares puxam um palheiro enquanto
+  // esperam (quem está pensando não; ele é o motivo da fumaceira).
+  const esperando = view.actor && (view.phase === 'bidding' || view.phase === 'playing') ? `${view.seq}:${view.actor.playerId}` : null;
+  const [demorou, setDemorou] = useState<string | null>(null);
+  useEffect(() => {
+    if (!esperando) return undefined;
+    const t = window.setTimeout(() => setDemorou(esperando), DEMORA_MS);
+    return () => window.clearTimeout(t);
+  }, [esperando]);
+  const pitando = (id: string) => demorou !== null && demorou === esperando && view.actor?.playerId !== id;
   const mySeat = online ? room?.seats.find((x) => x.playerId === room.youId) : undefined;
   const meAway = mySeat?.kind === 'human' && mySeat.away && view.phase !== 'gameOver';
   const series = online ? (room?.series ?? null) : null;
@@ -539,6 +549,8 @@ function Table({
                     side={at.x < table.width / 2 ? 'right' : 'left'}
                     blind={view.blind}
                     lastToBid={lastBidder === p.id}
+                    pitando={pitando(p.id)}
+                    pitandoAtraso={(view.order.indexOf(p.id) * 1.3) % 3.6}
                   />
                 );
               })}
@@ -612,6 +624,7 @@ function Table({
                 deadline={myTurn ? view.turnDeadline : null}
                 isMao={!!you && view.order[0] === you}
                 round={view.roundNumber}
+                pitando={pitando(me.id)}
               />
             </div>
           )}

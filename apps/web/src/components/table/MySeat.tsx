@@ -1,7 +1,9 @@
 import type { Phase, PublicPlayer } from '@fodinha/engine';
+import { AnimatePresence } from 'motion/react';
 import type { LiveReaction } from '../../stores/game';
 import { Avatar } from '../ui/Avatar';
 import { Matches } from '../ui/Matches';
+import { Palheiro } from './Palheiro';
 import { BidBadge, CantadaBubble, DealerChip, MaoChip, ReactionBubble, TurnRing } from './Seat';
 
 export type StatusTone = 'turn' | 'info' | 'good' | 'bad';
@@ -19,6 +21,8 @@ export interface MySeatProps {
   deadline: number | null;
   /** És mão: palpita e joga primeiro na rodada. */
   isMao: boolean;
+  /** Alguém está demorando: teu avatar também puxa um palheiro enquanto espera. */
+  pitando?: boolean;
   /** Rodada atual (o balão da tua cantada toca uma vez por rodada). */
   round: number;
 }
@@ -31,12 +35,13 @@ const TONE: Record<StatusTone, string> = {
 };
 
 /** Sua faixa acima da mão: avatar, vidas, palpite e o que está acontecendo. */
-export function MySeat({ player, avatar, phase, remaining, startingLives, status, reaction, isTurn, deadline, isMao, round }: MySeatProps) {
+export function MySeat({ player, avatar, phase, remaining, startingLives, status, reaction, isTurn, deadline, isMao, round, pitando = false }: MySeatProps) {
   return (
     <div className="relative z-20 flex items-center gap-2.5 px-3">
       <div className="relative">
         {isTurn && !player.eliminated && <TurnRing key={deadline ?? 0} size={40} deadline={deadline} />}
         <Avatar seed={avatar} size={40} dim={player.eliminated} />
+        <AnimatePresence>{pitando && !player.eliminated && <Palheiro key="palheiro" size={40} atraso={1.7} />}</AnimatePresence>
         {phase === 'bidding' && <CantadaBubble bid={player.bid} round={round} placement="above" edge="left" />}
         <ReactionBubble reaction={reaction} placement="above" edge="left" />
       </div>

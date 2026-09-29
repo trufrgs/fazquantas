@@ -5,6 +5,7 @@ import type { SeatInfo } from '../../lib/connection';
 import type { LiveReaction } from '../../stores/game';
 import { Avatar } from '../ui/Avatar';
 import { Matches } from '../ui/Matches';
+import { Palheiro } from './Palheiro';
 import { rem } from '../../lib/ui-scale';
 
 export type BidTone = 'none' | 'pending' | 'exact' | 'over' | 'doomed';
@@ -271,6 +272,9 @@ export interface SeatProps {
   blind?: boolean;
   /** Foi quem cantou por último (balão para o lado só fica no último: um não cobre o outro). */
   lastToBid?: boolean;
+  /** Alguém está demorando: este avatar puxa um palheiro enquanto espera (`pitandoAtraso` desencontra). */
+  pitando?: boolean;
+  pitandoAtraso?: number;
 }
 
 /** Oponente ao redor da mesa. */
@@ -307,6 +311,8 @@ export const Seat = memo(function Seat(p: SeatProps) {
       <div className="relative z-10">
         {p.isTurn && !out && <TurnRing size={avatarSize} deadline={p.deadline} />}
         <Avatar seed={info?.avatar ?? player.id} size={avatarSize} dim={out} />
+        {/* Quem demorou jogou: o palheiro some (a vez andou). */}
+        <AnimatePresence>{p.pitando && !out && <Palheiro key="palheiro" size={avatarSize} atraso={p.pitandoAtraso} />}</AnimatePresence>
         {!out && (player.isDealer || p.isMao) && (
           <span className="absolute -left-2 -top-1">{player.isDealer ? <DealerChip size="sm" /> : <MaoChip size="sm" />}</span>
         )}

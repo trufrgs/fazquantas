@@ -22,9 +22,12 @@ import {
 const played = (v: PlayerView) => v.completedTricks.reduce((n, t) => n + t.plays.length, 0) + (v.trick?.plays.length ?? 0);
 const bids = (v: PlayerView) => v.players.filter((p) => p.bid !== null).length;
 
-/** Quando a mesa começa a "puxar fumo" esperando quem está demorando, e de quanto em quanto repete. */
-const FUMO_PRIMEIRA_MS = 9000;
-const FUMO_DEPOIS_MS = 16000;
+/**
+ * Quando a mesa começa a "puxar fumo" esperando quem está demorando (os avatares acendem o palheiro,
+ * em `GameScreen`, e ouve-se a tragada), e quando traga de novo.
+ */
+export const DEMORA_MS = 9000;
+const FUMO_DE_NOVO_MS = 16000;
 
 /** O som de cada golpe de "Quem mata quem", na hora em que a arma acerta (os mesmos arquivos, em outro tom). */
 const SOM_GOLPE: Record<Golpe, { id: SoundId; rate: number }> = {
@@ -141,16 +144,17 @@ export function useTableEffects(update: ViewUpdate | null, online = false, ritmo
     return () => window.clearInterval(id);
   }, [deadline]);
 
-  // Alguém demorando (tu também): a mesa ouve alguém tragando o palheiro ("barulhinho de puxando fumo
-  // quando o cara demora", o Igor, 29/09/2026). Três vezes no máximo por vez, e só com o jogo na frente.
+  // Alguém demorando (tu também): os avatares acendem o palheiro e a mesa ouve a tragada ("barulhinho
+  // de puxando fumo quando o cara demora", o Igor, 29/09/2026). Duas vezes no máximo por vez, e só com
+  // o jogo na frente.
   const view = update?.view;
   const esperando = view?.actor && (view.phase === 'bidding' || view.phase === 'playing') ? `${view.seq}:${view.actor.playerId}` : null;
   useEffect(() => {
     if (!esperando) return undefined;
-    const timers = [0, 1, 2].map((i) =>
+    const timers = [0, 1].map((i) =>
       window.setTimeout(() => {
         if (document.visibilityState === 'visible') play('fumo');
-      }, FUMO_PRIMEIRA_MS + i * FUMO_DEPOIS_MS),
+      }, DEMORA_MS + i * FUMO_DE_NOVO_MS),
     );
     return () => timers.forEach((t) => window.clearTimeout(t));
   }, [esperando]);
