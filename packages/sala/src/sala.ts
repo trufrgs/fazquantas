@@ -348,6 +348,21 @@ export class Sala {
     if (this.seats.length >= ROOM_CAPACITY) throw fail('ROOM_FULL', MESSAGES.roomFull);
   }
 
+  /**
+   * Quem chega sem o token mas é a mesma pessoa de um lugar que está sem conexão (o navegador
+   * perdeu os dados: navegador de dentro do WhatsApp, aba anônima, celular que limpou a página):
+   * mesmo perfil, ou mesmo apelido (sem diferença de acento ou maiúscula). Apelido guardado com PIN
+   * já chega aqui trocado ("Joao 2") para quem não é o dono, então não dá para tomar o lugar dele.
+   */
+  reclaimableSeat(perfil: Perfil): string | null {
+    const key = (name: string) => name.normalize('NFD').replace(/\p{M}/gu, '').toLocaleLowerCase('pt-BR').trim();
+    const livres = this.humans().filter((seat) => seat.conexao === null);
+    const seat =
+      livres.find((s) => perfil.profileId !== null && s.profileId === perfil.profileId) ??
+      livres.find((s) => key(s.name) === key(perfil.name));
+    return seat?.playerId ?? null;
+  }
+
   addHuman(conexao: Conexao, perfil: Perfil): JoinResult {
     this.assertCanJoin();
     const seat: HumanSeat = {

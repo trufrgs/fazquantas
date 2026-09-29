@@ -76,6 +76,8 @@ interface PorConexao {
  */
 export class SalaServidor {
   private sala: Sala | null = null;
+  /** A sala deste código já existiu e acabou (link antigo): "já acabou" em vez de "não encontrada". */
+  private acabou = false;
   private readonly porConexao = new WeakMap<Conexao, PorConexao>();
 
   constructor(
@@ -85,6 +87,11 @@ export class SalaServidor {
 
   get room(): Sala | null {
     return this.sala;
+  }
+
+  /** O objeto acordou sem sala, mas com a marca de que ela acabou. */
+  markEnded(): void {
+    if (!this.sala) this.acabou = true;
   }
 
   /** Volta a sala salva (depois de hibernar ou reiniciar), religando as conexões vivas. */
@@ -174,6 +181,7 @@ export class SalaServidor {
       ...this.deps,
       aoEncerrar: (motivo) => {
         this.sala = null;
+        this.acabou = true;
         this.deps.aoEncerrar(motivo);
       },
     };
@@ -217,6 +225,7 @@ export class SalaServidor {
         const sala = new Sala(this.code, this.salaDeps());
         hold(sala);
         this.sala = sala;
+        this.acabou = false;
         if (settings) sala.configure(settings);
         return sala.addHuman(conexao, perfil);
       }
@@ -224,13 +233,15 @@ export class SalaServidor {
         const { code, token, password, ...profile } = parsePayload(joinRoomSchema, payload);
         const perfil = await this.perfil(profile);
         const sala = this.sala;
-        if (!sala || sala.isDisposed || code !== this.code) throw fail('ROOM_NOT_FOUND', MESSAGES.roomNotFound);
+        if (!sala || sala.isDisposed || code !== this.code) {
+          throw this.acabou && code === this.code ? fail('ROOM_GONE', MESSAGES.roomGone) : fail('ROOM_NOT_FOUND', MESSAGES.roomNotFound);
+        }
         hold(sala);
         const here = conexao.jogadorId && sala.isBound(conexao.jogadorId, conexao) ? conexao.jogadorId : null;
         // Token válido = mesmo assento (mesmo no meio da partida); já sentado aqui = idempotente.
         const seatId = (token ? sala.playerIdForToken(token) : null) ?? here;
         if (seatId) return sala.reconnect(seatId, conexao, perfil);
-        sala.assertCanJoin();
+        // Sem token, a senha vale antes de tudo (inclusive para voltar ao lugar pelo apelido).
         if (state.wrongPasswords >= MAX_PASSWORD_ATTEMPTS) throw fail('TOO_MANY_ATTEMPTS', MESSAGES.tooManyAttempts);
         try {
           sala.checkPassword(password);
@@ -241,6 +252,10 @@ export class SalaServidor {
           }
           throw error;
         }
+        // Mesma pessoa voltando sem o token (o navegador perdeu os dados): o mesmo lugar, até na partida.
+        const volta = sala.reclaimableSeat(perfil);
+        if (volta) return sala.reconnect(volta, conexao, perfil);
+        sala.assertCanJoin();
         return sala.addHuman(conexao, perfil);
       }
       case 'room:leave': {

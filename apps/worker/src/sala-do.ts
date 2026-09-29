@@ -107,6 +107,8 @@ export class SalaDO extends DurableObject<Env> {
   private rankingPendente = true;
   /** Último resumo mandado para o painel (só manda quando muda). */
   private ultimoResumo = '';
+  /** A sala deste código já acabou (marca guardada): link antigo ouve "já acabou". */
+  private acabou = false;
 
   constructor(ctx: DurableObjectState, env: Env) {
     super(ctx, env);
@@ -115,6 +117,7 @@ export class SalaDO extends DurableObject<Env> {
     ctx.setWebSocketAutoResponse(new WebSocketRequestResponsePair(WS_PING, WS_PONG));
     void ctx.blockConcurrencyWhile(async () => {
       const salva = await ctx.storage.get<SalaSalva>('sala');
+      this.acabou = !salva && (await ctx.storage.get<number>('fim')) !== undefined;
       const sockets = ctx.getWebSockets();
       if (salva) {
         this.servidorPara(salva.code).restore(
@@ -186,6 +189,7 @@ export class SalaDO extends DurableObject<Env> {
       aoAvisar: (a) => this.avisar(a),
       conferirPerfil: (profileId, nome) => contasStub(this.env).conferir(profileId, nome),
     });
+    if (this.acabou) this.servidor.markEnded();
     return this.servidor;
   }
 
@@ -253,7 +257,11 @@ export class SalaDO extends DurableObject<Env> {
     this.ultimoResumo = '';
     this.ctx.waitUntil(painelStub(this.env).salaEncerrada(this.code, motivo).catch((e: unknown) => console.error('[painel]', e)));
     this.relogio.clear();
-    void this.ctx.storage.deleteAll().catch((e) => console.error('[encerrar]', e));
+    // Apaga tudo e deixa só a marca de que acabou (o link velho ouve "essa sala já acabou").
+    void this.ctx.storage
+      .deleteAll()
+      .then(() => this.ctx.storage.put('fim', Date.now()))
+      .catch((e) => console.error('[encerrar]', e));
     for (const ws of this.ctx.getWebSockets()) {
       try {
         ws.close(WS_CLOSE.gone, motivo);

@@ -361,9 +361,10 @@ describe('conexão e limpeza', () => {
     expect(mundo.rooms.size()).toBe(0);
     expect(mundo.encerradas).toEqual([{ code, motivo: 'sem jogadores' }]);
     expect(mundo.salvas.has(code)).toBe(false);
+    // Link antigo: a sala existiu e acabou.
     expect(await beto.call('room:join', { code, name: 'Beto', avatar: 'b' })).toMatchObject({
       ok: false,
-      error: { code: 'ROOM_NOT_FOUND' },
+      error: { code: 'ROOM_GONE', message: MESSAGES.roomGone },
     });
   });
 

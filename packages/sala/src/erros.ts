@@ -6,6 +6,7 @@ export type ServerErrorCode = ErrorCode | 'INTERNAL_ERROR';
 /** Mensagens mostradas ao jogador (pt-BR, curtas e diretas). */
 export const MESSAGES = {
   roomNotFound: 'Sala não encontrada. Confere o código.',
+  roomGone: 'Essa sala já acabou: ficou um tempo sem ninguém. Cria uma sala nova e manda o convite de novo.',
   roomFull: 'A sala está cheia.',
   roomTaken: 'Esse código acabou de ser usado. Tenta criar de novo.',
   // No meio da partida ninguém senta; depois do fim, o anfitrião pode voltar a sala para o lobby.

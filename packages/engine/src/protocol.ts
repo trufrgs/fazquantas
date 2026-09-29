@@ -116,6 +116,7 @@ export interface JoinResult {
 
 export type ErrorCode =
   | 'ROOM_NOT_FOUND'
+  | 'ROOM_GONE'
   | 'ROOM_FULL'
   | 'ROOM_TAKEN'
   | 'GAME_IN_PROGRESS'
