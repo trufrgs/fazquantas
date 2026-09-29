@@ -22,6 +22,7 @@ import { InlineTurnTimer, TurnSpotlight, UrgentEdge, useTimeLeft } from './TurnC
 import { formatLeft, isUrgent } from '../../lib/tempo';
 import { haptic } from '../../lib/haptics';
 import { play } from '../../lib/sound';
+import { contextoDaRodada } from './manilhas';
 import { useApp } from '../../stores/app';
 import { useGame, type LiveReaction } from '../../stores/game';
 import { isHost, useOnline } from '../../stores/online';
@@ -543,6 +544,7 @@ function Table({
               collectTo={collectTo}
               youFromHand={!view.blind}
               revealFrom={reveal ? { spots: reveal.spots, cardWidth: reveal.cardWidth } : null}
+              ctx={contextoDaRodada(view.rules, view.vira)}
             />
           )}
           <RoundBanner view={view} shown={banner} />

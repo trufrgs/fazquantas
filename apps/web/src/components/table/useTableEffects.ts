@@ -3,11 +3,26 @@ import { useEffect, useRef } from 'react';
 import type { ViewUpdate } from '../../lib/connection';
 import { setMyTurn, warnTurn } from '../../lib/avisos';
 import { haptic } from '../../lib/haptics';
-import { play } from '../../lib/sound';
+import { play, type SoundId } from '../../lib/sound';
 import { useSettings } from '../../stores/settings';
+import { contextoDaRodada, manilhaDe, manilhasQueimadas, type EfeitoManilha } from './manilhas';
 
 const played = (v: PlayerView) => v.completedTricks.reduce((n, t) => n + t.plays.length, 0) + (v.trick?.plays.length ?? 0);
 const bids = (v: PlayerView) => v.players.filter((p) => p.bid !== null).length;
+
+/** O som de cada manilha na mesa (os mesmos arquivos, em outro tom). */
+const SOM_MANILHA: Record<EfeitoManilha, { id: SoundId; rate: number }> = {
+  corte: { id: 'sweep', rate: 1.7 },
+  aco: { id: 'bid', rate: 1.6 },
+  pancada: { id: 'play', rate: 0.55 },
+  ouro: { id: 'made', rate: 1.3 },
+  brasa: { id: 'pop', rate: 0.7 },
+};
+
+/** A carta que acabou de cair na mesa (na mão atual, ou na que acabou de fechar). */
+function ultimaJogada(v: PlayerView) {
+  return v.trick?.plays.at(-1) ?? (v.phase === 'trickEnd' ? v.lastTrick?.plays.at(-1) : undefined);
+}
 
 /** Sons e vibração a partir da diferença entre a visão anterior e a atual. */
 export function useTableEffects(update: ViewUpdate | null, online = false) {
@@ -33,9 +48,19 @@ export function useTableEffects(update: ViewUpdate | null, online = false) {
     if (!p || v.seq === p.seq) return;
 
     if (v.roundNumber === p.roundNumber && bids(v) > bids(p)) play('bid');
-    if (v.roundNumber === p.roundNumber && played(v) > played(p)) play('play');
+    const ctx = contextoDaRodada(v.rules, v.vira);
+    if (v.roundNumber === p.roundNumber && played(v) > played(p)) {
+      play('play');
+      const nova = ultimaJogada(v);
+      const manilha = nova ? manilhaDe(nova.cardId, ctx) : null;
+      if (manilha) play(SOM_MANILHA[manilha.efeito].id, { delayMs: 90, rate: SOM_MANILHA[manilha.efeito].rate });
+    }
     if (v.phase === 'trickEnd' && p.phase !== 'trickEnd' && (v.lastTrick?.cancelled.length ?? 0) > 0) {
       play('melou', { delayMs: 280 });
+    }
+    // Manilha batida por uma mais forte: queimou.
+    if (v.phase === 'trickEnd' && p.phase !== 'trickEnd' && v.lastTrick && manilhasQueimadas(v.lastTrick, ctx).length > 0) {
+      play('lifeLost', { delayMs: 380, rate: 1.6 });
     }
     if (p.phase === 'trickEnd' && v.phase !== 'trickEnd') play('sweep');
 
