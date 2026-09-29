@@ -100,7 +100,7 @@ export function GameOver({
   return (
     <AnimatePresence>
       <motion.div
-        className="fixed inset-0 z-50 flex overflow-y-auto bg-noite/70 p-4"
+        className="ate-o-fim fixed inset-0 z-50 flex overflow-y-auto bg-noite/70 p-4"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         role="dialog"

@@ -2,6 +2,7 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { App } from './App';
 import { isNative } from './lib/platform';
+import { startAltura } from './lib/altura';
 import { startInstalar } from './lib/instalar';
 import { startUiScale } from './lib/ui-scale';
 import './styles/index.css';
@@ -17,6 +18,7 @@ if (import.meta.env.PROD && !isNative) {
 // Build desta aba, à vista para diagnóstico (e para o teste de atualização).
 document.documentElement.dataset.build = __BUILD_ID__;
 
+startAltura();
 startUiScale();
 // O pedido de instalação do navegador pode chegar logo no começo: guarda para o botão dos ajustes.
 startInstalar();

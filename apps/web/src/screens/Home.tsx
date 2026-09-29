@@ -73,7 +73,7 @@ export function Home() {
   return (
     <div className="mesa flex h-full flex-col overflow-hidden">
       <header
-        className="flex items-center justify-between px-4"
+        className="px-seguro flex items-center justify-between"
         style={{ paddingTop: 'calc(0.75rem + var(--safe-top))' }}
       >
         <button
@@ -95,7 +95,7 @@ export function Home() {
       <main
         ref={mainRef}
         tabIndex={-1}
-        className="sem-barra flex min-h-0 flex-1 flex-col overflow-y-auto px-6 py-4"
+        className="sem-barra px-seguro-6 flex min-h-0 flex-1 flex-col overflow-y-auto py-4"
       >
         {/* Centraliza quando cabe e rola quando não cabe; tela deitada e baixa (celular deitado, notebook): duas colunas. */}
         <div className="m-auto flex w-full flex-col items-center gap-5 [@media(orientation:landscape)_and_(max-height:900px)]:flex-row [@media(orientation:landscape)_and_(max-height:900px)]:justify-center [@media(orientation:landscape)_and_(max-height:900px)]:gap-12">
@@ -195,7 +195,7 @@ export function Home() {
       </main>
 
       <footer
-        className="flex items-center justify-center gap-6 text-sm font-semibold text-papel/75"
+        className="px-seguro flex items-center justify-center gap-6 text-sm font-semibold text-papel/75"
         style={{ paddingBottom: 'calc(1rem + var(--safe-bottom))' }}
       >
         <button

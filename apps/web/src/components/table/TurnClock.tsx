@@ -53,7 +53,7 @@ export function UrgentEdge({ on }: { on: boolean }) {
   return (
     <motion.div
       aria-hidden="true"
-      className="pointer-events-none fixed inset-0 z-[60]"
+      className="ate-o-fim pointer-events-none fixed inset-0 z-[60]"
       style={{ boxShadow: 'inset 0 0 0 4px rgb(196 55 45 / 0.75), inset 0 0 70px rgb(196 55 45 / 0.45)' }}
       animate={{ opacity: reduce ? 1 : [0.55, 1, 0.55] }}
       transition={{ duration: 0.9, repeat: Infinity, ease: 'easeInOut' }}

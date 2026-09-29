@@ -280,6 +280,7 @@ function Table({
       compactPanel: panelCompact,
       mySeatH,
       fan: maxShown > 1 ? REVEAL_FAN : 1,
+      chip: view.rules.hierarchy === 'vira',
     });
   }, [
     revealing,
@@ -292,6 +293,7 @@ function Table({
     trickCardW,
     panelCompact,
     mySeatH,
+    view.rules.hierarchy,
   ]);
   // Na rodada às cegas a carta jogada fica onde já estava à mostra (só a tua vem da mão).
   const trickGeometry = useMemo(() => {
@@ -417,7 +419,12 @@ function Table({
       : null;
 
   return (
-    <div ref={rootRef} className="mesa relative flex h-full flex-col overflow-hidden">
+    <div
+      ref={rootRef}
+      className="mesa relative flex h-full flex-col overflow-hidden"
+      // Celular deitado: nada embaixo do entalhe da câmera (a mesa mede o espaço que sobra).
+      style={{ paddingLeft: 'var(--safe-left)', paddingRight: 'var(--safe-right)' }}
+    >
       <TopBar
         round={view.roundNumber}
         cards={view.cardsThisRound}
@@ -431,7 +438,8 @@ function Table({
 
       <div className="mx-auto flex min-h-0 w-full max-w-[73.75rem] flex-1 flex-col">
         <div ref={tableRef} className="relative min-h-0 flex-1">
-          <ForcaChip mode={view.rules.hierarchy} vira={view.vira} onOpen={() => setForca(true)} />
+          {/* A vira muda a cada rodada: fica na mesa. Com manilhas fixas, a consulta mora no menu. */}
+          {view.rules.hierarchy === 'vira' && <ForcaChip mode={view.rules.hierarchy} vira={view.vira} onOpen={() => setForca(true)} />}
 
           {online && onlineStatus === 'reconnecting' && (
             <div
@@ -621,15 +629,15 @@ function Table({
         />
       )}
       <Scoreboard open={score} onClose={() => setScore(false)} view={view} seats={seats} />
-      <Sheet open={forca} onClose={() => setForca(false)} label="Quem mata quem">
+      <Sheet open={forca} onClose={() => setForca(false)} label="Força das cartas">
         <h2
           className="font-display text-2xl font-bold"
           style={{ fontVariationSettings: '"SOFT" 100, "WONK" 1' }}
         >
-          Quem mata quem
+          Força das cartas
         </h2>
         <p className="mb-3 text-sm text-tinta-2">
-          Da mais forte (1) pra mais fraca. Cartas da mesma linha empardam.
+          Quem mata quem, da mais forte (1) pra mais fraca. Cartas da mesma linha empardam.
         </p>
         <Hierarchy mode={view.rules.hierarchy} vira={view.vira} />
       </Sheet>
@@ -641,6 +649,7 @@ function Table({
           setMenu(false);
           go('rules');
         }}
+        hierarchy={view.rules.hierarchy}
         onHierarchy={() => {
           setMenu(false);
           setForca(true);

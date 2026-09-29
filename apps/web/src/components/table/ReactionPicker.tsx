@@ -12,7 +12,7 @@ export function ReactionPicker({ open, onPick, onClose }: { open: boolean; onPic
     <AnimatePresence>
       {open && (
         <>
-          <div className="fixed inset-0 z-40" onClick={onClose} aria-hidden="true" />
+          <div className="ate-o-fim fixed inset-0 z-40" onClick={onClose} aria-hidden="true" />
           <motion.div
             role="menu"
             aria-label="Reações"

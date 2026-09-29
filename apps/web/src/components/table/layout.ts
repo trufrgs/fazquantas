@@ -233,13 +233,13 @@ export function compactBidPanel(
 
 /**
  * Cartas à mostra na mesa de verdade: `revealLayout` evitando o painel de palpite (que desce por
- * cima da tua faixa, de altura `mySeatH`; em mesa baixa é a barra de uma linha) e o chip das
- * manilhas, no canto de baixo à esquerda.
+ * cima da tua faixa, de altura `mySeatH`; em mesa baixa é a barra de uma linha) e o chip da vira,
+ * no canto de baixo à esquerda (só na regra com vira).
  */
 export function tableRevealLayout(
   g: TableGeometry,
   ids: readonly string[],
-  o: { scale: number; trickCard: number; compactPanel: boolean; mySeatH: number; fan?: number },
+  o: { scale: number; trickCard: number; compactPanel: boolean; mySeatH: number; fan?: number; chip?: boolean },
 ): RevealLayout {
   const s = o.scale;
   const panelW = Math.min(
@@ -258,7 +258,8 @@ export function tableRevealLayout(
     minWidth: 30 * s,
     fan: o.fan,
     obstacles,
-    softObstacles: [chip],
+    // O chip só existe na regra com vira (a vira muda a cada rodada); com manilhas fixas, não.
+    softObstacles: o.chip === false ? [] : [chip],
   });
 }
 

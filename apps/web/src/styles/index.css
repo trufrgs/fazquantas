@@ -49,11 +49,14 @@
   html,
   body,
   #root {
-    height: 100%;
+    /* `--app-h`: a altura medida no app instalado do iPhone (ver lib/altura.ts). */
+    height: var(--app-h, 100%);
   }
 
   html {
-    background: var(--color-noite);
+    /* A madeira escura da borda da mesa: se sobrar algum pedaço de tela (girar o celular, o elástico
+       da rolagem), ele parece mesa, não uma faixa de outra cor. */
+    background: var(--color-mesa-escura);
     -webkit-text-size-adjust: 100%;
     -webkit-tap-highlight-color: transparent;
   }
@@ -62,7 +65,7 @@
     margin: 0;
     font-family: var(--font-sans);
     color: var(--color-papel);
-    background: var(--color-noite);
+    background: var(--color-mesa-escura);
     overscroll-behavior: none;
     -webkit-font-smoothing: antialiased;
     user-select: none;
@@ -217,4 +220,32 @@
   .logo-inicio {
     --logo: clamp(2.4rem, min(17vw, 11svh), 6rem);
   }
+}
+
+/*
+ * Margem lateral que respeita o entalhe da câmera com o celular deitado (no app instalado e no
+ * Safari com `viewport-fit=cover`): nunca menos que o respiro normal.
+ */
+.px-seguro {
+  padding-left: max(1rem, var(--safe-left));
+  padding-right: max(1rem, var(--safe-right));
+}
+.px-seguro-6 {
+  padding-left: max(1.5rem, var(--safe-left));
+  padding-right: max(1.5rem, var(--safe-right));
+}
+
+/*
+ * Camada fixa que vai até o fim da tela de verdade: no app instalado do iPhone, a altura que o iOS
+ * dá às camadas fixas também desconta a barra de status (ver lib/altura.ts); `--app-h` é a medida.
+ * Fora dele, `--app-h` não existe e isto vira `bottom: 0`.
+ */
+.ate-o-fim {
+  bottom: calc(100% - var(--app-h, 100%));
+}
+
+/* App instalado no iPhone: a página nunca rola inteira (quem rola são as listas de dentro). */
+html.app-ios,
+html.app-ios body {
+  overflow: hidden;
 }

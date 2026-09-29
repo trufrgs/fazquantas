@@ -21,7 +21,7 @@ export function ScreenFrame({
   return (
     <div className="mesa flex h-full flex-col">
       <header
-        className="flex items-center gap-3 px-4 pb-2"
+        className="px-seguro flex items-center gap-3 pb-2"
         style={{ paddingTop: 'calc(0.75rem + var(--safe-top))' }}
       >
         <IconButton label="Voltar" onClick={onBack ?? back}>
@@ -35,11 +35,17 @@ export function ScreenFrame({
         </h1>
         {right}
       </header>
-      <main tabIndex={0} aria-label={title} className="sem-barra min-h-0 flex-1 overflow-y-auto px-4 pb-6 focus-visible:outline-offset-[-4px]">
+      <main
+        tabIndex={0}
+        aria-label={title}
+        className="sem-barra px-seguro min-h-0 flex-1 overflow-y-auto focus-visible:outline-offset-[-4px]"
+        // Sem rodapé, o fim da lista não fica embaixo da barrinha do iPhone.
+        style={{ paddingBottom: footer ? '1.5rem' : 'calc(1.5rem + var(--safe-bottom))' }}
+      >
         <div className="mx-auto flex w-full max-w-lg flex-col gap-4">{children}</div>
       </main>
       {footer && (
-        <footer className="px-4 pt-2" style={{ paddingBottom: 'calc(1rem + var(--safe-bottom))' }}>
+        <footer className="px-seguro pt-2" style={{ paddingBottom: 'calc(1rem + var(--safe-bottom))' }}>
           <div className="mx-auto w-full max-w-lg">{footer}</div>
         </footer>
       )}

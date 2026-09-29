@@ -20,7 +20,25 @@ const FIXED_MANILHAS: Record<Exclude<HierarchyMode, 'vira'>, CardId[]> = {
 
 const RANK_LABEL: Record<Rank, string> = { 1: 'ás', 2: '2', 3: '3', 4: '4', 5: '5', 6: '6', 7: '7', 10: 'sota', 11: 'cavalo', 12: 'rei' };
 
-/** Cola no canto da mesa, "quem mata quem": as manilhas (fixas) ou a vira e a manilha da rodada. Toque abre a força das cartas. */
+/**
+ * Ícone da força das cartas: as manilhas em leque (na regra com vira, o espadão e o 4 de paus, as
+ * que ficam no topo com qualquer vira). Diz sozinho que é sobre as cartas.
+ */
+export function IconeForca({ mode }: { mode: HierarchyMode }) {
+  const s = useUiScale();
+  const ids: CardId[] = mode === 'vira' ? ['E1', 'P4', 'O7'] : FIXED_MANILHAS[mode].slice(0, 3);
+  return (
+    <span className="flex shrink-0" aria-hidden="true">
+      {ids.map((id, k) => (
+        <span key={id} className="shrink-0" style={{ marginLeft: k === 0 ? 0 : -9 * s, transform: `rotate(${(k - 1) * 8}deg)` }}>
+          <Card id={id} width={17 * s} />
+        </span>
+      ))}
+    </span>
+  );
+}
+
+/** Na regra com vira, no canto da mesa: a vira e a manilha da rodada. Toque abre a força das cartas. */
 export function ForcaChip({ mode, vira, onOpen }: { mode: HierarchyMode; vira: CardId | null; onOpen: () => void }) {
   const s = useUiScale();
   return (

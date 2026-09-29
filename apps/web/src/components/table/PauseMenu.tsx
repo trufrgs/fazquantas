@@ -1,10 +1,11 @@
-import { BookOpen, Clock, DoorOpen, Layers, Play, RotateCcw } from 'lucide-react';
+import { BookOpen, Clock, DoorOpen, Play, RotateCcw } from 'lucide-react';
 import { useState } from 'react';
-import { PACES, type Pace } from '@fodinha/engine';
+import { PACES, type HierarchyMode, type Pace } from '@fodinha/engine';
 import { SPEED_MULTIPLIER, useSettings, type Speed } from '../../stores/settings';
 import { Button } from '../ui/Button';
 import { Segmented, Toggle } from '../ui/Controls';
 import { Sheet } from '../ui/Sheet';
+import { IconeForca } from './ForcaChip';
 
 export interface PauseMenuProps {
   open: boolean;
@@ -12,6 +13,8 @@ export interface PauseMenuProps {
   onClose: () => void;
   onRules: () => void;
   onHierarchy: () => void;
+  /** Regra da força das cartas (o ícone mostra as manilhas dela). */
+  hierarchy: HierarchyMode;
   onRestart?: () => void;
   onExit: () => void;
   /** Sala assíncrona: larga a mesa sem sair (o lugar fica, o aviso chama na vez). */
@@ -61,8 +64,9 @@ export function PauseMenu(p: PauseMenuProps) {
             Continuar
           </Button>
           <div className="grid grid-cols-2 gap-2">
-            <Button icon={<Layers size={18} />} onClick={p.onHierarchy}>
-              Quem mata quem
+            {/* A consulta que ficava num selo na mesa: com as cartas no ícone, fica claro o que é. */}
+            <Button icon={<IconeForca mode={p.hierarchy} />} onClick={p.onHierarchy} aria-label="Força das cartas: quem mata quem">
+              Força das cartas
             </Button>
             <Button icon={<BookOpen size={18} />} onClick={p.onRules}>
               Como jogar

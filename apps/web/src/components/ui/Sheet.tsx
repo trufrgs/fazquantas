@@ -42,7 +42,7 @@ export function Sheet({ open, onClose, children, label, className, backdrop = tr
     <AnimatePresence>
       {open && (
         <div
-          className={`fixed inset-0 z-50 flex items-end justify-center ${backdrop ? '' : 'pointer-events-none'}`}
+          className={`ate-o-fim fixed inset-0 z-50 flex items-end justify-center ${backdrop ? '' : 'pointer-events-none'}`}
           role="dialog"
           aria-modal={backdrop ? 'true' : undefined}
           aria-label={label}
