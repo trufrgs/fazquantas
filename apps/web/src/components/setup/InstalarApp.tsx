@@ -2,6 +2,7 @@ import { CircleCheck, Download, Ellipsis, EllipsisVertical, MonitorSmartphone, S
 import { useEffect, useState, type ReactNode } from 'react';
 import { instalar, useComoInstalar, type ComoInstalar } from '../../lib/instalar';
 import { isNative } from '../../lib/platform';
+import { storage } from '../../lib/storage';
 import { Button } from '../ui/Button';
 import { Panel } from '../ui/ScreenFrame';
 import { Sheet } from '../ui/Sheet';
@@ -184,6 +185,12 @@ export function mostraBotaoInstalar(como: ComoInstalar): boolean {
   return !isNative && como !== 'instalado' && como !== 'sem-suporte';
 }
 
+/** Quem já abriu a folha de instalar viu o convite: o botão segue dourado, sem o halo chamando. */
+const VISTO_KEY = 'fodinha:instalar-visto';
+export function convitePendente(): boolean {
+  return storage.get<boolean>(VISTO_KEY) !== true;
+}
+
 /**
  * Pelo botão de destaque do início: onde o navegador deixa, confirma e já instala (o navegador ainda
  * mostra a confirmação dele, que o site não pode pular); onde não deixa, mostra o caminho.
@@ -192,6 +199,12 @@ export function InstalarAppSheet({ open, onClose }: { open: boolean; onClose: ()
   const como = useComoInstalar();
   const [pronto, setPronto] = useState(false);
   const [tentou, setTentou] = useState(false);
+  /** O aviso do próprio navegador está aberto: a folha espera por ele (o pedido já foi usado). */
+  const [aguardando, setAguardando] = useState(false);
+
+  useEffect(() => {
+    if (open) storage.set(VISTO_KEY, true);
+  }, [open]);
 
   useEffect(() => {
     if (!pronto) return undefined;
@@ -212,6 +225,10 @@ export function InstalarAppSheet({ open, onClose }: { open: boolean; onClose: ()
       <div className="mt-3">
         {pronto || (como === 'instalado' && tentou) ? (
           <Pronto />
+        ) : aguardando ? (
+          <p role="status" className="font-semibold">
+            Confirma no aviso do navegador.
+          </p>
         ) : (
           <>
             <Vantagens como={como} />
@@ -223,9 +240,12 @@ export function InstalarAppSheet({ open, onClose }: { open: boolean; onClose: ()
                   icon={<Download size={20} />}
                   onClick={async () => {
                     setTentou(true);
+                    setAguardando(true);
                     const r = await instalar();
+                    setAguardando(false);
                     if (r === 'aceitou') setPronto(true);
                     else if (r === 'recusou') fechar();
+                    // 'indisponivel': a folha mostra o caminho pelo menu do navegador.
                   }}
                 >
                   Instalar agora

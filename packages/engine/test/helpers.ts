@@ -33,9 +33,10 @@ export function setupRound(
   s.round.cards = deal.cards;
   s.round.hands = structuredClone(deal.hands);
   s.round.vira = deal.vira ?? null;
+  // Como no jogo: "só a primeira" é a primeira rodada de 1 carta da partida.
   s.round.blind =
     deal.cards === 1 &&
-    (s.rules.blindRound === 'all' || (s.rules.blindRound === 'first' && s.round.number === 1));
+    (s.rules.blindRound === 'all' || (s.rules.blindRound === 'first' && !s.history.some((r) => r.cards === 1)));
   return s;
 }
 

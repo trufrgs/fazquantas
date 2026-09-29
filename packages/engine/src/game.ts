@@ -158,7 +158,7 @@ export function nextProgression(
   max: number,
   progression: Progression,
 ): { cards: number; direction: 'up' | 'down' } {
-  if (max <= 1) return { cards: 1, direction: 'up' };
+  if (max <= 1) return { cards: 1, direction: progression === 'down' ? 'down' : 'up' };
   if (progression === 'up') {
     return { cards: current + 1 > max ? 1 : current + 1, direction: 'up' };
   }

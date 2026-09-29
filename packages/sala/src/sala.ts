@@ -519,6 +519,7 @@ export class Sala {
       else this.warnIfTurnOf(seat);
     }
     this.conferirCoroa();
+    this.conferirRevanche();
     this.touch();
   }
 
@@ -553,6 +554,7 @@ export class Sala {
     if (!visible) this.warnIfTurnOf(seat);
     // Anfitrião que escondeu o jogo também está fora da mesa; quem criou e voltou a olhar recebe a coroa.
     this.conferirCoroa();
+    if (!visible) this.conferirRevanche();
     this.deps.aoMudar();
   }
 
@@ -685,7 +687,8 @@ export class Sala {
   /**
    * Próxima partida com os mesmos assentos (segue a série ou começa outra). O anfitrião puxa na hora;
    * os outros pedem, e quando todo mundo que está olhando a mesa pediu, ela começa sozinha (sem ficar
-   * esperando o anfitrião que saiu para o WhatsApp).
+   * esperando o anfitrião que saiu para o WhatsApp). Valendo ranking, só o anfitrião puxa: quem está
+   * com o jogo escondido não pode entrar numa partida que conta pontos sem saber.
    */
   rematch(requesterId: string): void {
     if (requesterId === this.hostPlayerId || this.currentStatus !== 'finished') {
@@ -695,10 +698,35 @@ export class Sala {
     if (!this.human(requesterId)) throw fail('NOT_IN_ROOM', MESSAGES.notInRoom);
     this.revanche.add(requesterId);
     this.markDirty();
-    const naMesa = this.humans().filter((seat) => seat.conexao !== null && seat.visivel);
-    if (naMesa.length > 0 && naMesa.every((seat) => this.revanche.has(seat.playerId))) {
+    if (!this.todosPediramRevanche()) return;
+    try {
       this.deps.logger.info(`[${this.code}] todo mundo na mesa pediu revanche: começa.`);
       this.comecar();
+    } catch (error) {
+      // Não deu para começar (faltou gente para valer ranking…): o pedido volta, para tentar de novo.
+      this.revanche.delete(requesterId);
+      throw error;
+    }
+  }
+
+  /** Todo mundo que está olhando a mesa pediu a revanche (e ela pode começar sem o anfitrião). */
+  private todosPediramRevanche(): boolean {
+    if (this.currentStatus !== 'finished' || this.revanche.size === 0 || this.ranked) return false;
+    const naMesa = this.humans().filter((seat) => seat.conexao !== null && seat.visivel);
+    return naMesa.length > 0 && naMesa.every((seat) => this.revanche.has(seat.playerId));
+  }
+
+  /**
+   * Alguém saiu da mesa (caiu, escondeu o jogo, saiu da sala) depois dos pedidos: se agora todo mundo
+   * que ficou olhando pediu, a revanche começa.
+   */
+  private conferirRevanche(): void {
+    if (!this.todosPediramRevanche()) return;
+    try {
+      this.deps.logger.info(`[${this.code}] quem ficou na mesa pediu revanche: começa.`);
+      this.comecar();
+    } catch (error) {
+      this.deps.logger.warn(`[${this.code}] a revanche pedida não começou`, error);
     }
   }
 
@@ -1009,6 +1037,7 @@ export class Sala {
       return;
     }
     this.conferirCoroa();
+    this.conferirRevanche();
     this.refreshIdle();
   }
 

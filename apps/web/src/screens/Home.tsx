@@ -3,7 +3,7 @@ import { motion } from 'motion/react';
 import { useState } from 'react';
 import { Card } from '../components/cards/Card';
 import { ConfirmNewGame } from '../components/setup/ConfirmNewGame';
-import { InstalarAppSheet, mostraBotaoInstalar } from '../components/setup/InstalarApp';
+import { convitePendente, InstalarAppSheet, mostraBotaoInstalar } from '../components/setup/InstalarApp';
 import { ApelidoGuardado } from '../components/setup/ApelidoGuardado';
 import { ProfileEditor } from '../components/setup/ProfileEditor';
 import { Avatar } from '../components/ui/Avatar';
@@ -97,7 +97,7 @@ export function Home() {
             <IconButton
               label="Instalar o jogo como app"
               onClick={() => setInstalando(true)}
-              className="chamar-atencao bg-ouros! text-tinta! ring-ouros-escuro/60!"
+              className={`bg-ouros! text-tinta! ring-ouros-escuro/60! ${!instalando && convitePendente() ? 'chamar-atencao' : ''}`}
             >
               <Download size={21} strokeWidth={2.4} />
             </IconButton>

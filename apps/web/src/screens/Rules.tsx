@@ -1,9 +1,15 @@
 import { Hierarchy } from '../components/table/ForcaChip';
 import { Panel, ScreenFrame } from '../components/ui/ScreenFrame';
+import { useGame } from '../stores/game';
+import { useOnline } from '../stores/online';
 import { useSettings } from '../stores/settings';
 
 export function Rules() {
-  const rules = useSettings((s) => s.rules);
+  // Aberto do menu da mesa, vale a regra daquela mesa (a sala pode ter outra que a dos teus ajustes).
+  const daMesa = useGame((s) => s.update?.view.rules ?? null);
+  const daSala = useOnline((s) => s.room?.rules ?? null);
+  const minhas = useSettings((s) => s.rules);
+  const rules = daMesa ?? daSala ?? minhas;
   return (
     <ScreenFrame title="Como jogar">
       <Panel title="O objetivo">
@@ -56,7 +62,7 @@ export function Rules() {
         </ol>
       </Panel>
 
-      <Panel title="Cartas iguais empardam">
+      <Panel title={rules.tieRule === 'suit' ? 'Cartas iguais: o naipe desempata' : 'Cartas iguais empardam'}>
         <p>
           {rules.tieRule === 'nobody'
             ? 'Quando as cartas mais fortes da mão são iguais, elas empardam: ninguém leva a mão, e quem começou começa de novo.'
@@ -68,8 +74,11 @@ export function Rules() {
 
       <Panel title="Carta na testa">
         <p>
-          Nas rodadas de 1 carta, tu vê a carta de todo mundo, menos a tua. Palpita lendo a mesa (e o palpite de quem já viu a
-          tua carta). Nessas rodadas a regra do pé não vale.
+          {rules.blindRound === 'off'
+            ? 'Nesta regra não tem rodada às cegas: na rodada de 1 carta, cada um vê a sua.'
+            : `${rules.blindRound === 'first' ? 'Na primeira rodada de 1 carta da partida' : 'Nas rodadas de 1 carta'}, tu vê a carta de todo mundo, menos a tua. Palpita lendo a mesa (e o palpite de quem já viu a tua carta).${
+                rules.dealerRestriction && !rules.dealerRestrictionInBlind ? ' Nessas rodadas a regra do pé não vale.' : ''
+              }`}
         </p>
       </Panel>
 

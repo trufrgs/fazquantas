@@ -77,14 +77,19 @@ export async function instalar(): Promise<'aceitou' | 'recusou' | 'indisponivel'
   // O pedido só vale uma vez: depois, a tela mostra o caminho pelo menu do navegador.
   pedido = null;
   avisar();
-  await e.prompt();
-  const { outcome } = await e.userChoice;
-  if (outcome === 'accepted') {
-    acabouDeInstalar = true;
-    avisar();
-    return 'aceitou';
+  try {
+    await e.prompt();
+    const { outcome } = await e.userChoice;
+    if (outcome === 'accepted') {
+      acabouDeInstalar = true;
+      avisar();
+      return 'aceitou';
+    }
+    return 'recusou';
+  } catch {
+    // O navegador recusou abrir o pedido (já usado, sem gesto…): sobra o caminho pelo menu.
+    return 'indisponivel';
   }
-  return 'recusou';
 }
 
 function subscribe(listener: () => void) {

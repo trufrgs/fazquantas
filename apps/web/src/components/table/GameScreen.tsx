@@ -402,7 +402,8 @@ function Table({
   const nomes = (ids: readonly string[]) => ids.map((id) => room?.seats.find((x) => x.playerId === id)?.name ?? '').filter(Boolean);
   const juntos = (ns: string[]) => (ns.length <= 1 ? (ns[0] ?? '') : `${ns.slice(0, -1).join(', ')} e ${ns.at(-1)}`);
   const quemPediu = nomes(revanche.filter((id) => id !== room?.youId));
-  const oQue = proximaDaSerie ? 'a próxima' : 'revanche';
+  // Série terminada: o que vem é uma série nova (não "revanche").
+  const oQue = proximaDaSerie ? 'a próxima' : seriesOn ? 'nova série' : 'revanche';
   const againLabel = !online
     ? 'Mais uma?'
     : isHost()
@@ -412,17 +413,19 @@ function Table({
           ? 'Nova série'
           : 'Revanche'
       : pediRevanche
-        ? proximaDaSerie
-          ? 'Tu pediu a próxima'
-          : 'Tu pediu revanche'
-        : proximaDaSerie
-          ? 'Quero a próxima'
-          : 'Quero revanche';
+        ? `Tu pediu ${oQue}`
+        : `Quero ${oQue}`;
+  const querem = (ns: string[]) => `${juntos(ns)} ${ns.length === 1 ? 'quer' : 'querem'}`;
+  const comoComeca = room?.ranked
+    ? `Começa quando ${hostName} puxar.`
+    : `Começa quando ${hostName} puxar ou todo mundo na mesa pedir.`;
   const revancheNota = isHost()
     ? quemPediu.length > 0
-      ? `${juntos(quemPediu)} ${quemPediu.length === 1 ? 'quer' : 'querem'} ${oQue}!`
+      ? `${querem(quemPediu)} ${oQue}!`
       : null
-    : `${quemPediu.length > 0 ? `${juntos(quemPediu)} também ${quemPediu.length === 1 ? 'quer' : 'querem'}. ` : ''}Começa quando ${hostName} puxar ou todo mundo na mesa pedir.`;
+    : quemPediu.length === 0
+      ? comoComeca
+      : `${querem(quemPediu)} ${pediRevanche ? 'também' : oQue}. ${comoComeca}`;
   const reactionFor = (id: string) => [...reactions].reverse().find((r) => r.playerId === id);
   const spectating = !!me?.eliminated && view.phase !== 'gameOver';
 

@@ -81,4 +81,38 @@ describe('revanche', () => {
     const lobby = await beto.waitForState((s) => s.status === 'lobby', 'de volta ao lobby');
     expect(lobby.revanche).toEqual([]);
   });
+
+  it('pediram com o anfitrião olhando e ele saiu da mesa: a revanche começa sem esperar a coroa', async () => {
+    const mundo = startWorld();
+    const ana = connect(mundo);
+    const beto = connect(mundo);
+    const caio = connect(mundo);
+    const a = await createRoom(ana, 'Ana', { settings: QUICK });
+    await joinRoom(beto, a.code, 'Beto');
+    await joinRoom(caio, a.code, 'Caio');
+    await partidaAteOFim([ana, beto, caio]);
+    ok(await beto.call('room:rematch'));
+    ok(await caio.call('room:rematch'));
+    expect(mundo.rooms.get(a.code)!.status).toBe('finished');
+    ana.send('presence', { visible: false }); // a anfitriã foi para o WhatsApp depois dos pedidos
+    await beto.waitForState((s) => s.status === 'playing', 'começou quando a Ana saiu da mesa');
+  });
+
+  it('valendo ranking, só o anfitrião puxa (ninguém entra sem saber numa partida que conta pontos)', async () => {
+    const mundo = startWorld();
+    const ana = connect(mundo);
+    const beto = connect(mundo);
+    const caio = connect(mundo);
+    const chave = (c: string) => c.repeat(22);
+    const a = await createRoom(ana, 'Ana', { settings: { ...QUICK, ranked: true }, profileKey: chave('a') });
+    await joinRoom(beto, a.code, 'Beto', undefined, { profileKey: chave('b') });
+    await joinRoom(caio, a.code, 'Caio', undefined, { profileKey: chave('c') });
+    await partidaAteOFim([ana, beto, caio]);
+    ana.send('presence', { visible: false });
+    ok(await beto.call('room:rematch'));
+    ok(await caio.call('room:rematch'));
+    await new Promise((r) => setTimeout(r, 30));
+    expect(mundo.rooms.get(a.code)!.status).toBe('finished');
+    expect(mundo.rooms.get(a.code)!.stateFor(a.playerId).revanche).toHaveLength(2);
+  });
 });
