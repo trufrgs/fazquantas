@@ -5,6 +5,7 @@ import { TuasSalas, useTuasSalas } from '../components/setup/TuasSalas';
 import { Button } from '../components/ui/Button';
 import { Panel, ScreenFrame } from '../components/ui/ScreenFrame';
 import { serverUrl } from '../lib/platform';
+import { useManutencao } from '../lib/status';
 import { useApp } from '../stores/app';
 import { savedSession, useOnline } from '../stores/online';
 import { useSettings } from '../stores/settings';
@@ -31,6 +32,7 @@ export function Online({ initialCode, onCodeUsed }: { initialCode?: string; onCo
   const busy = status === 'connecting';
   const session = savedSession();
   const rooms = useTuasSalas();
+  const manutencao = useManutencao();
   const askPassword = passwordFor !== null && passwordFor === code;
   // Sem apelido, primeiro o apelido: ninguém senta como "Jogador" (nem chegando pelo convite).
   const nome = useSettings((s) => s.name);
@@ -64,6 +66,17 @@ export function Online({ initialCode, onCodeUsed }: { initialCode?: string; onCo
 
   return (
     <ScreenFrame title="Jogar com a gurizada">
+      {/* O erro vem primeiro: quem cai aqui depois de perder a sala precisa ver o porquê sem rolar. */}
+      {error && (
+        <div role="alert" className="rounded-2xl bg-copas px-4 py-3 font-semibold text-papel shadow-lg">
+          {error}
+        </div>
+      )}
+      {manutencao && (
+        <div role="status" className="rounded-2xl bg-ouros px-4 py-3 font-semibold text-tinta shadow-lg">
+          Manutenção: {manutencao.mensagem || 'o jogo está em manutenção.'} Criar sala volta logo; quem já está numa mesa segue jogando.
+        </div>
+      )}
       {pedindoNome && (
         <Panel title={convite ? `Antes de entrar na sala ${convite}` : 'Antes de tudo'}>
           <ProfileEditor />
@@ -92,12 +105,12 @@ export function Online({ initialCode, onCodeUsed }: { initialCode?: string; onCo
           variant="ouro"
           size="lg"
           className="w-full"
-          disabled={busy || pedindoNome}
+          disabled={busy || pedindoNome || manutencao !== null}
           onClick={async () => {
             if (await create()) reset('lobby');
           }}
         >
-          {busy ? 'Conectando…' : 'Criar sala'}
+          {busy ? 'Conectando…' : manutencao ? 'Em manutenção' : 'Criar sala'}
         </Button>
       </Panel>
       <Panel title="Entrar numa sala">
@@ -152,11 +165,6 @@ export function Online({ initialCode, onCodeUsed }: { initialCode?: string; onCo
           </button>
         )}
       </Panel>
-      {error && (
-        <div role="alert" className="rounded-2xl bg-copas px-4 py-3 font-semibold text-papel shadow-lg">
-          {error}
-        </div>
-      )}
       {import.meta.env.DEV && <p className="text-center text-xs text-papel/60">Servidor: {serverUrl()}</p>}
     </ScreenFrame>
   );

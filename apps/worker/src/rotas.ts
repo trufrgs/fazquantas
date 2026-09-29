@@ -5,6 +5,7 @@ import { PIN_PATTERN, shortUserAgent, truncateIp } from './contas';
 import { contasStub, type ContaResultado } from './contas-do';
 import { allowedOrigin } from './origens';
 import { enviarResumo, rodarAutomacao } from './automacao';
+import { descreverAutomacao } from './automacao-regras';
 import { AUTOMACAO_PADRAO, painelStub, type Automacao } from './painel-do';
 import type { PushSubscriptionJSON } from './push';
 import { rankingStub } from './ranking-do';
@@ -100,6 +101,8 @@ async function visita(request: Request, b: Json, env: Env, cors: Record<string, 
   return json({ ok: true }, cors);
 }
 
+const MANUTENCAO_RECADO = 'salas novas voltam daqui a pouco; quem está jogando segue na mesa.';
+
 async function admin(path: string, request: Request, b: Json, env: Env, cors: Record<string, string>): Promise<Response> {
   const secret = (env as unknown as { ADMIN_SENHA?: string }).ADMIN_SENHA;
   const contas = contasStub(env);
@@ -153,10 +156,18 @@ async function admin(path: string, request: Request, b: Json, env: Env, cors: Re
     return json({ ok: true, salas: codes.length, pessoas: total }, cors);
   }
 
+  // Manutenção: salas novas ficam barradas; com `avisar`, as mesas abertas recebem o recado.
   if (path === '/api/admin/manutencao') {
     const m = await painel.salvarManutencao(b.ativa === true, texto(b.mensagem, 200));
+    let pessoas = 0;
+    if (m.ativa && b.avisar === true) {
+      const recado = `Manutenção: ${m.mensagem || MANUTENCAO_RECADO}`;
+      const codes = (await painel.abertas()).map((s) => s.code).slice(0, 100);
+      const n = await Promise.all(codes.map((code) => env.SALAS.get(env.SALAS.idFromName(code)).avisoAdmin(recado).catch(() => 0)));
+      pessoas = n.reduce((t, x) => t + x, 0);
+    }
     await painel.registrar(m.ativa ? 'admin: ligou a manutenção' : 'admin: desligou a manutenção', '', m.mensagem);
-    return json({ ok: true, manutencao: m }, cors);
+    return json({ ok: true, manutencao: m, pessoas }, cors);
   }
 
   if (path === '/api/admin/automacao') {
@@ -167,7 +178,7 @@ async function admin(path: string, request: Request, b: Json, env: Env, cors: Re
     }
     if (typeof b.resumoDiario === 'boolean') patch.resumoDiario = b.resumoDiario;
     const automacao = await painel.salvarAutomacao(patch);
-    await painel.registrar('admin: mudou a automação', '', JSON.stringify(patch));
+    await painel.registrar('admin: mudou a automação', '', descreverAutomacao(patch));
     return json({ ok: true, automacao }, cors);
   }
 

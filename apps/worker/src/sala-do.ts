@@ -18,6 +18,7 @@ import {
   type SalaSalva,
 } from '@fodinha/sala';
 import { contasStub } from './contas-do';
+import type { EstadoSala } from './automacao-regras';
 import { painelStub, type ResumoSala } from './painel-do';
 import { rankingStub } from './ranking-do';
 import { horaBrasilia } from './hora';
@@ -264,11 +265,11 @@ export class SalaDO extends DurableObject<Env> {
   }
 
   /** Para a automação e o admin: a sala existe? Em que pé está? Quando alguém mexeu por último? */
-  async estadoAdmin(): Promise<{ existe: boolean; status?: string; conectados?: number; atividade?: number | null }> {
+  async estadoAdmin(): Promise<EstadoSala> {
     const sala = this.servidor?.room;
     if (!sala || sala.isDisposed) return { existe: false };
     const resumo = sala.summary();
-    return { existe: true, status: resumo.status, conectados: resumo.conectados, atividade: this.atividade };
+    return { existe: true, status: resumo.status, conectados: resumo.conectados, atividade: this.atividade, assincrona: resumo.assincrona };
   }
 
   /** Admin: encerra a sala na hora (todo mundo sai), com o motivo no histórico. */

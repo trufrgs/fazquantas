@@ -37,7 +37,17 @@ estão no [CONTRIBUTING](../CONTRIBUTING.md#publicação).
     até 24 h) e bloqueios de perfil. A sala confere cada pessoa que senta: perfil guardado senta com
     o apelido e o avatar dele, apelido de outro ganha número, bloqueado não senta.
   - `PainelDO`: o painel do `/admin` — visitas por dia (IP truncado, cidade, aparelho), salas abertas
-    e encerradas, contadores (salas, partidas, ranqueadas, avisos). Guarda 90 dias.
+    e encerradas (com a última atividade de gente), contadores (salas, partidas, ranqueadas, avisos,
+    salas barradas), histórico do que o admin e a automação fizeram, regras da automação,
+    manutenção e o limite de salas por endereço (guardado só como resumo do IP, por 24 h). Guarda
+    90 dias (o histórico, 180).
+- **Crons do Worker** (`triggers.crons` no `wrangler.jsonc`, horário UTC):
+  - `*/15 * * * *` — automação (`apps/worker/src/automacao.ts`): confere as salas paradas há mais de
+    20 min; fecha no painel as que sumiram; encerra lobby parado (12 h), partida terminada parada
+    (2 h) e, como rede de segurança, mesa ao vivo sem ninguém há mais de 1 h e assíncrona parada há
+    mais de 8 dias. Os prazos ajustáveis ficam no admin (aba Automação).
+  - `0 0 * * *` — resumo do dia por push para os aparelhos do admin (21:00 BRT).
+  - Para rodar o cron local: `curl "http://127.0.0.1:8787/cdn-cgi/local/scheduled"`.
 - O Worker publica com `wrangler deploy` na CI. Os builds pelo Git do próprio Cloudflare ficam
   desligados (desde 28/09/2026, pela API: Pages com `deployments_enabled: false` e os gatilhos do
   Workers Builds apagados), para não publicar duas vezes nem fora de ordem.
@@ -76,8 +86,20 @@ virada (00:00 UTC, 21:00 BRT); nada é cobrado.
 
 - **Logs:** painel do Worker → Observability (a sala loga `sala encerrada`, erros de ranking, push e
   alarme).
-- **Admin:** <https://fazquantas.pages.dev/admin> (senha = `ADMIN_SENHA`): salas abertas (encerrar),
-  jogadores (liberar apelido, tirar do ranking, bloquear), acessos e números de uso.
+- **Admin:** <https://fazquantas.pages.dev/admin> (senha = `ADMIN_SENHA`, também no Bitwarden). Se
+  atualiza sozinho a cada 30 s. Abas:
+  - **Agora:** o que pede atenção (manutenção ligada, automação atrasada, mesas paradas, salas
+    barradas pelo limite), quem está na mesa e o recado para todas as mesas.
+  - **Salas:** filtros (paradas, sem ninguém, ao vivo, no seu tempo), seleção de várias ("paradas há
+    mais de N h" seleciona de uma vez) para encerrar com motivo ou mandar recado; encerradas da
+    semana com o motivo.
+  - **Jogadores:** renomear e liberar apelido, tirar do ranking, bloquear (7 dias ou de vez).
+  - **Números:** uso do dia, da semana e dos 30 dias, países e os acessos um a um.
+  - **Automação:** prazos das regras, "Rodar agora", a última rodada, **manutenção** (barra sala
+    nova, com mensagem, e pode avisar as mesas abertas; quem está jogando segue) e o resumo do dia
+    neste aparelho.
+  - **Histórico:** tudo que o admin e a automação fizeram, com os perfis pelo nome.
+  - Antes de um deploy arriscado: ligar a manutenção com o recado, publicar, conferir, desligar.
 - **Saúde:** `curl https://fazquantas-api.fancy-night-938c.workers.dev/api/saude`.
 - **Testes contra a produção:** `E2E_BASE=https://fazquantas.pages.dev pnpm exec playwright test
   e2e/amigos.spec.ts e2e/online-game.spec.ts` (três navegadores isolados, senha, série e ranking).

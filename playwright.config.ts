@@ -20,7 +20,10 @@ export default defineConfig({
     screenshot: 'only-on-failure',
   },
   projects: [
-    { name: 'celular', use: { ...devices['Pixel 7'] } },
+    { name: 'celular', use: { ...devices['Pixel 7'] }, testIgnore: /admin-massa/ },
+    // A manutenção barra sala nova para todo mundo: o admin em massa roda sozinho, depois dos outros.
+    // Só ele: `pnpm exec playwright test --project admin --no-deps`.
+    { name: 'admin', use: { ...devices['Pixel 7'] }, testMatch: /admin-massa/, dependencies: ['celular'] },
   ],
   webServer: base ? [] : [
     {

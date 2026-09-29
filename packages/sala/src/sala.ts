@@ -688,6 +688,10 @@ export class Sala {
       }
     }
     for (const seat of sala.humans()) if (!seat.conexao) seat.desconectadoEm ??= now;
+    // Antes de religar a partida: ela já pede a contagem da sala parada, que tem que continuar de
+    // onde estava. Depois, a contagem recomeçava a cada vez que o objeto acordava (e o alarme da
+    // própria contagem acorda o objeto): mesa abandonada no meio da partida não acabava nunca.
+    sala.idleSinceMs = saved.idleSince;
     if (saved.status !== 'lobby' && saved.partida) {
       const { host, ...meta } = saved.partida;
       const game = GameHost.restore(host, { clock: deps.relogio, timing: deps.timing });
@@ -710,7 +714,6 @@ export class Sala {
     if (sala.currentStatus !== 'playing') {
       for (const seat of sala.humans()) if (!seat.conexao) sala.startGrace(seat, seat.desconectadoEm ?? now);
     }
-    sala.idleSinceMs = saved.idleSince;
     sala.touch();
     return sala;
   }

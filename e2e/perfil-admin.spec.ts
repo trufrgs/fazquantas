@@ -67,21 +67,24 @@ test('apelido guardado com PIN, outro aparelho, apelido reservado e admin', asyn
   await expect(adm.page.getByRole('alert')).toContainText('Senha errada');
   await adm.page.getByLabel('Senha do admin').fill(process.env.E2E_ADMIN_SENHA ?? 'senha-do-teste-e2e');
   await adm.page.getByRole('button', { name: 'Entrar' }).click();
-  await expect(adm.page.getByText('pessoas abriram o jogo')).toBeVisible();
-  await adm.page.getByRole('radio', { name: /Salas/ }).click();
+  await expect(adm.page.getByText('Pede atenção')).toBeVisible();
+  await adm.page.getByRole('button', { name: /^Salas/ }).click();
   const linha = adm.page.locator('li', { hasText: code });
   await expect(linha).toContainText(nome);
+  // Encerrar pede confirmação (o primeiro toque só arma).
   await linha.getByRole('button', { name: 'Encerrar' }).click();
-  await expect(adm.page.getByText(`Sala ${code} encerrada.`)).toBeVisible();
+  await linha.getByRole('button', { name: `Encerrar ${code}` }).click();
+  await expect(adm.page.getByText('1 mesa encerrada.')).toBeVisible();
   await expect(a.page.getByRole('alert')).toContainText(/encerrada pela administração/);
 
-  await adm.page.getByRole('radio', { name: 'Jogadores' }).click();
+  await adm.page.getByRole('button', { name: 'Jogadores' }).click();
   // O impostor abriu o jogo com o mesmo nome, mas sem o apelido guardado.
   await adm.page.getByLabel('Buscar jogador').fill(nome);
   const impostor = adm.page.locator('li', { hasText: nome }).filter({ hasNotText: 'apelido guardado' }).first();
   await impostor.getByRole('button', { name: 'Bloquear 7 dias' }).click();
+  await impostor.getByRole('button', { name: 'Bloquear 7 dias' }).click();
   await expect(adm.page.getByText(`${nome} bloqueado por 7 dias.`)).toBeVisible();
-  await adm.page.getByRole('radio', { name: 'Acessos' }).click();
+  await adm.page.getByRole('button', { name: 'Números' }).click();
   await expect(adm.page.getByRole('table')).toContainText(nome);
 
   // O bloqueado não consegue mais criar sala.

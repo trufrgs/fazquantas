@@ -74,7 +74,7 @@ export type Acao = {
 
 export interface PainelDados {
   hoje: string;
-  dias: { dia: string; acessos: number; pessoas: number; salas: number; partidas: number; partidasFim: number; ranqueadas: number; avisos: number }[];
+  dias: { dia: string; acessos: number; pessoas: number; salas: number; partidas: number; partidasFim: number; ranqueadas: number; avisos: number; recusadas: number }[];
   salasAbertas: (ResumoSala & { criada: number; atualizada: number; atividade: number })[];
   salasRecentes: (ResumoSala & { criada: number; encerrada: number; motivo: string })[];
   acessos: (Visita & { dia: string; primeira: number; ultima: number; vezes: number })[];
@@ -176,14 +176,15 @@ export class PainelDO extends DurableObject<Env> {
 
   /**
    * Pode criar sala? Não em manutenção, nem acima do limite de salas por hora do mesmo endereço
-   * (`ip` já chega resumido: o endereço em si não é guardado).
+   * (`ip` já chega resumido: o endereço em si não é guardado). `semLimite`: os testes E2E, que
+   * criam dezenas de salas do mesmo endereço.
    */
-  async podeCriarSala(ip: string): Promise<{ ok: true } | { ok: false; motivo: 'manutencao' | 'limite'; mensagem: string }> {
+  async podeCriarSala(ip: string, semLimite = false): Promise<{ ok: true } | { ok: false; motivo: 'manutencao' | 'limite'; mensagem: string }> {
     const m = await this.manutencao();
     if (m.ativa) return { ok: false, motivo: 'manutencao', mensagem: m.mensagem || 'O jogo está em manutenção. Volta daqui a pouco.' };
     const { limiteSalasPorHora } = await this.automacao();
     const now = Date.now();
-    if (limiteSalasPorHora > 0) {
+    if (limiteSalasPorHora > 0 && !semLimite) {
       const n = this.sql.exec<{ n: number }>('SELECT COUNT(*) AS n FROM criacoes WHERE ip = ? AND quando > ?', ip, now - 3_600_000).one().n;
       if (n >= limiteSalasPorHora) {
         await this.contar('recusadas');
@@ -225,7 +226,7 @@ export class PainelDO extends DurableObject<Env> {
   async abertas(): Promise<SalaAberta[]> {
     return this.sql
       .exec<{ code: string; resumo: string; criada: number; atividade: number | null; atualizada: number }>(
-        'SELECT code, resumo, criada, atividade, atualizada FROM salas WHERE encerrada IS NULL ORDER BY COALESCE(atividade, atualizada) ASC',
+        'SELECT code, resumo, criada, atividade, atualizada FROM salas WHERE encerrada IS NULL ORDER BY COALESCE(atividade, criada) ASC',
       )
       .toArray()
       .map((r) => {
@@ -236,7 +237,7 @@ export class PainelDO extends DurableObject<Env> {
           assincrona: resumo.assincrona,
           conectados: resumo.conectados,
           criada: r.criada,
-          atividade: Math.max(r.atividade ?? 0, r.atualizada),
+          atividade: r.atividade ?? r.criada,
         };
       });
   }
@@ -290,15 +291,19 @@ export class PainelDO extends DurableObject<Env> {
         now,
         now,
       ).rowsWritten > 0;
-    this.sql.exec('UPDATE salas SET atividade = ? WHERE code = ?', now, resumo.code);
-    if (nova) await this.contar('salas');
+    // A atividade vem de gente mexendo (`atividade()`), não do resumo: a sala manda o resumo também
+    // quando só acordou (admin, automação, alarme), e isso não é ninguém jogando.
+    if (nova) {
+      this.sql.exec('UPDATE salas SET atividade = ? WHERE code = ?', now, resumo.code);
+      await this.contar('salas');
+    }
     else {
       // O mesmo código pode voltar depois de encerrado: reabre a linha.
       const antiga = this.sql.exec<{ encerrada: number | null }>('SELECT encerrada FROM salas WHERE code = ?', resumo.code).toArray()[0];
       const reaberta = antiga?.encerrada != null;
       this.sql.exec(
-        `UPDATE salas SET resumo = ?, atualizada = ?, encerrada = NULL, motivo = NULL${reaberta ? ', criada = ?' : ''} WHERE code = ?`,
-        ...(reaberta ? [JSON.stringify(resumo), now, now, resumo.code] : [JSON.stringify(resumo), now, resumo.code]),
+        `UPDATE salas SET resumo = ?, atualizada = ?, encerrada = NULL, motivo = NULL${reaberta ? ', criada = ?, atividade = ?' : ''} WHERE code = ?`,
+        ...(reaberta ? [JSON.stringify(resumo), now, now, now, resumo.code] : [JSON.stringify(resumo), now, resumo.code]),
       );
       if (reaberta) await this.contar('salas');
     }
@@ -339,6 +344,7 @@ export class PainelDO extends DurableObject<Env> {
         partidasFim: c.partidas_fim ?? 0,
         ranqueadas: c.ranqueadas ?? 0,
         avisos: c.avisos ?? 0,
+        recusadas: c.recusadas ?? 0,
       });
     }
     const salas = this.sql
@@ -353,7 +359,7 @@ export class PainelDO extends DurableObject<Env> {
     for (const s of salas) {
       const resumo = JSON.parse(s.resumo) as ResumoSala;
       if (s.encerrada === null)
-        salasAbertas.push({ ...resumo, criada: s.criada, atualizada: s.atualizada, atividade: Math.max(s.atividade ?? 0, s.atualizada) });
+        salasAbertas.push({ ...resumo, criada: s.criada, atualizada: s.atualizada, atividade: s.atividade ?? s.criada });
       else salasRecentes.push({ ...resumo, criada: s.criada, encerrada: s.encerrada, motivo: s.motivo ?? '' });
     }
     const acessos = this.sql

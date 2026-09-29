@@ -144,7 +144,7 @@ export default {
     if (path === '/api/salas/nova') {
       // Manutenção ou limite de salas por hora deste endereço: recusa com recado.
       if (request.headers.get('Upgrade')?.toLowerCase() === 'websocket' && allowedOrigin(request.headers.get('Origin'), env.ORIGENS)) {
-        const pode = await painelStub(env).podeCriarSala(await ipKey(request));
+        const pode = await painelStub(env).podeCriarSala(await ipKey(request), (env.RAPIDO as string) === '1');
         if (!pode.ok) return recusarWs(pode.motivo === 'manutencao' ? WS_CLOSE.maintenance : WS_CLOSE.rateLimited, pode.mensagem);
       }
       return room(request, env, newCode(), cors, false);

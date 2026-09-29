@@ -330,6 +330,24 @@ describe('hibernação', () => {
     pb.stop();
   });
 
+  it('sala sem ninguém conectado acaba no prazo, mesmo acordando no meio (a contagem não recomeça)', async () => {
+    const mundo = startWorld({ ociosaMs: 400, rateLimit: { burst: 10_000, perSecond: 10_000 } });
+    const ana = connect(mundo);
+    const beto = connect(mundo);
+    const a = await createRoom(ana, 'Ana', { settings: { rules: { blindRound: 'off' } } });
+    await joinRoom(beto, a.code, 'Beto');
+    ok(await ana.call('room:start'));
+    await ana.waitForView(() => true);
+    ana.close();
+    beto.close();
+    // A contagem da sala parada tem que estar no que foi salvo: é o que sobrevive à hibernação.
+    await waitUntil(() => (mundo.salvas.get(a.code)?.idleSince ?? null) !== null, 'contagem salva', 1000);
+    await new Promise((r) => setTimeout(r, 250));
+    mundo.hibernar(a.code, []);
+    // Faltavam ~150 ms: acaba no prazo de antes, não 400 ms depois de acordar.
+    await waitUntil(() => mundo.encerradas.some((e) => e.code === a.code), 'sala encerrada por ociosa', 300);
+  });
+
   it('no lobby, quem caiu antes de hibernar tem o prazo contado desde a queda', async () => {
     const mundo = startWorld({ graceMs: 150 });
     const ana = connect(mundo);

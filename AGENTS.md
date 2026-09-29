@@ -53,7 +53,8 @@ pnpm exec playwright test                  # E2E locais (sobem os servidores soz
 
 - **Nunca** em arquivo do repositório, em argumento de comando (`argv`) ou em log.
 - Fonte da verdade: **segredos do GitHub** (`CLOUDFLARE_API_TOKEN`, `VAPID_PRIVADO`, `ADMIN_SENHA`);
-  a CI copia `VAPID_PRIVADO` e `ADMIN_SENHA` para o Worker a cada deploy (`wrangler secret bulk`).
+  a CI publica o Worker já com `VAPID_PRIVADO` e `ADMIN_SENHA` (`wrangler deploy --secrets-file`,
+  uma publicação só: cada publicação reinicia as salas abertas).
 - Cópias locais no Keychain do macOS: `pessoal/fazquantas/<nome>` (conta `trufrgs`). Para mandar um
   valor do Keychain a outro lugar, use pipe (`security find-generic-password … -w | gh secret set …`).
 - Variável não secreta: `CLOUDFLARE_ACCOUNT_ID` (variável do repositório no GitHub).
@@ -70,6 +71,13 @@ pnpm exec playwright test                  # E2E locais (sobem os servidores soz
 
 - Toda mudança de regra, sala ou servidor vem com teste de unidade (`packages/*/test`,
   `apps/worker/test`).
+- **Sala que acorda:** o Durable Object da sala some da memória e volta do que salvou (hibernação,
+  deploy, alarme). Timer novo na sala precisa ser recalculado no `Sala.restore` a partir do estado
+  salvo, **antes** de religar a partida: a contagem de sala parada já recomeçou a cada despertar e
+  mesa abandonada não acabava nunca (28/09/2026; teste em `novidades.test.ts`, "hibernação").
+- **Admin em massa:** `e2e/admin-massa.spec.ts` liga a manutenção (barra sala nova para todos), por
+  isso roda num projeto próprio do Playwright, depois dos outros; sozinho:
+  `pnpm exec playwright test --project admin --no-deps`.
 - **Atualização do app:** o service worker novo assume na hora e o app confere o `version.json`
   (`lib/atualizacao.ts`). Mexeu em service worker, `vite.config.ts`, `public/_headers` ou nesse
   arquivo? Rode `pnpm exec playwright test e2e/atualizacao.spec.ts`: o bug de aba presa na versão

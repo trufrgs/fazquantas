@@ -86,25 +86,36 @@ function sameKey(a: ArrayBuffer | null, b: Uint8Array): boolean {
 }
 
 /**
+ * A assinatura de push deste aparelho (cria se preciso). Sem service worker ou sem suporte
+ * (navegador antigo, iPhone fora da tela inicial), `null`. Uma por aparelho: a vez do jogador e o
+ * resumo do admin usam a mesma.
+ */
+export async function deviceSubscription(): Promise<PushSubscription | null> {
+  const reg = await navigator.serviceWorker?.getRegistration();
+  if (!reg?.pushManager) return null;
+  const r = await fetch(`${serverUrl()}/api/avisos/chave`);
+  const { publicKey } = (await r.json()) as { publicKey?: string };
+  if (!publicKey) return null;
+  const key = keyBytes(publicKey);
+  let sub = await reg.pushManager.getSubscription();
+  // Assinatura feita com outra chave do servidor (a chave foi trocada): não recebe mais nada.
+  if (sub && !sameKey(sub.options.applicationServerKey, key)) {
+    await sub.unsubscribe();
+    sub = null;
+  }
+  sub ??= await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: key });
+  return sub;
+}
+
+/**
  * Registra este aparelho para receber push do servidor (a vez chega mesmo com o jogo fechado).
  * Sem service worker ou sem suporte (navegador antigo, iPhone fora da tela inicial), não faz nada.
  */
 export async function syncPush(): Promise<boolean> {
   if (!useSettings.getState().notify || notifyState() !== 'granted') return false;
   try {
-    const reg = await navigator.serviceWorker?.getRegistration();
-    if (!reg?.pushManager) return false;
-    const r = await fetch(`${serverUrl()}/api/avisos/chave`);
-    const { publicKey } = (await r.json()) as { publicKey?: string };
-    if (!publicKey) return false;
-    const key = keyBytes(publicKey);
-    let sub = await reg.pushManager.getSubscription();
-    // Assinatura feita com outra chave do servidor (a chave foi trocada): não recebe mais nada.
-    if (sub && !sameKey(sub.options.applicationServerKey, key)) {
-      await sub.unsubscribe();
-      sub = null;
-    }
-    sub ??= await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: key });
+    const sub = await deviceSubscription();
+    if (!sub) return false;
     const res = await fetch(`${serverUrl()}/api/avisos/assinar`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },

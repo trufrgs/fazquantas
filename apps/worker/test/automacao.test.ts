@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { motivoParaEncerrar, paraConferir } from '../src/automacao-regras';
+import { descreverAutomacao, motivoParaEncerrar, paraConferir } from '../src/automacao-regras';
 import type { Automacao, SalaAberta } from '../src/painel-do';
 
 const cfg: Automacao = { lobbyParadoHoras: 12, fimParadoHoras: 2, resumoDiario: true, limiteSalasPorHora: 30 };
@@ -17,8 +17,18 @@ describe('automação: mesa parada', () => {
     expect(motivoParaEncerrar({ existe: true, status: 'finished', atividade: now - 1 * H }, cfg, now, now - 5 * H)).toBeNull();
   });
 
-  it('partida em andamento nunca é encerrada pela automação', () => {
-    expect(motivoParaEncerrar({ existe: true, status: 'playing', atividade: now - 100 * H }, cfg, now, now - 200 * H)).toBeNull();
+  it('partida com gente conectada nunca é encerrada pela automação', () => {
+    expect(motivoParaEncerrar({ existe: true, status: 'playing', conectados: 1, atividade: now - 100 * H }, cfg, now, now - 200 * H)).toBeNull();
+    expect(motivoParaEncerrar({ existe: true, status: 'playing', conectados: 2, assincrona: true, atividade: now - 300 * H }, cfg, now, now - 400 * H)).toBeNull();
+  });
+
+  it('rede de segurança: mesa ao vivo sem ninguém há mais de 1 h e assíncrona parada há mais de 8 dias', () => {
+    expect(motivoParaEncerrar({ existe: true, status: 'playing', conectados: 0, atividade: now - 2 * H }, cfg, now, now - 3 * H)).toMatch(/ao vivo sem ninguém/);
+    expect(motivoParaEncerrar({ existe: true, status: 'playing', conectados: 0, atividade: now - 0.5 * H }, cfg, now, now - 3 * H)).toBeNull();
+    expect(motivoParaEncerrar({ existe: true, status: 'playing', conectados: 0, assincrona: true, atividade: now - 5 * 24 * H }, cfg, now, now - 6 * 24 * H)).toBeNull();
+    expect(motivoParaEncerrar({ existe: true, status: 'playing', conectados: 0, assincrona: true, atividade: now - 9 * 24 * H }, cfg, now, now - 9 * 24 * H)).toMatch(/8 dias/);
+    // Sem saber quantos estão conectados, não arrisca.
+    expect(motivoParaEncerrar({ existe: true, status: 'playing', atividade: now - 50 * H }, cfg, now, now - 50 * H)).toBeNull();
   });
 
   it('regra desligada (0) não encerra; sem atividade conhecida, conta desde a criação', () => {
@@ -47,5 +57,13 @@ describe('automação: o que conferir', () => {
     expect(lista).toHaveLength(60);
     expect(lista[0]!.code).toBe('CCCC');
     expect(lista.some((s) => s.code === 'AAAA')).toBe(false);
+  });
+});
+
+describe('automação: histórico legível', () => {
+  it('descreve o que mudou com as palavras da tela', () => {
+    expect(descreverAutomacao({ lobbyParadoHoras: 6, resumoDiario: false })).toBe('lobby parado: 6 h, resumo do dia: não');
+    expect(descreverAutomacao({ fimParadoHoras: 0, limiteSalasPorHora: 0 })).toBe('partida terminada parada: desligado, salas por hora por endereço: sem limite');
+    expect(descreverAutomacao({})).toBe('nada');
   });
 });
