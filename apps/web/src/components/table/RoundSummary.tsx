@@ -10,7 +10,8 @@ function nextCards(view: PlayerView): number | null {
   const rec = view.history.at(-1);
   if (!rec || view.result) return null;
   const alive = view.players.filter((p) => !p.eliminated).length;
-  if (rec.eliminated.length > 0 && view.rules.restartOnElimination) return 1;
+  // Alguém saiu e a regra manda recomeçar: do começo (1 carta, ou o máximo quando é descendo).
+  if (rec.eliminated.length > 0 && view.rules.restartOnElimination) return view.rules.progression === 'down' ? maxCardsFor(alive, view.rules) : 1;
   return nextProgression(
     view.cardsThisRound,
     view.direction,

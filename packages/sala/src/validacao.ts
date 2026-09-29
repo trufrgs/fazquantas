@@ -103,7 +103,7 @@ const rulesPatchSchema = z
     blindRound: z.enum(['all', 'first', 'off']),
     dealerRestriction: z.boolean(),
     dealerRestrictionInBlind: z.boolean(),
-    progression: z.enum(['up', 'upDown']),
+    progression: z.enum(['up', 'down', 'upDown']),
     restartOnElimination: z.boolean(),
     maxCards: z.int().min(1).max(MAX_CARDS_LIMIT).nullable(),
   })

@@ -10,6 +10,7 @@ import {
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 import { randomAvatarSeed } from '../lib/avatar';
+import { atualizarRegrasAntigas } from '../lib/regras-antigas';
 import { safeStateStorage } from '../lib/storage';
 
 export type Speed = 'calma' | 'normal' | 'rapida' | 'turbo';
@@ -60,7 +61,7 @@ export const useSettings = create<SettingsState>()(
     }),
     {
       name: 'fodinha:ajustes',
-      version: 4,
+      version: 5,
       storage: createJSONStorage(() => safeStateStorage),
       // v2: o padrão das cartas iguais virou "ninguém leva"; quem estava no padrão antigo acompanha.
       migrate: (persisted, version) => {
@@ -71,6 +72,8 @@ export const useSettings = create<SettingsState>()(
         // v4: os avatares antigos (DiceBear) deram lugar à turma do Gaudério.
         const antigo = typeof p.avatar === 'string' ? /^av-(\d+)$/.exec(p.avatar) : null;
         if (version < 4 && antigo) p.avatar = GAUCHO_AVATARS[Number(antigo[1]) % GAUCHO_AVATARS.length]!.id;
+        // v5: o padrão virou 3 vidas perdendo 1 por erro; quem nunca mexeu nas regras acompanha.
+        if (version < 5 && p.rules) p.rules = atualizarRegrasAntigas(p.rules);
         return p as SettingsState;
       },
       merge: (persisted, current) => {

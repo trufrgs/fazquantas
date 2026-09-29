@@ -44,7 +44,7 @@ describe('hierarquia gaúcha (manilhas fixas)', () => {
     expect(specialName(card('E1'), gaucha)).toBe('Espadão');
     expect(specialName(card('P1'), gaucha)).toBe('Bastião');
     expect(specialName(card('E7'), gaucha)).toBe('Sete de espadas');
-    expect(specialName(card('O7'), gaucha)).toBe('Sete de ouros');
+    expect(specialName(card('O7'), gaucha)).toBe('Sete belo');
     expect(specialName(card('C3'), gaucha)).toBeNull();
   });
 

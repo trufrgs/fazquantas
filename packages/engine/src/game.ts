@@ -71,13 +71,14 @@ export function createGame(cfg: CreateGameConfig): GameState {
       completedTricks: [],
       blind: false,
     },
-    direction: 'up',
+    // Descendo: a primeira rodada já tem o máximo de cartas.
+    direction: rules.progression === 'down' ? 'down' : 'up',
     history: [],
     rngState: rng.state,
     result: null,
     seq: 0,
   };
-  dealRound(base, 1, 1, players[dealerIndex]!.id);
+  dealRound(base, 1, rules.progression === 'down' ? maxCardsFor(n, rules) : 1, players[dealerIndex]!.id);
   return base;
 }
 
@@ -160,6 +161,9 @@ export function nextProgression(
   if (max <= 1) return { cards: 1, direction: 'up' };
   if (progression === 'up') {
     return { cards: current + 1 > max ? 1 : current + 1, direction: 'up' };
+  }
+  if (progression === 'down') {
+    return { cards: current - 1 < 1 ? max : Math.min(current - 1, max), direction: 'down' };
   }
   if (direction === 'up') {
     return current + 1 <= max
@@ -312,9 +316,12 @@ function advance(state: GameState): ApplyResult {
     } else {
       const someoneOut = (s.history.at(-1)?.eliminated.length ?? 0) > 0;
       const max = maxCardsFor(alivePlayers(s).length, s.rules);
+      // Alguém saiu e a regra manda recomeçar: do começo da progressão (1 carta, ou o máximo descendo).
       const next =
         someoneOut && s.rules.restartOnElimination
-          ? { cards: 1, direction: 'up' as const }
+          ? s.rules.progression === 'down'
+            ? { cards: max, direction: 'down' as const }
+            : { cards: 1, direction: 'up' as const }
           : nextProgression(s.round.cards, s.direction, max, s.rules.progression);
       s.direction = next.direction;
       dealRound(s, s.round.number + 1, next.cards, nextAliveAfter(s.players, s.round.dealerId));
@@ -359,9 +366,10 @@ function dealRound(s: GameState, number: number, cards: number, dealerId: string
     tricksWon[id] = 0;
   });
   const vira = s.rules.hierarchy === 'vira' ? (deck[order.length * cards] ?? null) : null;
+  // "Só a primeira": a primeira rodada de 1 carta da partida (descendo, ela vem no fim da descida).
   const blind =
     cards === 1 &&
-    (s.rules.blindRound === 'all' || (s.rules.blindRound === 'first' && number === 1));
+    (s.rules.blindRound === 'all' || (s.rules.blindRound === 'first' && !s.history.some((r) => r.cards === 1)));
   s.round = {
     number,
     cards,

@@ -18,6 +18,12 @@ import { Segmented, Stepper, Toggle } from '../ui/Controls';
 
 const HIERARCHY_LABEL: Record<HierarchyMode, string> = { gaucha: 'Gaúcha', vira: 'Com vira', mineira: 'Mineira' };
 const TIE_LABEL: Record<TieRule, string> = { cancel: 'empardam', nobody: 'ninguém leva', suit: 'naipe desempata' };
+const PROGRESSION_LABEL: Record<Progression, string> = { up: 'subindo', down: 'descendo', upDown: 'sobe e desce' };
+const PROGRESSION_HINT: Record<Progression, string> = {
+  up: '1 carta, depois 2, 3… até o máximo, e volta pra 1 (serrote).',
+  down: 'Começa com o máximo de cartas e desce até 1; depois volta pro máximo.',
+  upDown: 'Sobe de 1 até o máximo e desce de volta até 1 (pirâmide).',
+};
 const TIE_HINT: Record<TieRule, string> = {
   nobody: 'Se as maiores empardam, ninguém leva a mão e quem começou começa de novo.',
   cancel: 'As iguais se anulam e leva a maior que sobrou.',
@@ -29,11 +35,11 @@ export function rulesSummary(r: Rules): string {
   const parts = [
     HIERARCHY_LABEL[r.hierarchy],
     `${r.startingLives} ${r.startingLives === 1 ? 'vida' : 'vidas'}`,
+    r.penalty === 'fixed' ? 'quem erra perde 1' : 'quem erra perde a diferença',
     `cartas iguais: ${TIE_LABEL[r.tieRule]}`,
-    r.progression === 'up' ? 'serrote' : 'pirâmide',
+    `cartas ${PROGRESSION_LABEL[r.progression]}`,
   ];
   if (r.maxCards) parts.push(`máx. ${r.maxCards} cartas`);
-  if (r.penalty === 'fixed') parts.push('1 vida por erro');
   if (r.blindRound === 'off') parts.push('sem rodada cega');
   if (!r.dealerRestriction) parts.push('sem regra do pé');
   return parts.join(', ');
@@ -104,15 +110,18 @@ export function RulesEditor({ value, onChange, dark }: RulesEditorProps) {
           <Field label="Vidas (palitos)">
             <Stepper label="vidas" dark={dark} value={value.startingLives} min={MIN_LIVES} max={MAX_LIVES} onChange={(v) => set('startingLives', v)} />
           </Field>
-          <Field label="Quem erra perde">
+          <Field
+            label="Quem erra a cantada perde"
+            hint={value.penalty === 'fixed' ? 'Errou, perde 1, erre por quanto errar.' : 'Um pra cada mão de diferença: cantou 2 e fez 0, perde 2.'}
+          >
             <Segmented<PenaltyMode>
               label="Penalidade"
               dark={dark}
               value={value.penalty}
               onChange={(v) => set('penalty', v)}
               options={[
-                { value: 'difference', label: 'A diferença' },
                 { value: 'fixed', label: '1 vida' },
+                { value: 'difference', label: 'A diferença' },
               ]}
             />
           </Field>
@@ -155,22 +164,23 @@ export function RulesEditor({ value, onChange, dark }: RulesEditorProps) {
               label="Regra do pé na rodada às cegas"
             />
           )}
-          <Field label="Cartas por rodada">
+          <Field label="Cartas por rodada" hint={PROGRESSION_HINT[value.progression]}>
             <Segmented<Progression>
-              label="Progressão"
+              label="Cartas por rodada"
               dark={dark}
               value={value.progression}
               onChange={(v) => set('progression', v)}
               options={[
-                { value: 'up', label: 'Serrote (1…máx, volta a 1)' },
-                { value: 'upDown', label: 'Pirâmide (sobe e desce)' },
+                { value: 'up', label: 'Subindo' },
+                { value: 'down', label: 'Descendo' },
+                { value: 'upDown', label: 'Sobe e desce' },
               ]}
             />
           </Field>
           <Toggle
             checked={value.restartOnElimination}
             onChange={(v) => set('restartOnElimination', v)}
-            label="Recomeçar em 1 carta quando alguém sai"
+            label={value.progression === 'down' ? 'Recomeçar do máximo quando alguém sai' : 'Recomeçar em 1 carta quando alguém sai'}
           />
           <Field label="Máximo de cartas por rodada">
             <Segmented<number | null>

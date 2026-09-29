@@ -8,8 +8,9 @@ export function Rules() {
     <ScreenFrame title="Como jogar">
       <Panel title="O objetivo">
         <p>
-          A cada rodada, cada um diz quantas mãos vai fazer: o <strong>palpite</strong>. No fim da rodada, quem errou queima
-          palitos, um pra cada mão de diferença. Quem fica sem palito sai. Ganha quem sobrar.
+          A cada rodada, cada um diz quantas mãos vai fazer: o <strong>palpite</strong>. No fim da rodada, quem errou queima{' '}
+          {rules.penalty === 'fixed' ? 'um palito, erre por quanto errar' : 'palitos, um pra cada mão de diferença'}. Começa com{' '}
+          {rules.startingLives} {rules.startingLives === 1 ? 'palito' : 'palitos'}; quem fica sem palito sai. Ganha quem sobrar.
         </p>
       </Panel>
 
@@ -33,8 +34,12 @@ export function Rules() {
       <Panel title="A rodada">
         <ol className="flex list-decimal flex-col gap-2 pl-5 marker:font-display marker:font-bold">
           <li>
-            <strong>Cartas.</strong> A primeira rodada dá 1 carta pra cada um, a segunda dá 2, e assim até o máximo. Depois volta
-            pra 1.
+            <strong>Cartas.</strong>{' '}
+            {rules.progression === 'down'
+              ? 'A primeira rodada dá o máximo de cartas pra cada um, a seguinte uma a menos, e assim até 1. Depois volta pro máximo.'
+              : rules.progression === 'upDown'
+                ? 'A primeira rodada dá 1 carta pra cada um, a segunda dá 2, e assim até o máximo. Depois desce de volta até 1, e sobe de novo.'
+                : 'A primeira rodada dá 1 carta pra cada um, a segunda dá 2, e assim até o máximo. Depois volta pra 1.'}
           </li>
           <li>
             <strong>Palpites.</strong> Começa quem tá à direita de quem deu as cartas. Quem deu é o <strong>pé</strong> e
@@ -45,15 +50,19 @@ export function Rules() {
             <strong>Mãos.</strong> Quem palpitou primeiro começa. A carta mais forte leva a mão, e quem leva começa a próxima.
           </li>
           <li>
-            <strong>Palitos.</strong> Pediu 2 e fez 0? Queima 2 palitos. Acertou na mosca, não perde nada.
+            <strong>Palitos.</strong> Pediu 2 e fez 0? Queima {rules.penalty === 'fixed' ? '1 palito' : '2 palitos'}. Acertou na mosca,
+            não perde nada.
           </li>
         </ol>
       </Panel>
 
       <Panel title="Cartas iguais empardam">
         <p>
-          Quando duas cartas iguais disputam a mão, elas empardam (se anulam) e leva a maior que sobrou. Se todas empardarem,
-          ninguém leva e quem começou a mão começa de novo.
+          {rules.tieRule === 'nobody'
+            ? 'Quando as cartas mais fortes da mão são iguais, elas empardam: ninguém leva a mão, e quem começou começa de novo.'
+            : rules.tieRule === 'cancel'
+              ? 'Quando duas cartas iguais disputam a mão, elas empardam (se anulam) e leva a maior que sobrou. Se todas empardarem, ninguém leva e quem começou a mão começa de novo.'
+              : 'Não tem empate: entre cartas iguais, o naipe decide (ouros < espadas < copas < paus).'}
         </p>
       </Panel>
 
@@ -69,8 +78,8 @@ export function Rules() {
           <li>Toca numa carta pra escolher e toca de novo pra jogar, ou arrasta pra cima.</li>
           <li>A estrela marca as manilhas entre as tuas cartas.</li>
           <li>O selo 1/2 mostra mãos feitas e palpite: verde tá certinho, vermelho já errou.</li>
-          <li>A lâmpada é uma dica do jogo. Dá pra desligar nos ajustes.</li>
-          <li>O chip no canto da mesa mostra as manilhas. Toca nele pra ver a força de todas as cartas.</li>
+          <li>Ligando “Sugerir palpite e carta” nos ajustes, a lâmpada mostra o que o jogo faria.</li>
+          <li>A força de todas as cartas (quem mata quem) fica no menu da mesa. Na regra com vira, o chip no canto mostra as manilhas.</li>
           <li>A caderneta, lá em cima, anota quanto cada um pediu e fez em cada rodada (✓ é na mosca).</li>
         </ul>
       </Panel>

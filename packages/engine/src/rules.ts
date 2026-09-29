@@ -7,8 +7,11 @@ export type PenaltyMode = 'difference' | 'fixed';
  * - `suit`: o naipe desempata tudo (ouros < espadas < copas < paus).
  */
 export type TieRule = 'cancel' | 'nobody' | 'suit';
-/** `up` = serrote (1 → máx, volta a 1); `upDown` = pirâmide (1 → máx → 1 → …). */
-export type Progression = 'up' | 'upDown';
+/**
+ * Cartas por rodada: `up` = subindo, o serrote (1 → máx, volta a 1); `down` = descendo, começa no
+ * máximo (máx → 1, volta ao máx); `upDown` = sobe e desce, a pirâmide (1 → máx → 1 → …).
+ */
+export type Progression = 'up' | 'down' | 'upDown';
 /** Rodada de 1 carta às cegas: todas, só a primeira da partida, ou nenhuma. */
 export type BlindRound = 'all' | 'first' | 'off';
 
@@ -16,7 +19,7 @@ export interface Rules {
   hierarchy: HierarchyMode;
   /** Vidas com que cada jogador começa. */
   startingLives: number;
-  /** `difference`: perde |palpite − vazas|; `fixed`: perde 1 vida por erro. */
+  /** `fixed` (padrão): quem erra perde 1 vida, erre por quanto errar; `difference`: perde |palpite − mãos|. */
   penalty: PenaltyMode;
   tieRule: TieRule;
   blindRound: BlindRound;
@@ -38,10 +41,14 @@ export const MIN_LIVES = 1;
 export const MAX_LIVES = 12;
 export const MAX_CARDS_OPTIONS = [3, 5, 7, 9] as const;
 
+/**
+ * Padrão desde 29/09/2026 (pedido de quem jogou): 3 vidas, e quem erra a cantada perde 1, erre por
+ * quanto errar. Antes eram 5 vidas perdendo a diferença, e a partida ficava comprida.
+ */
 export const DEFAULT_RULES: Readonly<Rules> = Object.freeze({
   hierarchy: 'gaucha',
-  startingLives: 5,
-  penalty: 'difference',
+  startingLives: 3,
+  penalty: 'fixed',
   tieRule: 'nobody',
   blindRound: 'all',
   dealerRestriction: true,
@@ -64,7 +71,7 @@ export const PRESETS: readonly Preset[] = [
   {
     id: 'gaucha',
     name: 'Gaúcha',
-    description: 'Manilhas fixas: espadão, bastião, 7 de espadas e 7 de ouros. 5 vidas.',
+    description: 'Manilhas fixas: espadão, bastião, 7 de espadas e 7 de ouros. 3 vidas; quem erra a cantada perde 1.',
     rules: DEFAULT_RULES,
   },
   {
@@ -76,8 +83,8 @@ export const PRESETS: readonly Preset[] = [
   {
     id: 'rapida',
     name: 'Rápida',
-    description: 'Gaúcha com 3 vidas e no máximo 5 cartas por rodada.',
-    rules: Object.freeze({ ...DEFAULT_RULES, startingLives: 3, maxCards: 5 }),
+    description: 'Gaúcha com no máximo 5 cartas por rodada.',
+    rules: Object.freeze({ ...DEFAULT_RULES, maxCards: 5 }),
   },
 ];
 
@@ -108,7 +115,7 @@ export function normalizeRules(input: unknown): Rules {
       src.dealerRestrictionInBlind,
       DEFAULT_RULES.dealerRestrictionInBlind,
     ),
-    progression: pick(src.progression, ['up', 'upDown'], DEFAULT_RULES.progression),
+    progression: pick(src.progression, ['up', 'down', 'upDown'], DEFAULT_RULES.progression),
     restartOnElimination: bool(src.restartOnElimination, DEFAULT_RULES.restartOnElimination),
     maxCards:
       maxCards === null || !Number.isInteger(maxCards) || maxCards < 1 || maxCards > 20

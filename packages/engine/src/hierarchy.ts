@@ -36,7 +36,7 @@ const FIXED: Readonly<Record<'gaucha' | 'mineira', Partial<Record<CardId, Fixed>
     E1: { strength: 14, name: 'Espadão' },
     P1: { strength: 13, name: 'Bastião' },
     E7: { strength: 12, name: 'Sete de espadas' },
-    O7: { strength: 11, name: 'Sete de ouros' },
+    O7: { strength: 11, name: 'Sete belo' },
   },
   mineira: {
     P4: { strength: 14, name: 'Zap' },

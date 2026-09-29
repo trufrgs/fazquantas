@@ -198,8 +198,9 @@ describe('resolveTrick', () => {
 });
 
 describe('vazas e fim de rodada', () => {
+  // Regra da diferença, com 5 vidas (o padrão até 29/09/2026), para as contas de vida abaixo.
   const twoCardRound = () =>
-    setupRound(newGame(3, { hierarchy: 'gaucha' }, { firstDealer: 0 }), {
+    setupRound(newGame(3, { hierarchy: 'gaucha', startingLives: 5, penalty: 'difference' }, { firstDealer: 0 }), {
       cards: 2,
       // ordem: p1, p2, p0 (pé)
       hands: { p1: ['E1', 'C4'], p2: ['C3', 'O5'], p0: ['O3', 'P6'] },
@@ -249,7 +250,7 @@ describe('vazas e fim de rodada', () => {
   });
 
   it('loses a single life per miss with the fixed penalty', () => {
-    let s = setupRound(newGame(2, { penalty: 'fixed', hierarchy: 'gaucha' }, { firstDealer: 0 }), {
+    let s = setupRound(newGame(2, { penalty: 'fixed', hierarchy: 'gaucha', startingLives: 5 }, { firstDealer: 0 }), {
       cards: 2,
       hands: { p1: ['C4', 'C5'], p0: ['E1', 'P1'] },
     });
@@ -334,7 +335,7 @@ describe('eliminação e fim de jogo', () => {
   });
 
   it('breaks a simultaneous elimination by remaining lives', () => {
-    let s = newGame(2, { startingLives: 2 }, { firstDealer: 0 });
+    let s = newGame(2, { startingLives: 2, penalty: 'difference' }, { firstDealer: 0 });
     s = structuredClone(s);
     s.players[0]!.lives = 1; // p0 tem 1 vida, p1 tem 2
     s = setupRound(s, { cards: 2, hands: { p1: ['C3', 'C2'], p0: ['O3', 'O2'] } });

@@ -429,7 +429,7 @@ function Table({
         round={view.roundNumber}
         cards={view.cardsThisRound}
         direction={view.direction}
-        pyramid={view.rules.progression === 'upDown'}
+        pyramid={view.rules.progression !== 'up'}
         onMenu={() => setMenu(true)}
         onScore={() => setScore(true)}
         onReact={() => setPicker((v) => !v)}
