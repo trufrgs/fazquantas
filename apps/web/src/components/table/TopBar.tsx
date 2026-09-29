@@ -17,7 +17,7 @@ export interface TopBarProps {
 export function TopBar(p: TopBarProps) {
   return (
     <header
-      className="relative z-30 flex items-center justify-between gap-2 px-3"
+      className="relative z-40 flex items-center justify-between gap-2 px-3"
       style={{ paddingTop: 'calc(0.5rem + var(--safe-top))' }}
     >
       <IconButton label="Menu" onClick={p.onMenu}>
@@ -34,13 +34,13 @@ export function TopBar(p: TopBarProps) {
         {p.note && <span className="text-xs font-bold text-ouros">{p.note}</span>}
       </div>
       <div className="flex gap-2">
-        <BotaoSom />
         <IconButton label="Reagir" onClick={p.onReact}>
           <SmilePlus size={21} />
         </IconButton>
         <IconButton label="Caderneta" onClick={p.onScore}>
           <NotebookPen size={20} />
         </IconButton>
+        <BotaoSom />
       </div>
     </header>
   );

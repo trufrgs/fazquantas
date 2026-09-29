@@ -99,7 +99,6 @@ export function Lobby() {
       onBack={() => setConfirmLeave(true)}
       right={
         <div className="flex items-center gap-2">
-        <BotaoSom />
         <Button
           variant="vidro"
           size="sm"
@@ -112,6 +111,7 @@ export function Lobby() {
         >
           Convidar
         </Button>
+        <BotaoSom />
         </div>
       }
       footer={
