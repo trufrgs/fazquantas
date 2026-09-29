@@ -110,7 +110,7 @@ test('deploy no meio da partida: servidor reinicia duas vezes e o site atualiza;
   }
   for (const p of [ana.page, beto.page]) {
     await expect(p.getByText(/Rodada \d/)).toBeVisible();
-    await expect(p.getByText('Reconectando…')).toBeHidden({ timeout: 15_000 });
+    await expect(p.getByText('Reconectando…', { exact: true })).toBeHidden({ timeout: 15_000 });
   }
   // A versão nova ainda não entrou no meio da partida.
   expect(await buildOf(ana.page)).toBe('deploy-a');

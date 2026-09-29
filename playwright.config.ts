@@ -20,7 +20,12 @@ export default defineConfig({
     screenshot: 'only-on-failure',
   },
   projects: [
-    { name: 'celular', use: { ...devices['Pixel 7'] }, testIgnore: /admin-massa/ },
+    // O deploy no meio da partida reinicia o servidor local: roda sozinho e primeiro. Ao lado dos outros,
+    // derrubava quem jogava no outro worker ("connection refused"); por último, com muitas salas no
+    // SQLite local, o runtime às vezes não voltava do reinício (SQLITE_BUSY). Um arquivo só, sem ele:
+    // `pnpm exec playwright test e2e/<arquivo> --no-deps`.
+    { name: 'deploy', use: { ...devices['Pixel 7'] }, testMatch: /deploy-no-meio/ },
+    { name: 'celular', use: { ...devices['Pixel 7'] }, testIgnore: /admin-massa|deploy-no-meio/, dependencies: ['deploy'] },
     // A manutenção barra sala nova para todo mundo: o admin em massa roda sozinho, depois dos outros.
     // Só ele: `pnpm exec playwright test --project admin --no-deps`.
     { name: 'admin', use: { ...devices['Pixel 7'] }, testMatch: /admin-massa/, dependencies: ['celular'] },

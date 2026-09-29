@@ -52,7 +52,8 @@ pnpm exec playwright test
   `packages/sala/test`, servidor em `apps/worker/test`, interface em `apps/web/src/**/*.test.ts`.
   Regra, sala ou servidor novo vem com teste.
 - **Ponta a ponta** (Playwright, celular Pixel 7): `e2e/`. Sobem o web e o Worker locais com pausas
-  curtas (`RAPIDO=1`).
+  curtas (`RAPIDO=1`). O teste do deploy no meio da partida (que reinicia o servidor local) roda
+  primeiro e sozinho; para rodar um arquivo só, sem ele: `pnpm exec playwright test e2e/<arquivo> --no-deps`.
 - **Exploratórios de rede e aparelhos** (`e2e/exploratorio/`): simulam modo avião, conexão morta em
   silêncio, rede lenta, celular dormindo, troca de aparelho, WebKit e Firefox. Rode quando mexer em
   conexão, sala ou reconexão. Como usar: [e2e/exploratorio/README.md](e2e/exploratorio/README.md).
