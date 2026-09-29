@@ -34,7 +34,9 @@ export function inviteLink(code: string): string {
 /** Compartilha pelo menu nativo (Capacitor/Web Share) ou copia para a área de transferência. */
 export async function shareInvite(code: string): Promise<'shared' | 'copied' | 'failed'> {
   const url = inviteLink(code);
-  const text = `Buenas! Bora uma Fodinha? Entra na sala ${code}: ${url}`;
+  // No menu de compartilhar, o link vai só no `url`: o WhatsApp (e o Android) junta o texto e o link
+  // numa mensagem só, e com o link também no texto ele chegava duas vezes.
+  const text = `Buenas! Bora uma Fodinha? Entra na sala ${code}:`;
   try {
     if (isNative) {
       const { Share } = await import('@capacitor/share');
@@ -49,7 +51,7 @@ export async function shareInvite(code: string): Promise<'shared' | 'copied' | '
     if (err instanceof Error && err.name === 'AbortError') return 'failed';
   }
   try {
-    await navigator.clipboard.writeText(text);
+    await navigator.clipboard.writeText(`${text} ${url}`);
     return 'copied';
   } catch {
     return 'failed';
