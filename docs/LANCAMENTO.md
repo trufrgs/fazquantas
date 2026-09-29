@@ -15,8 +15,7 @@ Aegro, e só serviços gratuitos enquanto der.
 
 - Jogo: <https://fazquantas.pages.dev>. Instala como app pelo navegador (PWA), sem loja, no computador
   (Windows, Mac, Linux), no Android e no iPhone: **Ajustes → Instalar como app** mostra o caminho de cada
-  navegador (ou instala com um toque onde o navegador oferece)
-  ("Adicionar à Tela de Início").
+  navegador (ou instala com um toque onde o navegador oferece).
 - Online: salas com convite por link, senha, ritmo calma/normal/ligeira, tempo por jogada, séries
   "melhor de X" e ranking por semana, mês e ano. Detalhes técnicos em [DEPLOY.md](DEPLOY.md).
 - Privacidade: <https://fazquantas.pages.dev/privacidade>, com link nos créditos do jogo.
