@@ -346,14 +346,51 @@ describe('eliminação e fim de jogo', () => {
     expect(s.result).toEqual({ winners: ['p1'], ranking: ['p1', 'p0'] });
   });
 
-  it('declares a draw when the simultaneous elimination is tied', () => {
+  it('a tie at zero in the same round does not end the game: the tied players come back with one life', () => {
     let s = setupRound(newGame(2, { startingLives: 1 }, { firstDealer: 0 }), {
       cards: 1,
       hands: { p1: ['C3'], p0: ['O3'] },
     });
     s = bidAll(s, [1, 1]);
-    s = cont(playAll(s, ['C3', 'O3']));
-    expect(s.result?.winners.slice().sort()).toEqual(['p0', 'p1']);
+    s = cont(playAll(s, ['C3', 'O3'])); // empardou: ninguém fez, os dois pediram 1
+    expect(s.result).toBeNull();
+    const rec = s.history.at(-1)!;
+    expect(rec.livesAfter).toEqual({ p1: 0, p0: 0 });
+    expect(rec.eliminated).toEqual([]);
+    expect(rec.voltaram?.slice().sort()).toEqual(['p0', 'p1']);
+    expect(s.players.map((p) => [p.lives, p.eliminatedRound])).toEqual([
+      [1, null],
+      [1, null],
+    ]);
+    s = cont(s);
+    expect(s.phase).toBe('bidding');
+    expect(s.round.number).toBe(2);
+  });
+
+  it('when everyone left zeroes together, the worse balances go out and the tied best play on', () => {
+    let s = newGame(3, { startingLives: 1, penalty: 'difference' }, { firstDealer: 0 });
+    s = setupRound(s, { cards: 2, hands: { p1: ['C3', 'C2'], p2: ['O3', 'O2'], p0: ['E3', 'P3'] } });
+    s = bidAll(s, [1, 1, 2]); // p1 e p2 pedem 1, p0 pede 2
+    s = cont(playAll(s, ['C3', 'O3', 'E3'])); // os três 3 empardam: ninguém leva
+    s = cont(playAll(s, ['C2', 'O2', 'P3'])); // o 3 de paus leva (p0): cada um erra por um
+    const rec = s.history.at(-1)!;
+    expect(rec.livesAfter).toEqual({ p1: 0, p2: 0, p0: 0 });
+    expect(rec.voltaram?.slice().sort()).toEqual(['p0', 'p1', 'p2']);
+    expect(s.result).toBeNull();
+  });
+
+  it('the tied best come back and the worse balances go out for good', () => {
+    let s = newGame(3, { startingLives: 1, penalty: 'difference' }, { firstDealer: 0 });
+    s = setupRound(s, { cards: 2, hands: { p1: ['C3', 'C2'], p2: ['O3', 'O2'], p0: ['E3', 'E2'] } });
+    s = bidAll(s, [1, 1, 2]);
+    s = cont(playAll(s, ['C3', 'O3', 'E3'])); // empardam
+    s = cont(playAll(s, ['C2', 'O2', 'E2'])); // empardam de novo: ninguém faz nada
+    const rec = s.history.at(-1)!;
+    expect(rec.livesAfter).toEqual({ p1: 0, p2: 0, p0: -1 });
+    expect(rec.voltaram?.slice().sort()).toEqual(['p1', 'p2']);
+    expect(rec.eliminated).toEqual(['p0']);
+    expect(s.players.find((p) => p.id === 'p0')?.eliminatedRound).toBe(1);
+    expect(s.result).toBeNull();
   });
 
   it('skips eliminated players when choosing the next dealer and the order', () => {

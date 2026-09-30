@@ -133,7 +133,8 @@ export function Scoreboard({
                   const took = r.tricks[p.id] ?? 0;
                   const lost = (r.livesBefore[p.id] ?? 0) - (r.livesAfter[p.id] ?? 0);
                   const out = r.eliminated.includes(p.id);
-                  const label = `pediu ${bid}, fez ${took}${lost > 0 ? `, queimou ${lost}` : ', na mosca'}${out ? ', saiu' : ''}`;
+                  const voltou = r.voltaram?.includes(p.id) ?? false;
+                  const label = `pediu ${bid}, fez ${took}${lost > 0 ? `, queimou ${lost}` : ', na mosca'}${out ? ', saiu' : ''}${voltou ? ', voltou com um palito' : ''}`;
                   return (
                     <td
                       key={p.id}
@@ -158,6 +159,11 @@ export function Scoreboard({
                       {out && (
                         <span className="ml-1 align-middle font-sans text-[0.6875rem] font-bold text-copas">
                           saiu
+                        </span>
+                      )}
+                      {voltou && (
+                        <span className="ml-1 align-middle font-sans text-[0.6875rem] font-bold text-paus">
+                          voltou
                         </span>
                       )}
                     </td>

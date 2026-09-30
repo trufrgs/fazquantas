@@ -409,6 +409,23 @@ function finishRound(s: GameState): void {
       eliminated.push(id);
     }
   }
+  // Todo mundo que ainda jogava zerou na mesma rodada: ganha quem ficou com mais palitos (o saldo). Os
+  // empatados no melhor saldo não ganham perdendo: voltam com um palito e a mesa segue ("os dois
+  // zerado na mesma rodada ele encerra, deveria seguir", o Igor, 29/09/2026).
+  const voltaram: string[] = [];
+  if (alivePlayers(s).length === 0 && eliminated.length > 1) {
+    const saldo = (id: string) => s.players.find((x) => x.id === id)!.lives;
+    const melhor = Math.max(...eliminated.map(saldo));
+    const empatados = eliminated.filter((id) => saldo(id) === melhor);
+    if (empatados.length > 1) {
+      for (const id of empatados) {
+        const p = s.players.find((x) => x.id === id)!;
+        p.lives = 1;
+        p.eliminatedRound = null;
+        voltaram.push(id);
+      }
+    }
+  }
   s.history.push({
     number: round.number,
     cards: round.cards,
@@ -418,7 +435,8 @@ function finishRound(s: GameState): void {
     tricks: { ...round.tricksWon },
     livesBefore,
     livesAfter,
-    eliminated,
+    eliminated: eliminated.filter((id) => !voltaram.includes(id)),
+    ...(voltaram.length > 0 ? { voltaram } : {}),
   });
   if (alivePlayers(s).length <= 1) s.result = computeResult(s);
   s.phase = 'roundEnd';

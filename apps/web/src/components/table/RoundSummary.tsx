@@ -45,6 +45,11 @@ export function RoundSummary({ open, view, seats, autoMs, onContinue }: RoundSum
           <p className="text-sm text-tinta-2">
             {rec.cards} {rec.cards === 1 ? 'carta' : 'cartas'} na mão de cada um
           </p>
+          {(rec.voltaram?.length ?? 0) > 0 && (
+            <p className="mt-2 rounded-xl bg-ouros/20 px-3 py-2 text-sm font-semibold">
+              Zeraram juntos e empatados: ninguém ganha perdendo. Cada um volta com um palito e a mesa segue!
+            </p>
+          )}
           <ul className="mt-3 flex flex-col divide-y divide-tinta/10">
             {Object.keys(rec.bids).map((id) => {
               const p = view.players.find((x) => x.id === id);
@@ -53,6 +58,7 @@ export function RoundSummary({ open, view, seats, autoMs, onContinue }: RoundSum
               const took = rec.tricks[id] ?? 0;
               const lost = (rec.livesBefore[id] ?? 0) - (rec.livesAfter[id] ?? 0);
               const out = rec.eliminated.includes(id);
+              const voltou = rec.voltaram?.includes(id) ?? false;
               return (
                 <li
                   key={id}
@@ -70,6 +76,10 @@ export function RoundSummary({ open, view, seats, autoMs, onContinue }: RoundSum
                       <span className="rounded-full bg-copas px-2.5 py-0.5 text-sm font-bold text-papel">
                         deu pra ti!
                       </span>
+                    ) : voltou ? (
+                      <span className="rounded-full bg-ouros px-2.5 py-0.5 text-sm font-bold text-tinta">
+                        volta com 1!
+                      </span>
                     ) : lost > 0 ? (
                       <span className="font-display text-lg font-bold leading-none text-copas tabular-nums">
                         −{lost} {lost === 1 ? 'palito' : 'palitos'}
@@ -81,7 +91,7 @@ export function RoundSummary({ open, view, seats, autoMs, onContinue }: RoundSum
                     )}
                     {!out && (
                       <Matches
-                        lives={rec.livesAfter[id] ?? 0}
+                        lives={voltou ? 1 : (rec.livesAfter[id] ?? 0)}
                         starting={view.rules.startingLives}
                         size={11}
                       />

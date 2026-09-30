@@ -59,10 +59,15 @@ export interface RoundRecord {
   livesBefore: Record<string, number>;
   livesAfter: Record<string, number>;
   eliminated: string[];
+  /**
+   * Quem zerou junto com todos os outros, empatado no melhor saldo, e voltou com um palito em vez de
+   * sair (ninguém ganha perdendo). `livesAfter` guarda o saldo da rodada, antes da volta.
+   */
+  voltaram?: string[];
 }
 
 export interface GameResult {
-  /** Um vencedor, ou mais de um em caso de empate. */
+  /** O vencedor (mais de um só em partida antiga, de antes de o empate no zero seguir a mesa). */
   winners: string[];
   /** Todos os jogadores, do melhor para o pior. */
   ranking: string[];

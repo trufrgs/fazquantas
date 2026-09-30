@@ -81,7 +81,8 @@ lendo a mesa. Nessas rodadas a regra do pé é dispensada (configurável).
 ## Fim de jogo
 
 Vence o último com vidas. Se os últimos zeram na mesma rodada, vence quem ficou menos negativo; se
-ainda empatar, é empate.
+ainda empatar, ninguém ganha perdendo: os empatados voltam com uma vida e o jogo segue (quem ficou mais
+negativo sai).
 
 ## Configurações disponíveis
 

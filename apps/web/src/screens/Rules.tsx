@@ -16,7 +16,9 @@ export function Rules() {
         <p>
           A cada rodada, cada um diz quantas mãos vai fazer: o <strong>palpite</strong>. No fim da rodada, quem errou queima{' '}
           {rules.penalty === 'fixed' ? 'um palito, erre por quanto errar' : 'palitos, um pra cada mão de diferença'}. Começa com{' '}
-          {rules.startingLives} {rules.startingLives === 1 ? 'palito' : 'palitos'}; quem fica sem palito sai. Ganha quem sobrar.
+          {rules.startingLives} {rules.startingLives === 1 ? 'palito' : 'palitos'}; quem fica sem palito sai. Ganha quem sobrar. Se
+          os últimos zeram na mesma rodada, ganha quem ficou com mais; se empatar, ninguém ganha perdendo: voltam com um
+          palito e a mesa segue.
         </p>
       </Panel>
 
