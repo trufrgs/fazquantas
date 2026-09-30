@@ -30,7 +30,7 @@ function useAberto(playerId: string) {
  * pede a permissão no primeiro toque). Nada aberto é o padrão; aberto fica verde, e o microfone acende
  * enquanto tu fala. A sala toda ouve e vê o que tu abrir.
  */
-export function ControlesDeMidia({ compacto = false }: { compacto?: boolean }) {
+export function ControlesDeMidia({ naMesa = false }: { naMesa?: boolean }) {
   const tem = useTemConversa();
   const erro = useMidia((s) => s.erro);
   const mic = useMidia((s) => s.mic);
@@ -45,14 +45,19 @@ export function ControlesDeMidia({ compacto = false }: { compacto?: boolean }) {
   if (!tem) return null;
   return (
     <div className="relative">
-      {/* Na mesa (e em tela estreita): um botão só, que abre as chaves; na sala, os dois botões. */}
-      <div className={compacto ? '' : 'min-[360px]:hidden'}>
-        <MidiaCompacta falando={falando && mic} />
-      </div>
-      {!compacto && (
-        <div className="max-[359px]:hidden">
-          <DoisBotoes falando={falando && mic} />
-        </div>
+      {/* Na mesa, os dois botões sempre (microfone e câmera a um toque; o alto tem folga). Na sala, em
+          tela estreita, um botão só que abre as chaves. */}
+      {naMesa ? (
+        <DoisBotoes falando={falando && mic} />
+      ) : (
+        <>
+          <div className="min-[360px]:hidden">
+            <MidiaCompacta falando={falando && mic} />
+          </div>
+          <div className="max-[359px]:hidden">
+            <DoisBotoes falando={falando && mic} />
+          </div>
+        </>
       )}
       {erro && (
         <span

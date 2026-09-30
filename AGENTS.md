@@ -88,10 +88,14 @@ pnpm exec playwright test                  # E2E locais (sobem os servidores soz
   segura embaixo do assento; nas colunas, para dentro), longe do alto da mesa. Outro arranjo só entra
   se render cartas 15% maiores (`ARRANJOS` em `layout.ts`): pelo tamanho, a carta de quem senta no alto
   ia para o lado dele, encostada no cabeçalho (print do Thomas, 30/09/2026). Cena: `?cena=cega4`.
-- **O alto da mesa:** ☰, a rodada (tocar abre a caderneta), microfone e câmera num botão só (com gente
-  na sala) e as três frases favoritas a um toque (★ no quadro de frases) com o "+" para o quadro. O
-  quadro tem as frases que a turma usa; o "é galo" sugere as cartas da mão, a que está levando primeiro
-  (é ela que passa), e o genérico; o 🐓 do alto manda a que está levando (com manilha levando, o genérico).
+- **O alto da mesa** (escolha do Thomas em 30/09/2026, opção A): ☰, a rodada no meio (tocar abre a
+  caderneta) e, com gente na sala, microfone e câmera, um botão para cada. As três frases favoritas
+  (★ no quadro) e o "+" ficam numa pílula no canto de baixo da mesa, à direita, perto do polegar; na
+  tua vez de cantar o painel cobre o canto e ela some até tu cantar. A mesa reserva esse canto
+  (`pilulaDeFrases` em `layout.ts`): assento, carta da mesa e carta na testa não vão ali, e a tua carta
+  desce um pouco para a esquerda. Na mesa baixa (celular deitado) as frases sobem para o alto. O
+  quadro tem 12 frases (três fileiras); o "é galo" sugere as cartas da mão, a que está levando
+  primeiro (é ela que passa), e o genérico; o 🐓 da pílula manda a que está levando.
 - **Resumo da rodada:** o × esconde o desta rodada; "Não mostrar mais" desliga (volta nos ajustes e no
   menu ☰). No jogo local sem resumo, a rodada seguinte começa em 1,5 s.
 - **Som ao sair do app:** o iPhone só tira o ícone de som da tela de início quando o áudio para de

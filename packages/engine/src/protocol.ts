@@ -113,8 +113,15 @@ export const REACTIONS: readonly { id: ReactionId; emoji: string; label: string 
   ...GALOS.map((g) => ({ id: `galo-${g.valor}` as const, emoji: '🐓', label: `${g.nome} é galo, hein!` })),
 ];
 
-/** O quadro de frases da mesa: as que a turma manda (e "Mas bah!" para fechar duas fileiras de quatro). */
-export const FRASES_DO_QUADRO: readonly ReactionId[] = ['galo', 'cagao', 'cumadrera', 'guloso', 'fezTodas', 'queMerda', 'fdp', 'masbah'];
+/**
+ * O quadro de frases da mesa, três fileiras de quatro: as que a turma manda (e "Mas bah!" para fechar
+ * a segunda fileira) e, na terceira, as que o Thomas trouxe de volta em 30/09/2026.
+ */
+export const FRASES_DO_QUADRO: readonly ReactionId[] = [
+  'galo', 'cagao', 'cumadrera', 'guloso',
+  'fezTodas', 'queMerda', 'fdp', 'masbah',
+  'chinelao', 'chorao', 'deuprati', 'barbada',
+];
 
 /** As favoritas de quem nunca escolheu (ficam na mesa a um toque). */
 export const FAVORITAS_PADRAO: readonly ReactionId[] = ['galo', 'cagao', 'masbah'];

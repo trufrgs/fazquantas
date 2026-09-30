@@ -28,6 +28,7 @@ import { contextoDaRodada, emCameraRapida, manilhaNaTesta } from './manilhas';
 import { CARD_RATIO } from '../cards/Card';
 import { NaTesta } from './NaTesta';
 import { galoDeUmToque } from './frases';
+import { FrasesAMao } from './FrasesAMao';
 import { useAlgumaCamera, VideoAmpliado } from '../ui/Midia';
 import { useApp } from '../../stores/app';
 import { useGame, type LiveReaction } from '../../stores/game';
@@ -49,6 +50,8 @@ import {
   cardSizes,
   compactBidPanel,
   mesaDimensionada,
+  PILULA_FRASES,
+  pilulaDeFrases,
   pisoDoAvatar,
   tableGeometry,
   tableRevealLayout,
@@ -63,7 +66,7 @@ import { Seat } from './Seat';
 import { TopBar } from './TopBar';
 import { TrickArea } from './TrickArea';
 import { useSize } from './useSize';
-import { useUiScale } from '../../lib/ui-scale';
+import { rem, useUiScale } from '../../lib/ui-scale';
 import { DEMORA_MS, useTableEffects } from './useTableEffects';
 
 const SUIT_ORDER: Suit[] = ['O', 'C', 'E', 'P'];
@@ -257,6 +260,13 @@ function Table({
   // possível e o assento cresce com o resto, sem ficar menor que o de antes (mesa cheia: 40 px).
   const piso = pisoDoAvatar(crowd, vw / s, vh / s, algumaCamera);
   const comVira = view.rules.hierarchy === 'vira';
+  // O canto de baixo, à direita, é das frases favoritas: assento e carta não vão ali. Na mesa baixa
+  // (celular deitado) não sobra canto: as frases sobem para o alto, que ali é largo.
+  const frasesNoAlto = table.height > 0 && table.height < 330 * s;
+  const reservas = useMemo(
+    () => (table.width > 0 && !frasesNoAlto ? [pilulaDeFrases(table.width, table.height, s)] : []),
+    [table.width, table.height, s, frasesNoAlto],
+  );
   const mesa = useMemo(
     () =>
       mesaDimensionada({
@@ -270,8 +280,9 @@ function Table({
         mySeatH,
         chip: comVira,
         piso,
+        reservas,
       }),
-    [table.width, table.height, order, you, trickBase, s, algumaCamera, mySeatH, comVira, piso],
+    [table.width, table.height, order, you, trickBase, s, algumaCamera, mySeatH, comVira, piso, reservas],
   );
   const seatBox = mesa.box;
   const trickCardW = mesa.trickCard;
@@ -285,8 +296,9 @@ function Table({
         trickCardW,
         seatBox,
         s,
+        reservas,
       ),
-    [table.width, table.height, order, you, trickCardW, seatBox, s],
+    [table.width, table.height, order, you, trickCardW, seatBox, s, reservas],
   );
   // Cartas à mostra (rodada às cegas; quem saiu vê tudo): na frente de cada assento, do maior
   // tamanho que não cobre ninguém nem fica atrás do painel de palpite ou do chip das manilhas.
@@ -505,6 +517,14 @@ function Table({
     return () => acelerarMusica(false);
   }, [cameraRapida, view.phase]);
 
+  const frasesAMao = (
+    <FrasesAMao
+      onFrase={(r) => conn.react(r)}
+      onMais={() => setPicker((v) => !v)}
+      galo={() => galoDeUmToque(trickPlays.map((pl) => pl.cardId), contextoDaRodada(view.rules, view.vira))}
+    />
+  );
+
   const exit = () => {
     if (online) useOnline.getState().leave();
     leaveTable();
@@ -550,10 +570,8 @@ function Table({
         pyramid={view.rules.progression !== 'up'}
         onMenu={() => setMenu(true)}
         onScore={() => setScore(true)}
-        onReact={() => setPicker((v) => !v)}
-        onFrase={(r) => conn.react(r)}
-        galo={() => galoDeUmToque(trickPlays.map((pl) => pl.cardId), contextoDaRodada(view.rules, view.vira))}
         note={asyncNote}
+        frases={frasesNoAlto ? frasesAMao : null}
       />
 
       <div className="mx-auto flex min-h-0 w-full max-w-[73.75rem] flex-1 flex-col">
@@ -674,6 +692,33 @@ function Table({
                 <InlineTurnTimer key={view.turnDeadline} deadline={view.turnDeadline} totalMs={turnTotalMs} />
               ) : null
             }
+          />
+          {/* As frases favoritas no canto de baixo, perto do polegar. Na tua vez de cantar, o painel
+              cobre o canto: somem até tu cantar. */}
+          {table.width > 0 && !frasesNoAlto && !bidding && view.phase !== 'gameOver' && (
+            <div className="absolute z-30" style={{ right: rem(PILULA_FRASES.direita), bottom: rem(PILULA_FRASES.baixo) }}>
+              {frasesAMao}
+            </div>
+          )}
+          <ReactionPicker
+            open={picker}
+            onClose={closePicker}
+            naMesa={trickPlays.map((pl) => pl.cardId)}
+            ctx={contextoDaRodada(view.rules, view.vira)}
+            lugar={
+              frasesNoAlto
+                ? undefined
+                : {
+                    right: rem(PILULA_FRASES.direita),
+                    bottom: rem(PILULA_FRASES.baixo + PILULA_FRASES.h + 8),
+                    maxHeight: Math.max(160 * s, table.height - (PILULA_FRASES.baixo + PILULA_FRASES.h + 16) * s),
+                    overflowY: 'auto',
+                  }
+            }
+            onPick={(r) => {
+              conn.react(r);
+              setPicker(false);
+            }}
           />
           <UrgentEdge on={myTurn && apertado} />
         </div>
@@ -809,16 +854,6 @@ function Table({
       />
       {meAway && <AwayBanner />}
       {online && <AdminNotice />}
-      <ReactionPicker
-        open={picker}
-        onClose={closePicker}
-        naMesa={trickPlays.map((pl) => pl.cardId)}
-        ctx={contextoDaRodada(view.rules, view.vira)}
-        onPick={(r) => {
-          conn.react(r);
-          setPicker(false);
-        }}
-      />
     </div>
   );
 }

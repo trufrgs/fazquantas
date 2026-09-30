@@ -1,9 +1,8 @@
-import { REACTIONS, type ReactionId } from '@fodinha/engine';
-import { Menu, NotebookPen, Plus } from 'lucide-react';
+import { Menu, NotebookPen } from 'lucide-react';
+import type { ReactNode } from 'react';
 import { play } from '../../lib/sound';
-import { useSettings } from '../../stores/settings';
 import { IconButton } from '../ui/Button';
-import { ControlesDeMidia, useTemConversa } from '../ui/Midia';
+import { ControlesDeMidia } from '../ui/Midia';
 
 export interface TopBarProps {
   /** Linha extra (sala assíncrona: de quem é a vez e até quando). */
@@ -14,25 +13,22 @@ export interface TopBarProps {
   pyramid: boolean;
   onMenu: () => void;
   onScore: () => void;
-  /** Abre o quadro de frases. */
-  onReact: () => void;
-  /** Manda uma das favoritas (a um toque). */
-  onFrase: (id: ReactionId) => void;
-  /** O "é galo" de um toque: a carta que está levando a mão, ou o genérico. */
-  galo: () => ReactionId;
+  /** As frases favoritas no alto (só na mesa baixa, do celular deitado; senão ficam no canto de baixo). */
+  frases?: ReactNode;
 }
 
 /**
- * O alto da mesa, enxuto: o menu, a rodada (tocar abre a caderneta), o microfone e a câmera (num botão
- * só, e só com gente na sala) e as três frases favoritas a um toque, com o "+" para o quadro todo.
+ * O alto da mesa, com folga (escolha do Thomas em 30/09/2026): o menu, a rodada no meio (tocar abre a
+ * caderneta) e, com gente na sala, o microfone e a câmera, um botão para cada. As frases favoritas
+ * ficam no canto de baixo da mesa, perto do polegar (`FrasesAMao`).
  */
 export function TopBar(p: TopBarProps) {
   return (
     <header
-      className="relative z-30 flex items-center justify-between gap-2 px-3"
+      className="relative z-30 grid grid-cols-[1fr_auto_1fr] items-center gap-2 px-3"
       style={{ paddingTop: 'calc(0.5rem + var(--safe-top))' }}
     >
-      <IconButton label="Menu" onClick={p.onMenu}>
+      <IconButton label="Menu" onClick={p.onMenu} className="justify-self-start">
         <Menu size={22} />
       </IconButton>
       <button
@@ -56,41 +52,10 @@ export function TopBar(p: TopBarProps) {
         </span>
         {p.note && <span className="text-xs font-bold text-ouros">{p.note}</span>}
       </button>
-      <div className="flex items-center gap-2">
-        <ControlesDeMidia compacto />
-        <FrasesAMao onFrase={p.onFrase} onMais={p.onReact} galo={p.galo} />
+      <div className="flex items-center gap-2 justify-self-end">
+        {p.frases}
+        <ControlesDeMidia naMesa />
       </div>
     </header>
-  );
-}
-
-/** As três favoritas (★ no quadro) a um toque, e o "+" que abre o quadro todo. */
-function FrasesAMao({ onFrase, onMais, galo }: { onFrase: (id: ReactionId) => void; onMais: () => void; galo: () => ReactionId }) {
-  const favoritas = useSettings((s) => s.frasesFavoritas);
-  // Tela estreita com o botão da câmera: cabem duas favoritas.
-  const apertado = useTemConversa();
-  const botao = 'inline-flex h-11 w-10 items-center justify-center text-xl leading-none transition active:scale-90 max-[359px]:w-9';
-  return (
-    <div role="group" aria-label="Frases" className="flex overflow-hidden rounded-full bg-noite/45 ring-1 ring-papel/15 backdrop-blur-sm">
-      {favoritas.map((id, i) => {
-        const r = REACTIONS.find((x) => x.id === id);
-        if (!r) return null;
-        return (
-          <button
-            key={id}
-            type="button"
-            aria-label={`Mandar "${r.label}"`}
-            title={r.label}
-            onClick={() => onFrase(id === 'galo' ? galo() : id)}
-            className={`${botao} ${apertado && i === 2 ? 'max-[359px]:hidden' : ''}`}
-          >
-            {r.emoji}
-          </button>
-        );
-      })}
-      <button type="button" aria-label="Mais frases" title="Mais frases" onClick={onMais} className={`${botao} border-l border-papel/15 text-papel`}>
-        <Plus size={20} />
-      </button>
-    </div>
   );
 }

@@ -26,6 +26,20 @@ export interface TableGeometry {
   seatBox: SeatBox;
   /** Altura (y) da fileira de cima: quem senta ali abre os balões para baixo ou para o lado. */
   topo: number;
+  /** Cantos da mesa ocupados por controles (as frases favoritas): assento e carta não vão ali. */
+  reservas: readonly Rect[];
+}
+
+/**
+ * As frases favoritas moram no canto de baixo, à direita, acima da tua faixa (perto do polegar;
+ * escolha do Thomas em 30/09/2026): 3 frases e o "+" em botões de 40 px (px na escala 1).
+ */
+export const PILULA_FRASES = { w: 168, h: 44, direita: 12, baixo: 8 } as const;
+
+/** O canto que a pílula das frases ocupa na mesa (px da mesa). */
+export function pilulaDeFrases(width: number, height: number, s = 1): Rect {
+  const p = PILULA_FRASES;
+  return { l: width - (p.direita + p.w) * s, t: height - (p.baixo + p.h) * s, r: width - p.direita * s, b: height - p.baixo * s };
 }
 
 /** Tamanho do assento (widget) na tela; compacto em mesa cheia ou tela pequena. */
@@ -127,6 +141,7 @@ export function tableGeometry(
   trickCard = 56,
   baseBox: SeatBox = SEAT_BOX.normal,
   scale = 1,
+  reservas: readonly Rect[] = [],
 ): TableGeometry {
   const start = youId ? Math.max(0, order.indexOf(youId)) : 0;
   const rotated = order.map((_, i) => order[(start + i) % order.length]!);
@@ -140,7 +155,11 @@ export function tableGeometry(
   const B = Math.max(T + 1, Math.min(height - Math.max(46 * scale, box.h / 2), T + (height - T) * 0.78));
   const panelW = Math.min(width - 2 * BID_PANEL.margin * scale, BID_PANEL.maxWidth * scale);
   const panelOverSides = (width - panelW) / 2 < box.w + 4 * scale;
-  const limit = panelOverSides ? height - BID_PANEL.band * scale - box.h / 2 - 12 * scale : null;
+  // As colunas param acima do painel de palpite (quando ele chega nelas) e do que está reservado embaixo
+  // (a pílula das frases, no canto da direita).
+  const acimaDoPainel = panelOverSides ? height - BID_PANEL.band * scale - box.h / 2 - 12 * scale : null;
+  const acimaDaReserva = reservas.length ? Math.min(...reservas.map((r) => r.t)) - 4 * scale - box.h / 2 : null;
+  const limit = acimaDoPainel === null ? acimaDaReserva : acimaDaReserva === null ? acimaDoPainel : Math.min(acimaDoPainel, acimaDaReserva);
   // Se nem assim couber, pelo menos acima da barra de uma linha (o painel vira barra: `compactBidPanel`).
   const barLimit = panelOverSides ? height - 52 * scale - box.h / 2 - 6 * scale : null;
   const places = placeSeats(others.length, L, R, T, B, box, limit, barLimit);
@@ -152,7 +171,13 @@ export function tableGeometry(
   const seats = new Map<string, Point>();
   others.forEach((id, i) => seats.set(id, places[i] ?? { x: width / 2, y: T }));
   const me = rotated[0];
-  if (me) seats.set(me, { x: center.x, y: height + 40 * scale });
+  // A tua carta vem da tua mão, embaixo. Com o canto de baixo da direita reservado (as frases), ela
+  // desce um pouco para a esquerda: no meio da mão (t = 0,56) ainda passa longe do canto.
+  const noPe = reservas.filter((r) => r.b >= height - 16 * scale && r.l < center.x + trickCard);
+  const meuX = noPe.length
+    ? Math.min(center.x, center.x + (Math.min(...noPe.map((r) => r.l)) - 4 * scale - trickCard / 2 - center.x) / 0.56)
+    : center.x;
+  if (me) seats.set(me, { x: Math.max(trickCard / 2, meuX), y: height + 40 * scale });
   const seatRects = others.map((id) => rectAround(seats.get(id)!, box.w, box.h));
   const tricks = trickSpots(
     rotated,
@@ -163,8 +188,9 @@ export function tableGeometry(
     seatRects,
     width,
     height,
+    reservas,
   );
-  return { width, height, center, seats, tricks, deck: { x: center.x, y: center.y }, seatBox: box, topo: T };
+  return { width, height, center, seats, tricks, deck: { x: center.x, y: center.y }, seatBox: box, topo: T, reservas };
 }
 
 /**
@@ -182,6 +208,7 @@ function trickSpots(
   seatRects: readonly Rect[],
   width: number,
   height: number,
+  reservas: readonly Rect[] = [],
 ): Map<string, Point> {
   const place = (t: number) =>
     new Map(
@@ -200,7 +227,8 @@ function trickSpots(
       r.r <= width &&
       r.t >= 0 &&
       r.b <= height &&
-      !seatRects.some((o) => overlaps(r, o))
+      !seatRects.some((o) => overlaps(r, o)) &&
+      !reservas.some((o) => overlaps(r, o))
     );
   };
   const clear = (a: Point, b: Point) =>
@@ -217,7 +245,7 @@ function trickSpots(
     if (!pts.every(fits)) break;
     tries.push({ t, spots, pts });
   }
-  if (tries.length === 0) return trickRow(ids, seats, center, w, h, seatRects, width, height);
+  if (tries.length === 0) return trickRow(ids, seats, center, w, h, seatRects, width, height, reservas);
   const soltas = tries.find((c) => c.t <= 0.56 && all(c.pts, clear));
   if (soltas) return soltas.spots;
   // Mesa cheia: as cartas se encavalam. Espalha o quanto dá até o meio do caminho (cada uma perto
@@ -271,6 +299,7 @@ export function tableRevealLayout(
   const panelH = (o.compactPanel ? barH : 142) * s - o.mySeatH;
   const obstacles: Rect[] = [
     { l: (g.width - panelW) / 2, t: g.height - panelH, r: (g.width + panelW) / 2, b: g.height },
+    ...g.reservas,
   ];
   const chip = rectAround({ x: 92 * s, y: g.height - 30 * s }, 160 * s, 44 * s);
   return revealLayout(g, ids, {
@@ -297,17 +326,25 @@ function trickRow(
   seatRects: readonly Rect[],
   width: number,
   height: number,
+  reservados: readonly Rect[] = [],
 ): Map<string, Point> {
   const seatsBottom = Math.max(0, ...seatRects.map((r) => r.b));
   const y = Math.max(h / 2 + 2, Math.min(height - h / 2 - 2, (seatsBottom + height) / 2));
+  // A carta desvia dos cantos reservados (as frases).
+  const noCanto = (x: number) => reservados.some((r) => overlaps(rectAround({ x, y }, w, h), r));
+  const desviar = (x: number) => {
+    let nx = x;
+    for (let k = 0; k < 40 && noCanto(nx); k++) nx -= w / 2;
+    return Math.max(w / 2, nx);
+  };
   const spots = new Map<string, Point>();
   for (const id of ids) {
     const s = seats.get(id);
-    if (s && s.y <= height) spots.set(id, { x: s.x, y }); // a tua fica para o fim
+    if (s && s.y <= height) spots.set(id, { x: desviar(s.x), y }); // a tua fica para o fim
   }
   const taken = [...spots.values()].map((p) => p.x);
   const freeAt = (x: number) =>
-    x >= w / 2 && x <= width - w / 2 && taken.every((o) => Math.abs(o - x) >= w + 6);
+    x >= w / 2 && x <= width - w / 2 && !noCanto(x) && taken.every((o) => Math.abs(o - x) >= w + 6);
   const step = w / 2 + 4;
   let mine: Point = { x: center.x, y: y + h * 0.34 }; // último recurso: um pouco abaixo, por cima
   for (let k = 0; k < 40; k++) {
@@ -364,11 +401,12 @@ export function trickCardFor(
   base: number,
   box: SeatBox = SEAT_BOX.normal,
   scale = 1,
+  reservas: readonly Rect[] = [],
 ): number {
   if (width <= 0 || height <= 0) return base;
   const max = tetoDaCarta(width, base, scale);
   for (let w = Math.floor(max); w > base; w -= 2) {
-    if (mesaFolgada(tableGeometry(width, height, order, youId, w, box, scale), w)) return w;
+    if (mesaFolgada(tableGeometry(width, height, order, youId, w, box, scale, reservas), w)) return w;
   }
   return base;
 }
@@ -381,7 +419,7 @@ function tetoDaCarta(width: number, base: number, scale: number): number {
 /** As cartas da mão (tamanho `w`) cabem sem se tocar, sem cobrir assento e sem sair da mesa? */
 function mesaFolgada(g: TableGeometry, w: number): boolean {
   const h = w * CARD_RATIO;
-  const assentos = [...g.seats.values()].filter((p) => p.y < g.height).map((p) => rectAround(p, g.seatBox.w, g.seatBox.h));
+  const assentos = [...[...g.seats.values()].filter((p) => p.y < g.height).map((p) => rectAround(p, g.seatBox.w, g.seatBox.h)), ...g.reservas];
   const cartas = [...g.tricks.values()];
   const dentro = cartas.every((p) => {
     const r = rectAround(p, w, h);
@@ -453,6 +491,8 @@ export function mesaDimensionada(o: {
   mySeatH?: number;
   /** Mesa com vira (o chip dela ocupa o canto de baixo). */
   chip?: boolean;
+  /** Cantos ocupados por controles (a pílula das frases). */
+  reservas?: readonly Rect[];
   /**
    * O avatar (ou rosto) não fica menor que isto quando dá: o tamanho de antes do assento crescer
    * com o espaço (50 px; 40 em mesa cheia ou tela pequena; com câmera, 68 e 52).
@@ -471,14 +511,15 @@ export function mesaDimensionada(o: {
   if (o.width <= 0 || o.height <= 0) return final(o.video ? 68 : 50, o.trickBase);
   const mySeatH = o.mySeatH ?? 47 * s;
   const others = o.order.filter((id) => id !== o.youId);
+  const reservas = o.reservas ?? [];
   const avaliar = (a: number): OpcaoDeMesa => {
     const box = caixaDoAssento(a);
-    const g0 = tableGeometry(o.width, o.height, o.order, o.youId, o.trickBase, box, s);
+    const g0 = tableGeometry(o.width, o.height, o.order, o.youId, o.trickBase, box, s, reservas);
     const assentos = assentosNaTela(g0);
     const vaza = cartasLongeDosAssentos(g0, o.trickBase);
     const painel = !compactBidPanel(g0, o.youId, s, mySeatH);
-    const carta = assentos && vaza ? trickCardFor(o.width, o.height, o.order, o.youId, o.trickBase, box, s) : o.trickBase;
-    const g = carta === o.trickBase ? g0 : tableGeometry(o.width, o.height, o.order, o.youId, carta, box, s);
+    const carta = assentos && vaza ? trickCardFor(o.width, o.height, o.order, o.youId, o.trickBase, box, s, reservas) : o.trickBase;
+    const g = carta === o.trickBase ? g0 : tableGeometry(o.width, o.height, o.order, o.youId, carta, box, s, reservas);
     const r = tableRevealLayout(g, others, { scale: s, trickCard: carta, compactPanel: !painel, mySeatH, chip: o.chip });
     return { a, carta, testa: r.cardWidth, testaCabe: r.cabe !== false, assentos, vaza, painel };
   };
@@ -527,14 +568,15 @@ function assentosNaTela(g: TableGeometry): boolean {
   const rects = [...g.seats.values()].filter((p) => p.y < g.height).map((p) => rectAround(p, box.w, box.h));
   return (
     rects.every((r) => r.l >= -1 && r.r <= g.width + 1 && r.t >= -1 && r.b <= g.height + 1) &&
-    rects.every((a, i) => rects.every((b, j) => j <= i || !overlaps(a, b, 1)))
+    rects.every((a, i) => rects.every((b, j) => j <= i || !overlaps(a, b, 1))) &&
+    rects.every((a) => !g.reservas.some((r) => overlaps(a, r, 1)))
   );
 }
 
 /** As cartas da mão (largura `w`) ficam na mesa sem cobrir assento (podem se encavalar, como na mesa cheia)? */
 function cartasLongeDosAssentos(g: TableGeometry, w: number): boolean {
   const h = w * CARD_RATIO;
-  const assentos = [...g.seats.values()].filter((p) => p.y < g.height).map((p) => rectAround(p, g.seatBox.w, g.seatBox.h));
+  const assentos = [...[...g.seats.values()].filter((p) => p.y < g.height).map((p) => rectAround(p, g.seatBox.w, g.seatBox.h)), ...g.reservas];
   return [...g.tricks.values()].every((p) => {
     const r = rectAround(p, w, h);
     return r.l >= -1 && r.r <= g.width + 1 && r.t >= -1 && r.b <= g.height + 1 && !assentos.some((a) => overlaps(r, a, 1));

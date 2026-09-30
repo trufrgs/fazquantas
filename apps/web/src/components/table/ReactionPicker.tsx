@@ -1,7 +1,7 @@
 import { FRASES_DO_QUADRO, REACTIONS, type CardId, type ReactionId, type StrengthCtx } from '@fodinha/engine';
 import { Star } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type CSSProperties } from 'react';
 import { useSettings } from '../../stores/settings';
 import { alternarFavorita, sugestoesDeGalo } from './frases';
 
@@ -20,10 +20,12 @@ interface QuadroProps {
   onClose: () => void;
   naMesa: readonly CardId[];
   ctx: StrengthCtx | null;
+  /** Onde o quadro abre (acima das frases favoritas, no canto de baixo da mesa); sem isso, no alto. */
+  lugar?: CSSProperties;
 }
 
 /** O quadro aberto (monta a cada vez que abre: as sugestões do galo começam fechadas). */
-function Quadro({ onPick, onClose, naMesa, ctx }: QuadroProps) {
+function Quadro({ onPick, onClose, naMesa, ctx, lugar }: QuadroProps) {
   const favoritas = useSettings((s) => s.frasesFavoritas);
   const set = useSettings((s) => s.set);
   const [galo, setGalo] = useState(false);
@@ -44,10 +46,10 @@ function Quadro({ onPick, onClose, naMesa, ctx }: QuadroProps) {
         role="menu"
         aria-label="Frases"
         className="papel absolute right-3 z-50 flex max-w-[calc(100vw-1.5rem)] flex-col gap-1 rounded-3xl p-2 shadow-2xl"
-        style={{ top: 'calc(3.6rem + var(--safe-top))' }}
-        initial={{ opacity: 0, scale: 0.85, y: -8 }}
+        style={lugar ?? { top: 'calc(3.6rem + var(--safe-top))' }}
+        initial={{ opacity: 0, scale: 0.85, y: lugar ? 8 : -8 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
-        exit={{ opacity: 0, scale: 0.9, y: -6 }}
+        exit={{ opacity: 0, scale: 0.9, y: lugar ? 6 : -6 }}
         transition={{ type: 'spring', stiffness: 500, damping: 30 }}
       >
         <div className="grid grid-cols-4 gap-1">

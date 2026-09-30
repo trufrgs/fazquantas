@@ -9,6 +9,7 @@ import {
   compactBidPanel,
   isCompact,
   mesaDimensionada,
+  pilulaDeFrases,
   pisoDoAvatar,
   rectAround,
   SEAT_BOX,
@@ -18,6 +19,9 @@ import {
   trickStacking,
   type Rect,
 } from './layout';
+
+/** Encostar (até 1 px) não conta. */
+const overlapRect = (a: Rect, b: Rect) => a.l < b.r - 1 && b.l < a.r - 1 && a.t < b.b - 1 && b.t < a.b - 1;
 
 const SCREENS = [
   // Área da mesa (entre a barra de cima e a mão) em telas reais.
@@ -37,8 +41,10 @@ function mesaComo(t: { w: number; h: number; vw: number; vh: number; s?: number 
   const order = Array.from({ length: n }, (_, i) => `p${i}`);
   const base = cardSizes(t.vw, t.vh, n, s).trick;
   const piso = pisoDoAvatar(n, t.vw / s, t.vh / s, video);
-  const m = mesaDimensionada({ width: t.w, height: t.h, order, youId: 'p0', trickBase: base, scale: s, video, mySeatH: 47 * s, piso });
-  const g = tableGeometry(t.w, t.h, order, 'p0', m.trickCard, m.box, s);
+  // O canto das frases favoritas, reservado como na GameScreen (na mesa baixa elas sobem para o alto).
+  const reservas = t.h < 330 * s ? [] : [pilulaDeFrases(t.w, t.h, s)];
+  const m = mesaDimensionada({ width: t.w, height: t.h, order, youId: 'p0', trickBase: base, scale: s, video, mySeatH: 47 * s, piso, reservas });
+  const g = tableGeometry(t.w, t.h, order, 'p0', m.trickCard, m.box, s, reservas);
   return { m, g, order, base, piso };
 }
 
@@ -253,6 +259,26 @@ describe('carta da mesa do tamanho do espaço', () => {
   });
 });
 
+describe('as frases favoritas no canto de baixo', () => {
+  for (const t of SCREENS) {
+    it(`${t.name}: a pílula das frases não cobre assento, carta da mesa nem carta na testa`, () => {
+      for (let n = 2; n <= 8; n++) for (const video of [false, true]) {
+        const { m, g, order } = mesaComo(t, n, video);
+        const pilula = g.reservas[0];
+        if (!pilula) {
+          expect(t.h, `${t.name}: sem a pílula na mesa, só na mesa baixa`).toBeLessThan(330);
+          continue;
+        }
+        const nome = `${t.name}, ${n}${video ? ', câmera' : ''}`;
+        for (const id of order.slice(1)) expect(overlapRect(rectAround(g.seats.get(id)!, g.seatBox.w, g.seatBox.h), pilula), `${nome}: assento ${id}`).toBe(false);
+        for (const [id, p] of g.tricks) expect(overlapRect(rectAround(p, m.trickCard, m.trickCard * CARD_RATIO), pilula), `${nome}: carta de ${id}`).toBe(false);
+        const r = tableRevealLayout(g, order.slice(1), { scale: 1, trickCard: m.trickCard, compactPanel: compactBidPanel(g, 'p0', 1, 47), mySeatH: 47 });
+        if (r.cabe !== false) for (const [id, p] of r.spots) expect(overlapRect(rectAround(p, r.cardWidth, r.cardWidth * CARD_RATIO), pilula), `${nome}: testa de ${id}`).toBe(false);
+      }
+    });
+  }
+});
+
 describe('cartas na testa com quatro na mesa', () => {
   // Mesas medidas no navegador: iPhone com entalhe (mesa baixa), celular comum e celular pequeno.
   const MESAS = [
@@ -315,7 +341,7 @@ describe('assento do tamanho do espaço', () => {
         expect(m.rosto, nome).toBeGreaterThanOrEqual(piso - 4);
         expect(m.trickCard, nome).toBeGreaterThanOrEqual(base);
         if (video) continue; // com câmera, o rosto vem antes (a carta pode ficar até 20% menor)
-        const antes = trickCardFor(t.w, t.h, order, 'p0', base, SEAT_BOX[isCompact(n, t.vw, t.vh) ? 'compact' : 'normal']);
+        const antes = trickCardFor(t.w, t.h, order, 'p0', base, SEAT_BOX[isCompact(n, t.vw, t.vh) ? 'compact' : 'normal'], 1, t.h < 330 ? [] : [pilulaDeFrases(t.w, t.h)]);
         // Até 8% menor que a maior possível; no celular deitado com a mesa cheia, cede um pouco mais
         // para a carta na testa ficar legível (de 39 para 59 px).
         expect(m.trickCard, nome).toBeGreaterThanOrEqual(antes * 0.85);
