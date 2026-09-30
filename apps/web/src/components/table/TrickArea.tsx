@@ -2,7 +2,7 @@ import { card as cardOf, cardName, type Play, type StrengthCtx } from '@fodinha/
 import { animate, AnimatePresence, motion, useReducedMotion } from 'motion/react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Card, CARD_RATIO } from '../cards/Card';
-import { ArmaDoGolpe, CartaAtingida, GritoManilha, SOMBRA_CARTA } from './Golpes';
+import { ArmaDoGolpe, CartaAcorda, CartaAtingida, GritoManilha, SOMBRA_CARTA } from './Golpes';
 import {
   acertoDe,
   bastiaoCortado,
@@ -15,6 +15,7 @@ import {
   manilhaDe,
   mesaMudou,
   mesaVista,
+  punhaisPorVitima,
   ritmoDosGolpes,
   tremor,
   vitimasEmOrdem,
@@ -70,8 +71,18 @@ export function TrickArea(p: TrickAreaProps) {
   const pontoDe = (playerId: string) => p.geometry.tricks.get(playerId) ?? p.geometry.center;
   const apanhou = new Map<string, { g: GolpeNaMao; ordem: number }>();
   for (const g of golpes) vitimasEmOrdem(g, (id) => pontoDe(id).x).forEach((id, ordem) => apanhou.set(id, { g, ordem }));
+  const cartaDe = (playerId: string) => p.plays.find((pl) => pl.playerId === playerId)?.cardId;
+  /** Quanto a carta de cada um está girada na mesa (as armas saem do desenho dela, girado junto). */
+  const giroDe = (playerId: string) => {
+    const c = cartaDe(playerId);
+    return c ? tossRotation(c) : 0;
+  };
   /** O bastião partido pelo espadão neste golpe (o duelo das duas maiores tem efeito próprio). */
-  const bastiaoDe = (g: GolpeNaMao) => (ctx ? bastiaoCortado(g, (id) => p.plays.find((pl) => pl.playerId === id)?.cardId, ctx) : null);
+  const bastiaoDe = (g: GolpeNaMao) => (ctx ? bastiaoCortado(g, cartaDe, ctx) : null);
+  /** Quantos punhais o golpe atira (o sete de espadas) e quantos o mesmo sete já tinha atirado nesta mão. */
+  const punhaisDe = (g: GolpeNaMao) => (g.golpe === 'fura' ? punhaisPorVitima(g.vitimas.length) * g.vitimas.length : 0);
+  const espadasAntes = (g: GolpeNaMao) =>
+    golpes.slice(0, golpes.indexOf(g)).reduce((n, o) => n + (o.atacante === g.atacante ? punhaisDe(o) : 0), 0);
   /** Direção do golpe (unitária), de quem ataca para a carta que apanha. */
   const direcao = (g: GolpeNaMao, vitima: string) => {
     const a = pontoDe(g.atacante);
@@ -169,10 +180,24 @@ export function TrickArea(p: TrickAreaProps) {
                     acerto={acertoDe(golpe.g, golpe.ordem)}
                     ritmo={ritmo}
                     direcao={direcao(golpe.g, play.playerId)}
+                    giro={tossRotation(play.cardId)}
+                    punhais={golpe.g.golpe === 'fura' ? punhaisPorVitima(golpe.g.vitimas.length) : 1}
                   />
                 ) : (
                   <Card id={play.cardId} width={cw} />
                 )}
+                {/* A carta de quem ataca acende quando a arma sai dela (e fica sem o desenho que saiu). */}
+                {golpes
+                  .filter((g) => g.atacante === play.playerId)
+                  .map((g) => (
+                    <CartaAcorda
+                      key={`acorda-${chave}-${chaveDoGolpe(g)}`}
+                      golpe={g.golpe}
+                      cw={cw}
+                      ritmo={ritmo}
+                      espadas={g.golpe === 'fura' ? { antes: espadasAntes(g), agora: punhaisDe(g) } : undefined}
+                    />
+                  ))}
               </div>
             </motion.div>
           );
@@ -223,7 +248,17 @@ export function TrickArea(p: TrickAreaProps) {
           );
         })}
       {golpes.map((g) => (
-        <ArmaDoGolpe key={`arma-${chave}-${chaveDoGolpe(g)}`} g={g} pontoDe={pontoDe} cw={cw} ritmo={ritmo} bastiao={bastiaoDe(g)} centro={p.geometry.center} />
+        <ArmaDoGolpe
+          key={`arma-${chave}-${chaveDoGolpe(g)}`}
+          g={g}
+          pontoDe={pontoDe}
+          giroDe={giroDe}
+          cw={cw}
+          ritmo={ritmo}
+          bastiao={bastiaoDe(g)}
+          centro={p.geometry.center}
+          espadasAntes={espadasAntes(g)}
+        />
       ))}
     </div>
   );

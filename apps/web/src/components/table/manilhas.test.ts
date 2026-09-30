@@ -2,7 +2,9 @@ import { DEFAULT_TIMING, MANILHA_PAUSE_FACTOR, type CardId, type PlayerView } fr
 import { describe, expect, it } from 'vitest';
 import {
   acertoDe,
+  acertoDoPunhal,
   bastiaoCortado,
+  punhaisPorVitima,
   manilhaNaTesta,
   impactosDoGolpe,
   tremor,
@@ -239,5 +241,27 @@ describe('o duelo e a testa', () => {
     expect(manilhaNaTesta(visao('lurdes', 1, 'E1'))).toBeNull();
     expect(manilhaNaTesta(visao('lurdes', 0, 'C3'))).toBeNull();
     expect(manilhaNaTesta(visao('lurdes', 0, 'E1', false))).toBeNull();
+  });
+});
+
+describe('a arma sai da carta', () => {
+  it('toda arma sai de dentro da carta de quem ataca antes de chegar na primeira vítima', () => {
+    for (const m of ['E1', 'P1', 'E7', 'O7'] as const) {
+      const [g] = golpesDaMao(mao(m, 'C4', 'O5', 'C6'), gaucha, true);
+      expect(acertoDe(g!, 0), m).toBeGreaterThanOrEqual(TEMPO_GOLPE.inicio + TEMPO_GOLPE.sai[g!.golpe] + 0.25);
+    }
+  });
+
+  it('o sete de espadas crava três punhais numa vítima só, dois em cada uma de duas e um a partir de três, nunca mais que as sete espadas da carta', () => {
+    expect([1, 2, 3, 7].map(punhaisPorVitima)).toEqual([3, 2, 1, 1]);
+    for (let n = 1; n <= 7; n++) expect(n * punhaisPorVitima(n)).toBeLessThanOrEqual(7);
+  });
+
+  it('cada punhal dá um tranco na mesa, e o último de cada vítima (o que joga a carta para trás) o maior', () => {
+    const [g] = golpesDaMao(mao('C4', 'E7', 'C6', 'O5'), gaucha, false);
+    expect(g!.vitimas).toEqual(['nice']);
+    const trancos = impactosDoGolpe(g!);
+    expect(trancos.map((i) => i.t)).toEqual([0, 1, 2].map((n) => acertoDoPunhal(g!, 0, n)));
+    expect(trancos[2]!.forca).toBeGreaterThan(trancos[0]!.forca);
   });
 });

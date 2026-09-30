@@ -7,6 +7,7 @@ import { play, type SoundId } from '../../lib/sound';
 import { useSettings } from '../../stores/settings';
 import {
   acertoDe,
+  acertoDoPunhal,
   chaveDoGolpe,
   contextoDaRodada,
   golpeComAnimacao,
@@ -14,7 +15,9 @@ import {
   manilhaNaTesta,
   mesaMudou,
   mesaVista,
+  punhaisPorVitima,
   ritmoDosGolpes,
+  TEMPO_GOLPE,
   type Golpe,
   type GolpeNaMao,
   type MesaVista,
@@ -48,11 +51,26 @@ function maoDaView(v: PlayerView): { plays: readonly Play[]; fechada: boolean } 
 function somDoGolpe(g: GolpeNaMao, ritmo: number) {
   const som = SOM_GOLPE[g.golpe];
   const ms = (s: number) => (s * 1000) / ritmo;
-  // O espadão: o aço sai ("shing") no começo da varrida e cada carta cortada faz o seu corte (até
-  // quatro, um pouco mais agudo a cada uma). Os outros acertam uma carta de cada vez (até três); a luz
-  // do belo soa uma vez.
-  if (g.golpe === 'corta') play('espada', { delayMs: ms(Math.max(0, acertoDe(g, 0) - 0.22)) });
-  const vezes = g.golpe === 'brilha' ? 1 : Math.min(g.vitimas.length, g.golpe === 'corta' ? 4 : 3);
+  // A arma saindo da carta: o aço do espadão ("shing"), o dos punhais (mais fino) e a rolha da copa.
+  const saindo = ms(TEMPO_GOLPE.inicio + 0.04);
+  if (g.golpe === 'corta') play('espada', { delayMs: saindo });
+  if (g.golpe === 'fura') play('espada', { delayMs: saindo, rate: 1.4 });
+  if (g.golpe === 'vinho') play('pop', { delayMs: saindo, rate: 0.55 });
+  // O ouro soa uma vez, quando acende no ar.
+  if (g.golpe === 'brilha') {
+    play(som.id, { delayMs: ms(TEMPO_GOLPE.inicio + TEMPO_GOLPE.sai.brilha), rate: som.rate });
+    return;
+  }
+  // Cada punhal que crava (até cinco, cada um um pouco mais agudo na mesma vítima).
+  if (g.golpe === 'fura') {
+    const k = punhaisPorVitima(g.vitimas.length);
+    for (let i = 0, n = 0; i < g.vitimas.length && n < 5; i++)
+      for (let j = 0; j < k && n < 5; j++, n++) play(som.id, { delayMs: ms(acertoDoPunhal(g, i, j)), rate: som.rate * (1 + j * 0.08) });
+    return;
+  }
+  // Cada carta cortada faz o seu corte (até quatro, um pouco mais agudo a cada uma); o bastão e o vinho
+  // acertam uma de cada vez (até três).
+  const vezes = Math.min(g.vitimas.length, g.golpe === 'corta' ? 4 : 3);
   for (let i = 0; i < vezes; i++) play(som.id, { delayMs: ms(acertoDe(g, i)), rate: som.rate * (g.golpe === 'corta' ? 1 + i * 0.06 : 1) });
 }
 

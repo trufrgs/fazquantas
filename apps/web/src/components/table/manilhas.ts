@@ -1,13 +1,14 @@
 import { card, cardName, isManilha, specialName, strength, type CardId, type Play, type PlayerView, type Rules, type StrengthCtx } from '@fodinha/engine';
 
 /**
- * "Quem mata quem" (escolhido em 29/09/2026): a manilha ataca as cartas que ganha, do jeito dela.
- * - `corta`: o espadão (e a espadilha) varre a mesa e corta as cartas ao meio;
- * - `bate`: o bastião (e o zap) desce o bastão em cada uma;
- * - `fura`: o sete de espadas fura com a espada fina;
- * - `brilha`: o sete belo (e o pica-fumo) brilha como ouro e apaga as outras (a moeda atirada saiu:
- *   "o belo tem que brilhar, apagando as demais", o Igor, 29/09/2026);
- * - `vinho`: a manilha de copas, que só existe com vira ou na regra mineira, derrama vinho.
+ * "Quem mata quem" (escolhido em 29/09/2026): a manilha ataca as cartas que ganha, do jeito dela, com a
+ * arma saindo de dentro da própria carta (pedido do Thomas em 29/09/2026):
+ * - `corta`: o espadão (e a espadilha) sai da carta, varre a mesa e corta as cartas ao meio;
+ * - `bate`: o bastão sai do bastião (e do zap) e desce em cada uma;
+ * - `fura`: os punhais saem do sete de espadas e cravam nas outras;
+ * - `brilha`: o ouro do sete belo (e do pica-fumo) se levanta da carta, brilha e ofusca as outras (a
+ *   moeda atirada saiu: "o belo tem que brilhar, apagando as demais", o Igor, 29/09/2026);
+ * - `vinho`: a copa sai da manilha de copas, que só existe com vira ou na regra mineira, e joga vinho.
  */
 export type Golpe = 'corta' | 'bate' | 'fura' | 'brilha' | 'vinho';
 
@@ -158,20 +159,25 @@ export function golpeComAnimacao(g: GolpeNaMao, plays: readonly Play[], mesa: Me
 
 /**
  * O tempo dos golpes, em segundos, no ritmo normal. Todo golpe começa `inicio` depois da jogada que o
- * dispara (a carta pousar; o fim vem na mesma jogada da última carta, então também espera). `passo` é
- * o intervalo entre uma vítima e a seguinte; `acerto`, quando a arma chega nela (o bastão em 55% da
- * descida, a espada fina em 60% da estocada, a luz do belo quando chega nela, a gota de vinho no
- * fim do voo); `reacao`, quanto a carta leva para reagir; `arma`, quanto dura cada arma inteira;
- * `cadencia`, o intervalo entre as gotas de vinho; `grito`, quanto o grito fica. A mão com manilha fica 2,2 s na mesa
- * no ritmo normal (`MANILHA_PAUSE_FACTOR`; bem menos no rápido): com a mesa cheia, o intervalo encurta
- * até o `espalho`, para a última vítima apanhar antes de as cartas saírem.
+ * dispara (a carta pousar; o fim vem na mesma jogada da última carta, então também espera). Primeiro a
+ * arma sai de dentro da carta de quem ataca (`sai`: a carta acende e o espadão, o bastão, os punhais,
+ * o ouro ou a copa se levantam do desenho dela); depois vai às vítimas. `passo` é o intervalo entre uma
+ * vítima e a seguinte; `acerto`, quanto a arma leva de erguida até chegar nela (o fio da espada, o
+ * bastão no fim da descida, o punhal cravando, a luz do ouro, a gota de vinho no fim do voo);
+ * `punhal`, o intervalo entre os punhais cravados na mesma vítima; `reacao`, quanto a carta leva para
+ * reagir; `arma`, quanto duram as lascas, a espada depois do último corte e a luz do ouro;
+ * `cadencia`, o intervalo entre as gotas de vinho; `grito`, quanto o grito fica. A mão com manilha
+ * fica 2,2 s na mesa no ritmo normal (`MANILHA_PAUSE_FACTOR`; bem menos no rápido): com a mesa cheia,
+ * o intervalo encurta até o `espalho`, para a última vítima apanhar antes de as cartas saírem.
  */
 export const TEMPO_GOLPE = {
   inicio: 0.3,
+  sai: { corta: 0.4, bate: 0.38, fura: 0.38, brilha: 0.4, vinho: 0.32 },
   passo: { corta: 0.12, bate: 0.36, fura: 0.3, brilha: 0.12, vinho: 0.27 },
-  acerto: { corta: 0.24, bate: 0.41, fura: 0.37, brilha: 0.38, vinho: 0.66 },
+  acerto: { corta: 0.26, bate: 0.36, fura: 0.3, brilha: 0.34, vinho: 0.56 },
+  punhal: 0.12,
   reacao: { corta: 0.6, bate: 0.5, fura: 0.42, brilha: 0.7, vinho: 0.42 },
-  arma: { bastao: 0.75, florete: 0.62, lascas: 0.6, depoisDoCorte: 0.3, luz: 1.5 },
+  arma: { lascas: 0.6, depoisDoCorte: 0.3, luz: 1.5 },
   cadencia: 0.1,
   espalho: 0.6,
   grito: 1.6,
@@ -189,7 +195,20 @@ export function passoDe(g: GolpeNaMao): number {
 
 /** Quando a arma acerta a vítima `ordem` do golpe (segundos desde a jogada que o dispara, no ritmo normal). */
 export function acertoDe(g: GolpeNaMao, ordem: number): number {
-  return TEMPO_GOLPE.inicio + ordem * passoDe(g) + TEMPO_GOLPE.acerto[g.golpe];
+  return TEMPO_GOLPE.inicio + TEMPO_GOLPE.sai[g.golpe] + ordem * passoDe(g) + TEMPO_GOLPE.acerto[g.golpe];
+}
+
+/**
+ * Quantos punhais saem do sete de espadas para cada vítima: três numa só, dois em cada uma de duas e
+ * um em cada a partir de três (nunca mais que as sete espadas desenhadas na carta).
+ */
+export function punhaisPorVitima(vitimas: number): number {
+  return vitimas <= 1 ? 3 : vitimas === 2 ? 2 : 1;
+}
+
+/** Quando o punhal `n` (0 é o primeiro) crava na vítima `ordem` do sete de espadas. */
+export function acertoDoPunhal(g: GolpeNaMao, ordem: number, n: number): number {
+  return acertoDe(g, ordem) + n * TEMPO_GOLPE.punhal;
 }
 
 /** Quanto a mesa treme em cada pancada (em 1/60 da largura da carta): o bastão sacode; a luz, não. */
@@ -206,7 +225,13 @@ export function impactosDoGolpe(
   forte: (playerId: string) => boolean = () => false,
 ): { t: number; forca: number }[] {
   const forca = TREMOR[g.golpe];
-  return forca ? ordem.map((id, i) => ({ t: acertoDe(g, i), forca: forte(id) ? forca * 2.4 : forca })) : [];
+  if (!forca) return [];
+  if (g.golpe === 'fura') {
+    // Cada punhal cravado dá um tranco; o último, que joga a carta para trás, o maior.
+    const k = punhaisPorVitima(g.vitimas.length);
+    return ordem.flatMap((_, i) => Array.from({ length: k }, (__, n) => ({ t: acertoDoPunhal(g, i, n), forca: n === k - 1 ? forca : forca * 0.55 })));
+  }
+  return ordem.map((id, i) => ({ t: acertoDe(g, i), forca: forte(id) ? forca * 2.4 : forca }));
 }
 
 /**
