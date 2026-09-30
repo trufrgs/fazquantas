@@ -57,6 +57,12 @@ export const SCENES: Record<string, Scene> = {
     seed: 1,
     until: (s) => s.phase === 'bidding' && s.round.blind && currentActor(s)?.playerId === YOU && s.round.bidTurn >= 2,
   },
+  // Quatro na mesa na rodada às cegas: cada carta na testa na frente de quem tem (30/09/2026).
+  cega4: {
+    players: 4,
+    seed: 3,
+    until: (s) => s.phase === 'bidding' && s.round.blind && currentActor(s)?.playerId === YOU,
+  },
   cega8: {
     players: 8,
     seed: 2,

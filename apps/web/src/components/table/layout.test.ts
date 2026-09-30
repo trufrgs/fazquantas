@@ -181,11 +181,11 @@ describe('cartas à mostra e cartas da vaza', () => {
     }
   }
 
-  it('no celular em pé, com até 7 jogadores, as cartas na testa passam de 60 px (com câmera também)', () => {
+  it('no celular em pé, com até 7 jogadores, as cartas na testa ficam legíveis, 56 px ou mais (com câmera também)', () => {
     for (let n = 2; n <= 7; n++) for (const video of [false, true]) {
       const { m, g, order } = mesaComo({ w: 390, h: 608, vw: 390, vh: 844 }, n, video);
       const r = tableRevealLayout(g, order.slice(1), { scale: 1, trickCard: m.trickCard, compactPanel: false, mySeatH: 47 });
-      expect(r.cardWidth, `${n} jogadores${video ? ', com câmera' : ''}`).toBeGreaterThanOrEqual(60);
+      expect(r.cardWidth, `${n} jogadores${video ? ', com câmera' : ''}`).toBeGreaterThanOrEqual(56);
     }
   });
 
@@ -251,6 +251,39 @@ describe('carta da mesa do tamanho do espaço', () => {
     const baseOito = cardSizes(360, 640, 8, 1).trick;
     expect(trickCardFor(360, 430, oito, 'p0', baseOito, SEAT_BOX.compact)).toBe(baseOito);
   });
+});
+
+describe('cartas na testa com quatro na mesa', () => {
+  // Mesas medidas no navegador: iPhone com entalhe (mesa baixa), celular comum e celular pequeno.
+  const MESAS = [
+    { name: 'iPhone com entalhe', w: 395, h: 526, vw: 395, vh: 768 },
+    { name: 'iPhone de 402', w: 402, h: 534, vw: 402, vh: 780 },
+    { name: 'celular em pé', w: 390, h: 604, vw: 390, vh: 844 },
+    { name: 'celular grande', w: 412, h: 662, vw: 412, vh: 915 },
+    { name: 'celular pequeno', w: 360, h: 410, vw: 360, vh: 640 },
+  ];
+  for (const t of MESAS) {
+    it(`${t.name}: cada carta fica com o dono (a de cima embaixo do assento, nenhuma para fora) e longe do alto`, () => {
+      const { m, g, order } = mesaComo(t, 4, false);
+      const others = order.slice(1);
+      const r = tableRevealLayout(g, others, { scale: 1, trickCard: m.trickCard, compactPanel: compactBidPanel(g, 'p0', 1, 47), mySeatH: 47 });
+      const h = r.cardWidth * CARD_RATIO;
+      // p2 senta no alto: a carta dele vai embaixo do assento, não para o lado (encostava no alto da mesa).
+      const alto = g.seats.get('p2')!;
+      const cartaAlto = r.spots.get('p2')!;
+      expect(Math.abs(cartaAlto.x - alto.x), `${t.name}: carta de quem senta no alto`).toBeLessThan(1);
+      expect(cartaAlto.y).toBeGreaterThan(alto.y);
+      for (const id of others) {
+        const a = g.seats.get(id)!;
+        const c = r.spots.get(id)!;
+        expect(c.y - h / 2, `${t.name}: ${id} encostada no alto`).toBeGreaterThanOrEqual(10 - 0.5);
+        // Nunca para fora da mesa (do lado da borda de quem senta na coluna).
+        if (a.x < g.width / 3) expect(c.x, `${t.name}: ${id}`).toBeGreaterThanOrEqual(a.x - 0.5);
+        if (a.x > (g.width * 2) / 3) expect(c.x, `${t.name}: ${id}`).toBeLessThanOrEqual(a.x + 0.5);
+      }
+      expect(r.cardWidth).toBeGreaterThanOrEqual(56);
+    });
+  }
 });
 
 describe('assento do tamanho do espaço', () => {

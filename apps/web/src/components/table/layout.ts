@@ -280,6 +280,7 @@ export function tableRevealLayout(
     obstacles,
     // O chip só existe na regra com vira (a vira muda a cada rodada); com manilhas fixas, não.
     softObstacles: o.chip === false ? [] : [chip],
+    margemTopo: 10 * s,
   });
 }
 
@@ -489,7 +490,7 @@ export function mesaDimensionada(o: {
 
 /**
  * Entre as opções (do maior avatar para o menor), filtrando nesta ordem: assentos na tela e cartas
- * da mão longe deles; carta na testa sem cobrir ninguém e legível (60 px, ou a maior que der);
+ * da mão longe deles; carta na testa sem cobrir ninguém e legível (56 px, ou a maior que der);
  * painel de palpite inteiro; carta da mesa a até `folga` da maior possível e avatar de pelo menos
  * `piso` (com câmera, o rosto vem antes da carta). Das que sobram, o maior avatar. Cada filtro só
  * vale se alguma opção passa nele (um avatar menor nem sempre dá mais espaço: a mesa muda de arranjo
@@ -505,8 +506,9 @@ function escolherMesa(
   };
   let lista = seDer(seDer(opcoes, (op) => op.assentos), (op) => op.vaza);
   lista = seDer(lista, (op) => op.testaCabe);
-  // A carta na testa (só na rodada às cegas) precisa ser legível: 60 px, ou a maior que der.
-  const testaMin = Math.min(Math.max(...lista.map((op) => op.testa)), 60 * s);
+  // A carta na testa (só na rodada às cegas) precisa ser legível: 56 px, ou a maior que der. Acima
+  // disso, a carta da mesa (que vale em toda rodada) pesa mais.
+  const testaMin = Math.min(Math.max(...lista.map((op) => op.testa)), 56 * s);
   lista = seDer(lista, (op) => op.testa >= testaMin);
   // O painel de palpite inteiro (e não a barra de uma linha), se der sem encolher o avatar.
   lista = seDer(lista, (op) => op.painel && op.a >= piso);
@@ -565,6 +567,13 @@ export interface RevealLayout {
 }
 
 /**
+ * Arranjos das cartas à mostra, na ordem de preferência (os índices das direções de `candidates` em
+ * `revealLayout`): o natural (fileira de cima embaixo do assento, colunas para dentro), de frente
+ * para o centro, embaixo do assento, para dentro na horizontal, à esquerda e à direita.
+ */
+const ARRANJOS = [5, 0, 2, 1, 3, 4] as const;
+
+/**
  * Cartas à mostra dos outros — a da testa, na rodada às cegas, ou a mão toda, para quem saiu e
  * assiste: na frente de cada assento, viradas para o centro, do maior tamanho que não cobre
  * assento, outra carta, a borda da mesa nem os `obstacles` (painel de palpite, chip das manilhas).
@@ -583,6 +592,8 @@ export function revealLayout(
     /** Evitados quando dá; no aperto, a carta pode cobrir (ex.: o chip das manilhas). */
     softObstacles?: readonly Rect[];
     gap?: number;
+    /** Folga do alto da mesa (px): encostada nele, a carta parece sair do cabeçalho. */
+    margemTopo?: number;
   },
 ): RevealLayout {
   const box = g.seatBox;
@@ -595,7 +606,7 @@ export function revealLayout(
     r: p.x + box.w * 0.35,
     b: p.y + box.h * 0.06,
   }));
-  const place = (w: number, uniform: boolean, tight = false) => {
+  const place = (w: number, uniform: boolean, tight = false, modos: readonly number[] = ARRANJOS) => {
     const h = w * CARD_RATIO;
     const fw = w * (opts.fan ?? 1);
     const spots = new Map<string, Point>();
@@ -614,7 +625,7 @@ export function revealLayout(
     const free = (rect: Rect) =>
       rect.l >= 0 &&
       rect.r <= g.width &&
-      rect.t >= 0 &&
+      rect.t >= (tight ? 0 : (opts.margemTopo ?? 0)) &&
       rect.b <= g.height &&
       !(tight ? faceRects : seatRects).some((o) => overlaps(rect, o)) &&
       !rects.some((o) => overlaps(rect, o, -4)) && // uma folga entre cartas (a inclinação come um pouco)
@@ -633,12 +644,15 @@ export function revealLayout(
       else if (Math.abs(ux) < 0.3) [ux, uy] = [0, Math.sign(uy) || 1];
       if (uy < 0) uy = 0; // nunca para cima do assento (encostaria na barra de cima)
       const inward = Math.sign(g.center.x - seat.x) || 1;
+      // O jeito natural: quem senta na fileira de cima segura a carta embaixo; nas colunas, para dentro.
+      const noAlto = seat.y <= g.topo + 1;
       return [
         at(seat, ux, uy),
         at(seat, inward, 0),
         at(seat, 0, 1),
         at(seat, -1, 0),
         at(seat, 1, 0),
+        noAlto ? at(seat, 0, 1) : at(seat, inward, 0),
       ];
     };
     const placed = ids.flatMap((id) => {
@@ -659,7 +673,7 @@ export function revealLayout(
     const fitsHere = (c: Point | undefined) => c !== undefined && free(rectAround(c, fw, h));
     if (uniform) {
       // Todo mundo do mesmo jeito (fica mais arrumado).
-      for (let mode = 0; mode < 5; mode++) {
+      for (const mode of modos) {
         if (commit((options) => (fitsHere(options[mode]) ? options[mode] : undefined)))
           return { ok, spots };
       }
@@ -673,15 +687,28 @@ export function revealLayout(
     return { ok, spots };
   };
   // O maior tamanho com todos do mesmo jeito; cada um para um lado só se isso render cartas bem maiores.
-  const largest = (uniform: boolean, tight: boolean) => {
-    for (let w = Math.floor(opts.maxWidth); w >= opts.minWidth; w -= 2) {
-      const r = place(w, uniform, tight);
+  const largest = (uniform: boolean, tight: boolean, modos?: readonly number[], de = opts.maxWidth, ate = opts.minWidth) => {
+    for (let w = Math.floor(de); w >= ate; w -= 2) {
+      const r = place(w, uniform, tight, modos);
       if (r.ok) return { cardWidth: w, spots: r.spots };
     }
     return null;
   };
   const best = (tight: boolean) => {
-    const neat = largest(true, tight);
+    // Todos do mesmo jeito, de preferência cada carta na frente de quem tem (de frente para o
+    // centro). Outro arranjo só entra se render cartas bem maiores (15%): pelo tamanho, a carta de
+    // quem senta no alto ia para o lado dele, encostada no alto da mesa (30/09/2026).
+    const maior = largest(true, tight);
+    let neat = maior;
+    if (maior) {
+      for (const m of ARRANJOS) {
+        const r = largest(true, tight, [m], maior.cardWidth, maior.cardWidth * 0.85);
+        if (r) {
+          neat = r;
+          break;
+        }
+      }
+    }
     const mixed = neat && neat.cardWidth >= opts.maxWidth - 1 ? null : largest(false, tight);
     if (neat && (!mixed || neat.cardWidth >= mixed.cardWidth * 0.85)) return neat;
     return mixed;

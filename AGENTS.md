@@ -78,12 +78,16 @@ pnpm exec playwright test                  # E2E locais (sobem os servidores soz
 - **Tamanho do espaço** (pedido do Thomas em 30/09/2026: "usar o espaço de forma inteligente e
   dinâmica"): `mesaDimensionada` (`components/table/layout.ts`) testa os avatares de 84 a 36 px (com
   alguém de câmera aberta, o rosto vai de 136 a 48) e escolhe, nesta ordem: assentos na tela sem se
-  encostar, cartas da mão longe deles, carta na testa legível (60 px), painel de palpite inteiro; daí,
+  encostar, cartas da mão longe deles, carta na testa legível (56 px), painel de palpite inteiro; daí,
   a carta da mesa a até 8% da maior possível (com câmera, 20%: o rosto vem antes) e o maior avatar,
   nunca menor que o fixo de antes quando dá (`pisoDoAvatar`). Testes: `layout.test.ts`, todas as telas
   com 2 a 8 na mesa, com e sem câmera.
 - Mesa cheia: as cartas da mão se encavalam, espalhadas até o meio do caminho (cada uma perto de quem
   jogou), sempre com o número à mostra.
+- **Carta na testa:** cada uma fica com o dono, no arranjo natural (quem senta na fileira de cima
+  segura embaixo do assento; nas colunas, para dentro), longe do alto da mesa. Outro arranjo só entra
+  se render cartas 15% maiores (`ARRANJOS` em `layout.ts`): pelo tamanho, a carta de quem senta no alto
+  ia para o lado dele, encostada no cabeçalho (print do Thomas, 30/09/2026). Cena: `?cena=cega4`.
 - **O alto da mesa:** ☰, a rodada (tocar abre a caderneta), microfone e câmera num botão só (com gente
   na sala) e as três frases favoritas a um toque (★ no quadro de frases) com o "+" para o quadro. O
   quadro tem as frases que a turma usa; o "é galo" sugere as cartas da mão, a que está levando primeiro
