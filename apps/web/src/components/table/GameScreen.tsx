@@ -1,4 +1,5 @@
 import {
+  ATE_O_FIM,
   card,
   createRng,
   DEFAULT_TIMING,
@@ -21,8 +22,9 @@ import { untilLabel } from '../setup/TuasSalas';
 import { InlineTurnTimer, TurnSpotlight, UrgentEdge, useTimeLeft } from './TurnClock';
 import { formatLeft, isUrgent } from '../../lib/tempo';
 import { haptic } from '../../lib/haptics';
+import { acelerarMusica } from '../../lib/musica';
 import { play } from '../../lib/sound';
-import { contextoDaRodada, manilhaNaTesta } from './manilhas';
+import { contextoDaRodada, emCameraRapida, manilhaNaTesta } from './manilhas';
 import { NaTesta } from './NaTesta';
 import { useApp } from '../../stores/app';
 import { useGame, type LiveReaction } from '../../stores/game';
@@ -133,8 +135,9 @@ export function GameScreen() {
   // O ritmo do jogo: o da sala, online; no local, o do jogo agora (o "Acelerar" muda sem mexer nos
   // ajustes). Os golpes das manilhas e a pausa do resumo acompanham o tempo da mão na mesa.
   const pace = useOnline((s) => s.room?.pace ?? 'normal');
+  const acelerando = useOnline((s) => s.room?.acelerando ?? false);
   const speed = useSettings((s) => s.speed);
-  const ritmo = inRoom ? paceMultiplier(pace) : (conn?.speed?.() ?? SPEED_MULTIPLIER[speed]);
+  const ritmo = inRoom ? paceMultiplier(pace) * (acelerando ? ATE_O_FIM : 1) : (conn?.speed?.() ?? SPEED_MULTIPLIER[speed]);
   useTableEffects(update, inRoom, ritmo);
   if (!conn || !update) {
     // Mesa vazia: numa sala online, o caminho é a sala (sair do início deixaria o assento preso).
@@ -458,6 +461,15 @@ function Table({
       : `${querem(quemPediu)} ${pediRevanche ? 'também' : oQue}. ${comoComeca}`;
   const reactionFor = (id: string) => [...reactions].reverse().find((r) => r.playerId === id);
   const spectating = !!me?.eliminated && view.phase !== 'gameOver';
+  // Só sobraram bots jogando: dá para passar o resto em câmera rápida ("acelerar até o fim").
+  const vivos = view.players.filter((p) => !p.eliminated);
+  const soBots = spectating && vivos.length > 1 && vivos.every((p) => seats.find((s) => s.id === p.id)?.kind === 'bot');
+  const cameraRapida = emCameraRapida(ritmo);
+  // Na câmera rápida o tango corre junto.
+  useEffect(() => {
+    acelerarMusica(cameraRapida && view.phase !== 'gameOver');
+    return () => acelerarMusica(false);
+  }, [cameraRapida, view.phase]);
 
   const exit = () => {
     if (online) useOnline.getState().leave();
@@ -652,14 +664,15 @@ function Table({
           )}
           {spectating ? (
             <div className="flex items-center justify-center gap-2 px-4 py-5">
-              {!online && (
-                <Button
-                  variant="vidro"
-                  size="sm"
-                  onClick={() => conn.setSpeed?.(SPEED_MULTIPLIER.turbo)}
-                >
-                  Acelerar
+              {soBots && !cameraRapida && (
+                <Button variant="ouro" size="sm" onClick={() => conn.acelerar?.()}>
+                  ⏩ Acelerar até o fim
                 </Button>
+              )}
+              {soBots && cameraRapida && (
+                <span className="animate-pulse rounded-full bg-noite/60 px-3 py-1.5 font-display text-sm font-bold text-ouros ring-1 ring-ouros/40">
+                  ⏩ Câmera rápida…
+                </span>
               )}
               <Button
                 variant="vidro"
@@ -689,11 +702,12 @@ function Table({
       </div>
 
       <RoundSummary
-        open={view.phase === 'roundEnd'}
+        open={view.phase === 'roundEnd' && !cameraRapida}
         view={view}
         seats={seats}
         autoMs={autoMs}
         onContinue={online ? undefined : () => conn.skipPause?.()}
+        onAcelerar={soBots && !cameraRapida && !view.result ? () => conn.acelerar?.() : undefined}
       />
       {view.phase === 'gameOver' && (
         <GameOver

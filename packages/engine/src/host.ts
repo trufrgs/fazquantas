@@ -278,7 +278,11 @@ export class GameHost {
   }
 
   setSpeed(multiplier: number): void {
+    const antes = this.speed;
     this.speed = Math.max(0.05, multiplier);
+    // Mudou o ritmo com uma espera em curso (bot pensando, pausa do fim da mão ou da rodada): ela
+    // recomeça no ritmo novo, na hora ("acelerar até o fim" não espera o resumo da rodada acabar).
+    if (this.speed !== antes && this.timer !== null) this.scheduleNext();
   }
 
   pause(): void {

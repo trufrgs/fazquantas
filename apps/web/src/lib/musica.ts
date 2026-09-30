@@ -60,6 +60,15 @@ export function ligarMusica(on: boolean): void {
   aplicar();
 }
 
+/** Câmera rápida ("acelerar até o fim"): o tango corre junto com a mesa. */
+export function acelerarMusica(on: boolean): void {
+  try {
+    faixa?.rate(on ? 1.6 : 1);
+  } catch {
+    // sem áudio
+  }
+}
+
 /** O primeiro toque destrava o áudio no celular: daí a música pode começar. */
 export function destravarMusica(): void {
   destravada = true;

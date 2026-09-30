@@ -1,4 +1,5 @@
 import {
+  ATE_O_FIM,
   DEFAULT_PACE,
   DEFAULT_RULES,
   DEFAULT_TURN_TIMEOUT_SEC,
@@ -203,6 +204,8 @@ export interface SalaSalva {
   rules: Rules;
   turnTimeoutSec: number | null;
   pace: Pace;
+  /** Câmera rápida ligada (salas salvas antes de 30/09/2026 não têm). */
+  acelerando?: boolean;
   bestOf: BestOf;
   ranked: boolean;
   password: string | null;
@@ -237,6 +240,8 @@ export class Sala {
   private rules: Rules = normalizeRules(DEFAULT_RULES);
   private turnTimeoutSec: number | null = DEFAULT_TURN_TIMEOUT_SEC;
   private pace: Pace = DEFAULT_PACE;
+  /** Só sobraram bots e alguém pediu: o resto da partida corre em câmera rápida. */
+  private acelerando = false;
   private bestOf: BestOf = 1;
   private ranked = false;
   private password: string | null = null;
@@ -350,6 +355,7 @@ export class Sala {
       rules: { ...this.rules },
       turnTimeoutSec: this.turnTimeoutSec,
       pace: this.pace,
+      acelerando: this.acelerando,
       bestOf: this.bestOf,
       ranked: this.ranked,
       hasPassword: this.password !== null,
@@ -592,7 +598,7 @@ export class Sala {
     if (patch.password !== undefined) this.password = patch.password;
     if (patch.pace !== undefined) {
       this.pace = patch.pace;
-      if (inGame) this.gameHost?.setSpeed(paceMultiplier(this.pace));
+      if (inGame) this.gameHost?.setSpeed(this.ritmoDaPartida());
     }
   }
 
@@ -736,6 +742,7 @@ export class Sala {
     if (this.currentStatus === 'playing') throw fail('GAME_IN_PROGRESS', MESSAGES.alreadyPlaying);
     if (this.currentStatus === 'lobby') return;
     this.disposeGame();
+    this.acelerando = false;
     this.revanche.clear();
     this.currentStatus = 'lobby';
     this.touch();
@@ -752,6 +759,27 @@ export class Sala {
     // Quem age está de volta, mesmo que a jogada não valha: a mesa fica sabendo e a partida segue.
     if (wasAway) this.touch();
     if (!result.ok) throw fail('GAME_ERROR', result.error.message);
+  }
+
+  /** O ritmo em que a partida corre: o da sala, vezes a câmera rápida quando só sobraram bots. */
+  private ritmoDaPartida(): number {
+    return paceMultiplier(this.pace) * (this.acelerando ? ATE_O_FIM : 1);
+  }
+
+  /**
+   * "Acelerar até o fim": só com a partida rolando e nenhum humano ainda jogando (todos saíram); daí
+   * o resto corre em câmera rápida para todo mundo que está olhando.
+   */
+  acelerar(playerId: string): void {
+    const game = this.gameHost;
+    if (!game || this.currentStatus !== 'playing') throw fail('GAME_ERROR', MESSAGES.noGame);
+    if (!this.hasHuman(playerId)) throw fail('GAME_ERROR', MESSAGES.acelerar);
+    const aindaJoga = game.state.players.some((p) => p.eliminatedRound === null && this.hasHuman(p.id));
+    if (aindaJoga || game.state.phase === 'gameOver') throw fail('GAME_ERROR', MESSAGES.acelerar);
+    if (this.acelerando) return;
+    this.acelerando = true;
+    game.setSpeed(this.ritmoDaPartida());
+    this.touch();
   }
 
   react(playerId: string, reaction: ReactionId): void {
@@ -795,6 +823,7 @@ export class Sala {
       rules: { ...this.rules },
       turnTimeoutSec: this.turnTimeoutSec,
       pace: this.pace,
+      acelerando: this.acelerando,
       bestOf: this.bestOf,
       ranked: this.ranked,
       password: this.password,
@@ -820,6 +849,7 @@ export class Sala {
     sala.rules = normalizeRules(saved.rules);
     sala.turnTimeoutSec = saved.turnTimeoutSec;
     sala.pace = saved.pace;
+    sala.acelerando = saved.acelerando ?? false;
     sala.bestOf = saved.bestOf;
     sala.ranked = saved.ranked;
     sala.password = saved.password;
@@ -849,7 +879,7 @@ export class Sala {
     if (saved.status !== 'lobby' && saved.partida) {
       const { host, ...meta } = saved.partida;
       const game = GameHost.restore(host, { clock: deps.relogio, timing: deps.timing });
-      game.setSpeed(paceMultiplier(sala.pace));
+      game.setSpeed(sala.ritmoDaPartida());
       sala.partida = meta;
       sala.attachGame(game);
       if (saved.status === 'playing') {
@@ -1122,7 +1152,8 @@ export class Sala {
     } catch (error) {
       throw fail('GAME_ERROR', error instanceof Error ? error.message : MESSAGES.internal);
     }
-    game.setSpeed(paceMultiplier(this.pace));
+    this.acelerando = false;
+    game.setSpeed(this.ritmoDaPartida());
     this.disposeGame();
     // Quem está fora da tela entra na partida com a mesa jogando por ele, até voltar.
     for (const seat of this.humans()) if (!seat.conexao && !this.isAsync) game.setAway(seat.playerId, true);

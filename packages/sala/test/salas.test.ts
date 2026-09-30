@@ -27,6 +27,7 @@ describe('criar e entrar', () => {
       rules: { ...DEFAULT_RULES },
       turnTimeoutSec: DEFAULT_TURN_TIMEOUT_SEC,
       pace: 'normal',
+      acelerando: false,
       bestOf: 1,
       ranked: false,
       hasPassword: false,

@@ -8,6 +8,7 @@ import {
   bastiaoCortado,
   chaveDaMao,
   chaveDoGolpe,
+  emCameraRapida,
   golpeComAnimacao,
   golpesDaMao,
   impactosDoGolpe,
@@ -63,10 +64,12 @@ export function TrickArea(p: TrickAreaProps) {
   }
   const ctx = p.ctx ?? null;
   const ritmo = ritmoDosGolpes(p.ritmo);
+  // Câmera rápida (só bots, acelerando até o fim): a mão passa sem golpe nem grito.
+  const cameraRapida = emCameraRapida(p.ritmo);
   // "Quem mata quem": quem apanha de quem nesta mão, e na ordem em que a arma chega em cada uma.
   const golpes = useMemo(
-    () => (ctx ? golpesDaMao(p.plays, ctx, p.resolved).filter((g) => golpeComAnimacao(g, p.plays, mesa)) : []),
-    [ctx, p.plays, p.resolved, mesa],
+    () => (ctx && !cameraRapida ? golpesDaMao(p.plays, ctx, p.resolved).filter((g) => golpeComAnimacao(g, p.plays, mesa)) : []),
+    [ctx, cameraRapida, p.plays, p.resolved, mesa],
   );
   const pontoDe = (playerId: string) => p.geometry.tricks.get(playerId) ?? p.geometry.center;
   const apanhou = new Map<string, { g: GolpeNaMao; ordem: number }>();
@@ -232,6 +235,7 @@ export function TrickArea(p: TrickAreaProps) {
       </AnimatePresence>
       {/* O grito de cada manilha que cai: grande se ela passa a mandar na mesa, pequeno se chega depois de uma mais forte. */}
       {ctx &&
+        !cameraRapida &&
         p.plays.map((play, i) => {
           const m = manilhaDe(play.cardId, ctx);
           if (!m || mesa.semGolpe.has(play.cardId)) return null;

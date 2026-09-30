@@ -43,6 +43,12 @@ export function paceMultiplier(pace: Pace): number {
 }
 
 /**
+ * "Acelerar até o fim": quando só sobram bots na mesa, o resto da partida corre este tanto mais rápido,
+ * em câmera rápida, e o vencedor sai em poucos segundos (pedido do Thomas em 30/09/2026).
+ */
+export const ATE_O_FIM = 40;
+
+/**
  * As cartas que podem "ser galo", da mais baixa para a mais alta: "2 é galo, hein!" combina com a mesa
  * de deixar essa carta passar (o Igor, 29/09/2026). `nome` é como se diz na mesa.
  */
@@ -135,6 +141,8 @@ export interface RoomState {
   capacity: number;
   /** Série em andamento (ou a última, depois do fim); `null` no lobby antes da primeira partida. */
   series: SeriesState | null;
+  /** Só sobraram bots e alguém pediu para acelerar até o fim (servidores de antes de 30/09/2026 não mandam). */
+  acelerando?: boolean;
   /**
    * Depois do fim da partida: quem já pediu a revanche (ou a próxima da série). Servidores de antes
    * de 29/09/2026 não mandam.
@@ -253,6 +261,8 @@ export interface ClientToServerEvents {
   'room:lobby': (ack?: (r: Ack) => void) => void;
   'game:action': (p: { action: ClientAction }, ack?: (r: Ack) => void) => void;
   'game:react': (p: { reaction: ReactionId }) => void;
+  /** Só sobraram bots na mesa: o resto da partida corre em câmera rápida (`ATE_O_FIM`). */
+  'game:acelerar': (ack?: (r: Ack) => void) => void;
   /** "Voltei": para de jogar por mim. */
   'room:present': (ack?: (r: Ack) => void) => void;
   /** A página ficou visível ou escondida (decide quando mandar notificação). */

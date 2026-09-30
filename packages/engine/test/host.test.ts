@@ -32,6 +32,21 @@ describe('GameHost', () => {
     expect(clock.pending).toBe(0);
   });
 
+  it('changing the speed mid-wait restarts the wait at the new speed (fast-forward does not wait out the round summary)', () => {
+    const clock = new FakeClock();
+    const host = new GameHost({ seats: bots(4), seed: 7, clock, rules: { startingLives: 2 } });
+    host.start();
+    // Até o primeiro fim de rodada, no ritmo normal.
+    while (host.state.phase !== 'roundEnd') clock.advance(50);
+    const rodada = host.state.round.number;
+    clock.advance(DEFAULT_TIMING.roundPauseMs / 2);
+    expect(host.state.phase).toBe('roundEnd');
+    host.setSpeed(25);
+    clock.advance(DEFAULT_TIMING.roundPauseMs / 25 + 1);
+    expect(host.state.phase).not.toBe('roundEnd');
+    expect(host.state.round.number).toBe(rodada + 1);
+  });
+
   it('waits for the human, and only accepts actions from humans on turn', () => {
     const clock = new FakeClock();
     const host = new GameHost({ seats: withHuman(3), seed: 3, clock, firstDealer: 2 });

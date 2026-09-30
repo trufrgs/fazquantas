@@ -187,6 +187,10 @@ class OnlineConnection implements GameConnection {
     this.socket.emit('game:react', { reaction });
   }
 
+  acelerar() {
+    void this.socket.request('game:acelerar');
+  }
+
   dispose() {
     this.listeners.clear();
     this.reactionListeners.clear();

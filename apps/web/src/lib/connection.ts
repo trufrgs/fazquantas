@@ -41,6 +41,8 @@ export interface GameConnection {
   resume?(): void;
   skipPause?(): void;
   setSpeed?(multiplier: number): void;
+  /** Só sobraram bots na mesa: o resto da partida em câmera rápida (online, a sala toda). */
+  acelerar?(): void;
   /** O ritmo em que o jogo local está agora (1 = normal). */
   speed?(): number;
   dispose(): void;

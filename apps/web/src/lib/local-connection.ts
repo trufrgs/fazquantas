@@ -1,4 +1,5 @@
 import {
+  ATE_O_FIM,
   createRng,
   GameHost,
   pickBotNames,
@@ -164,6 +165,10 @@ export class LocalConnection implements GameConnection {
     this.host.setSpeed(multiplier);
   }
 
+  acelerar(): void {
+    this.setSpeed(ATE_O_FIM);
+  }
+
   speed(): number {
     return this.multiplier;
   }
@@ -191,7 +196,8 @@ export class LocalConnection implements GameConnection {
   /** Bots comentam a partida de vez em quando, para a mesa não ficar muda. */
   private banter(e: HostEvent): void {
     const now = Date.now();
-    if (now - this.lastBanter < 3500) return;
+    // Na câmera rápida ninguém tem tempo de comentar.
+    if (now - this.lastBanter < 3500 || this.multiplier >= ATE_O_FIM) return;
     const state = e.state;
     const bots = this.host.seats.filter((s) => s.kind === 'bot');
     const aliveBots = bots.filter((b) => state.players.find((p) => p.id === b.id)?.eliminatedRound === null);

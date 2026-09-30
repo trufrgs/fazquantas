@@ -26,6 +26,7 @@ export const MESSAGES = {
   notEnoughPlayers: 'Precisa de pelo menos 2 jogadores pra começar.',
   notRankable: `Pra valer ranking, precisa de pelo menos ${RANKED_MIN_HUMANS} pessoas na mesa.`,
   noGame: 'Nenhuma partida em andamento.',
+  acelerar: 'Só dá pra acelerar quando só sobram bots na mesa.',
   seatGone: 'Esse jogador não está mais na sala.',
   notBot: 'Esse assento não é de um bot.',
   kickSelf: 'Pra sair da sala, usa o botão de sair.',

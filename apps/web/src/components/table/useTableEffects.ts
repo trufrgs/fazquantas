@@ -10,6 +10,7 @@ import {
   acertoDoPunhal,
   chaveDoGolpe,
   contextoDaRodada,
+  emCameraRapida,
   golpeComAnimacao,
   golpesDaMao,
   manilhaNaTesta,
@@ -92,6 +93,8 @@ export function useTableEffects(update: ViewUpdate | null, online = false, ritmo
     if (!v) return;
     const you = v.you;
     if (online) setMyTurn(v.actor?.playerId === you);
+    // Câmera rápida: a mesa corre calada (seria uma chuva de sons); só o fim de jogo soa.
+    const calada = emCameraRapida(ritmo) && v.phase !== 'gameOver';
 
     // Cada golpe soa uma vez, quando a arma acerta; o que a mesa não anima (já estava lá quando ela
     // apareceu, ou chegou de uma vez quando a conexão voltou) também não soa.
@@ -104,8 +107,9 @@ export function useTableEffects(update: ViewUpdate | null, online = false, ritmo
       const k = chaveDoGolpe(g);
       if (soados.current.golpes.has(k) || !golpeComAnimacao(g, mao.plays, agora)) continue;
       soados.current.golpes.add(k);
-      somDoGolpe(g, ritmoDosGolpes(ritmo));
+      if (!calada) somDoGolpe(g, ritmoDosGolpes(ritmo));
     }
+    if (calada) return;
     const newRound = !p || v.roundNumber !== p.roundNumber;
     if (newRound && v.phase === 'bidding') {
       play('shuffle');

@@ -26,10 +26,12 @@ export interface RoundSummaryProps {
   seats: SeatInfo[];
   autoMs: number;
   onContinue?: () => void;
+  /** Só sobraram bots (tu acabou de sair): dá para passar o resto em câmera rápida dali mesmo. */
+  onAcelerar?: () => void;
 }
 
 /** Resumo do fim da rodada: quanto cada um pediu e fez, palitos queimados e os que sobram. */
-export function RoundSummary({ open, view, seats, autoMs, onContinue }: RoundSummaryProps) {
+export function RoundSummary({ open, view, seats, autoMs, onContinue, onAcelerar }: RoundSummaryProps) {
   const rec = view.history.at(-1);
   const next = nextCards(view);
   return (
@@ -109,7 +111,18 @@ export function RoundSummary({ open, view, seats, autoMs, onContinue }: RoundSum
                   ? `Próxima: ${next} ${next === 1 ? 'carta' : 'cartas'}`
                   : ''}
             </span>
-            {onContinue ? (
+            {onAcelerar ? (
+              <Button
+                variant="ouro"
+                size="sm"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onAcelerar();
+                }}
+              >
+                ⏩ Acelerar até o fim
+              </Button>
+            ) : onContinue ? (
               <Button variant="ouro" size="sm" onClick={onContinue}>
                 Continuar
               </Button>

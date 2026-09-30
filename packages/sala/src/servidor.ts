@@ -81,6 +81,7 @@ const EVENTS: ReadonlySet<string> = new Set<EventName>([
   'room:present',
   'game:action',
   'game:react',
+  'game:acelerar',
   'presence',
 ]);
 
@@ -406,6 +407,11 @@ export class SalaServidor {
         const { action } = parsePayload(gameActionSchema, payload);
         const { sala, playerId } = this.membership(conexao);
         sala.act(playerId, action);
+        return;
+      }
+      case 'game:acelerar': {
+        const { sala, playerId } = this.membership(conexao);
+        sala.acelerar(playerId);
         return;
       }
       case 'game:react': {

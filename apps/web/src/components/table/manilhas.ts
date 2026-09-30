@@ -186,6 +186,12 @@ export const TEMPO_GOLPE = {
 /** O ritmo que os golpes usam (1 = normal; o turbo é 4): só protege contra valor estranho. */
 export const ritmoDosGolpes = (ritmo = 1) => Math.min(4, Math.max(0.5, ritmo));
 
+/**
+ * Câmera rápida ("acelerar até o fim", só com bots na mesa): a partida corre muito mais rápido que
+ * qualquer ritmo normal, e a mesa passa sem golpes, gritos, sons nem o resumo das rodadas.
+ */
+export const emCameraRapida = (ritmo = 1) => ritmo >= 10;
+
 /** O intervalo entre uma vítima e a seguinte neste golpe (mais curto quando são muitas). */
 export function passoDe(g: GolpeNaMao): number {
   const passo = TEMPO_GOLPE.passo[g.golpe];
