@@ -43,27 +43,56 @@ export function paceMultiplier(pace: Pace): number {
 }
 
 /**
- * Reações rápidas da mesa, em expressões gaúchas de uso corrente (validadas em pesquisa):
- * quatro de surpresa/aprovação e quatro de provocação amigável.
+ * As cartas que podem "ser galo", da mais baixa para a mais alta: "2 é galo, hein!" combina com a mesa
+ * de deixar essa carta passar (o Igor, 29/09/2026). `nome` é como se diz na mesa.
+ */
+export const GALOS = [
+  { valor: '4', nome: '4' },
+  { valor: '5', nome: '5' },
+  { valor: '6', nome: '6' },
+  { valor: '7', nome: '7' },
+  { valor: '10', nome: '10' },
+  { valor: '11', nome: '11' },
+  { valor: '12', nome: '12' },
+  { valor: '1', nome: 'Ás' },
+  { valor: '2', nome: '2' },
+  { valor: '3', nome: '3' },
+] as const;
+export type Galo = (typeof GALOS)[number]['valor'];
+
+/**
+ * Reações rápidas da mesa, na fala de quem joga: espanto e aprovação em expressões gaúchas de uso
+ * corrente, as provocações de sempre (cagão para quem não arrisca, cumadrera para quem emparda de
+ * propósito) e o "é galo" para combinar de deixar uma carta passar.
  */
 export type ReactionId =
   | 'masbah'
   | 'barbaridade'
-  | 'bemcapaz'
   | 'tri'
+  | 'quesorte'
+  | 'bemcapaz'
   | 'barbada'
-  | 'deuprati'
   | 'teacalma'
-  | 'quesorte';
+  | 'deuprati'
+  | 'cagao'
+  | 'cumadrera'
+  | 'chinelao'
+  | 'chorao'
+  | `galo-${Galo}`;
 export const REACTIONS: readonly { id: ReactionId; emoji: string; label: string }[] = [
   { id: 'masbah', emoji: '😮', label: 'Mas bah!' },
   { id: 'barbaridade', emoji: '😱', label: 'Barbaridade!' },
-  { id: 'bemcapaz', emoji: '🙄', label: 'Bem capaz!' },
   { id: 'tri', emoji: '👏', label: 'Tri!' },
-  { id: 'barbada', emoji: '😎', label: 'Que barbada!' },
-  { id: 'deuprati', emoji: '👋', label: 'Deu pra ti!' },
-  { id: 'teacalma', emoji: '🧉', label: 'Te acalma!' },
   { id: 'quesorte', emoji: '🍀', label: 'Bah, que sorte!' },
+  { id: 'bemcapaz', emoji: '🙄', label: 'Bem capaz!' },
+  { id: 'barbada', emoji: '😎', label: 'Que barbada!' },
+  { id: 'teacalma', emoji: '🧉', label: 'Te acalma!' },
+  { id: 'deuprati', emoji: '👋', label: 'Deu pra ti!' },
+  { id: 'cagao', emoji: '💩', label: 'Cagão!' },
+  { id: 'cumadrera', emoji: '🤝', label: 'Cumadrera!' },
+  { id: 'chinelao', emoji: '🩴', label: 'Chinelão!' },
+  { id: 'chorao', emoji: '😭', label: 'Chorão!' },
+  ...GALOS.map((g) => ({ id: `galo-${g.valor}` as const, emoji: '🐓', label: `${g.nome} é galo, hein!` })),
 ];
 
 export type SeatPublic =

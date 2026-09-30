@@ -220,10 +220,16 @@ export class LocalConnection implements GameConnection {
       }
     } else if (state.phase === 'trickEnd' && e.action?.type === 'play') {
       const t = state.round.completedTricks.at(-1);
-      if (t && t.cancelled.length > 0 && this.rng.next() < 0.25) {
-        const who = pick(aliveBots);
-        if (who) reaction = { playerId: who.id, reaction: 'masbah' };
+      if (t && t.cancelled.length > 0 && this.rng.next() < 0.3) {
+        // Empardou: a mesa desconfia que foi de propósito.
+        const who = pick(aliveBots.filter((b) => !t.cancelled.includes(b.id))) ?? pick(aliveBots);
+        if (who) reaction = { playerId: who.id, reaction: pick(['cumadrera', 'masbah'] as ReactionId[])! };
       }
+    } else if (e.action?.type === 'bid' && e.action.value === 0 && state.round.cards >= 3 && !state.round.blind && this.rng.next() < 0.2) {
+      // Cantou nenhuma com a mão cheia: tem sempre alguém para chamar de cagão.
+      const quem = e.action.playerId;
+      const who = pick(aliveBots.filter((b) => b.id !== quem));
+      if (who) reaction = { playerId: who.id, reaction: 'cagao' };
     } else if (state.phase === 'gameOver' && e.action?.type === 'continue') {
       if (state.result?.winners.includes(YOU)) {
         const who = pick(bots);
