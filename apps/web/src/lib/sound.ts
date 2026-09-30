@@ -64,6 +64,60 @@ const VOLUME: Partial<Record<SoundId, number>> = {
 
 const howls = new Map<string, Howl>();
 let enabled = true;
+/** Já houve um toque na tela: antes dele o celular não deixa tocar nada (e o som ia para a fila). */
+let tocou = false;
+
+// O Howler suspende o áudio depois de 30 s sem som, e no iPhone ele não volta sozinho fora de um toque:
+// o som "se perdia" no meio da partida (o Igor, 29/09/2026). Fica sempre ligado; quem acorda o áudio
+// que o sistema parar é `acordarAudio`.
+Howler.autoSuspend = false;
+
+/** O contexto de áudio do Howler (só existe depois do primeiro som carregado). */
+const contexto = (): AudioContext | undefined => (Howler as { ctx?: AudioContext }).ctx ?? undefined;
+
+/**
+ * Acorda o áudio parado: o iPhone suspende ou interrompe o áudio quando o jogo sai da frente, numa
+ * ligação ou num áudio do WhatsApp, e só deixa voltar dentro de um toque. Chamada a cada toque na tela
+ * (e quando o jogo volta para a frente, que às vezes basta). O buffer vazio é o destrave do iPhone.
+ */
+export function acordarAudio(): void {
+  const ctx = contexto();
+  if (!ctx || ctx.state === 'running') return;
+  try {
+    const vazio = ctx.createBufferSource();
+    vazio.buffer = ctx.createBuffer(1, 1, 22050);
+    vazio.connect(ctx.destination);
+    vazio.start(0);
+    void ctx.resume().then(
+      () => {
+        (Howler as unknown as { state: string }).state = 'running';
+      },
+      () => undefined,
+    );
+  } catch {
+    /* sem áudio */
+  }
+}
+
+/**
+ * Força o áudio de volta, ao ligar os efeitos nos ajustes ("sempre que ligar e desligar o botão do som
+ * nas configurações, tem que forçar", o Igor): se o contexto ficou interrompido ou fechado de vez, joga
+ * fora e começa um novo, dentro do mesmo toque; depois acorda.
+ */
+export function forcarAudio(): void {
+  tocou = true;
+  const ctx = contexto();
+  try {
+    if (ctx && (ctx.state === 'closed' || (ctx.state as string) === 'interrupted')) {
+      Howler.unload();
+      howls.clear();
+      preloadSounds();
+    }
+  } catch {
+    /* sem áudio */
+  }
+  acordarAudio();
+}
 
 function howl(file: string): Howl {
   let h = howls.get(file);
@@ -76,6 +130,7 @@ function howl(file: string): Howl {
 
 /** Pré-carrega tudo (chamar depois do primeiro toque — o áudio só destrava com gesto no mobile). */
 export function preloadSounds(): void {
+  tocou = true;
   try {
     for (const files of Object.values(FILES)) for (const f of files) howl(f);
   } catch {
@@ -104,12 +159,20 @@ export function setMasterVolume(volume: number): void {
   }
 }
 
-/** Toca um som (variação aleatória quando há mais de um arquivo). Nunca lança. */
+/**
+ * Toca um som (variação aleatória quando há mais de um arquivo). Nunca lança. Com o áudio parado, o som
+ * não toca (iria para a fila do Howler e sairia tudo junto quando o áudio voltasse): tenta acordar.
+ */
 export function play(id: SoundId, opts: { delayMs?: number; rate?: number } = {}): void {
-  if (!enabled) return;
+  if (!enabled || !tocou) return;
   const files = FILES[id];
   const file = files[Math.floor(Math.random() * files.length)]!;
   const fire = () => {
+    const ctx = contexto();
+    if (ctx && ctx.state !== 'running') {
+      acordarAudio();
+      return;
+    }
     try {
       const h = howl(file);
       const soundId = h.play();

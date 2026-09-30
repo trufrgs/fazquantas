@@ -66,4 +66,35 @@ export function destravarMusica(): void {
   aplicar();
 }
 
+/** A faixa está saindo de verdade: algum `<audio>` dela tocando (o Howler não fica sabendo quando o sistema pausa). */
+function saindoDeVerdade(h: Howl): boolean {
+  const sons = (h as unknown as { _sounds?: { _node?: HTMLAudioElement }[] })._sounds ?? [];
+  return sons.some((som) => som._node && !som._node.paused);
+}
+
+/**
+ * Recomeça a música do zero, de fininho: ao ligar a música nos ajustes ("tem que forçar", o Igor,
+ * 29/09/2026) e quando ela parou sem ninguém pedir. Joga a faixa velha fora (com o `<audio>` que o
+ * sistema pausou: se ele voltasse sozinho, eram dois tangos) e começa uma nova.
+ */
+export function forcarMusica(): void {
+  destravada = true;
+  try {
+    faixa?.unload();
+  } catch {
+    // sem áudio
+  }
+  faixa = null;
+  aplicar();
+}
+
+/**
+ * A música devia estar tocando e parou (o sistema pausa o áudio numa ligação, num áudio do WhatsApp, e
+ * o Howler nem fica sabendo): volta. Chamada a cada toque na tela, que é quando o celular deixa.
+ */
+export function acordarMusica(): void {
+  if (!querTocar() || !faixa || saindoDeVerdade(faixa)) return;
+  forcarMusica();
+}
+
 if (typeof document !== 'undefined') document.addEventListener('visibilitychange', aplicar);

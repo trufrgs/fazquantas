@@ -4,9 +4,9 @@ import { preloadCards } from './components/cards/Card';
 import { CardSprite } from './components/cards/sprite';
 import { GameScreen } from './components/table/GameScreen';
 import { aoAbrir } from './lib/conta';
-import { destravarMusica, ligarMusica } from './lib/musica';
+import { acordarMusica, destravarMusica, forcarMusica, ligarMusica } from './lib/musica';
 import { isNative, multiplayer } from './lib/platform';
-import { preloadSounds, setSoundEnabled } from './lib/sound';
+import { acordarAudio, forcarAudio, preloadSounds, setSoundEnabled } from './lib/sound';
 import { useApp } from './stores/app';
 import { abaSubstituida, savedSession, useOnline } from './stores/online';
 import { useSettings } from './stores/settings';
@@ -49,16 +49,45 @@ export function App() {
     return () => window.clearTimeout(t);
   }, []);
 
-  // Áudio só destrava depois de um gesto no mobile.
+  // Áudio só destrava depois de um gesto no mobile. E o celular para o áudio quando o jogo sai da frente,
+  // numa ligação ou num áudio do WhatsApp: cada toque acorda o que tiver parado (o som "se perdia", o
+  // Igor, 29/09/2026). Voltar para a frente às vezes já basta.
   useEffect(() => {
-    const unlock = () => {
-      preloadSounds();
-      destravarMusica();
-      window.removeEventListener('pointerdown', unlock);
+    let primeiro = true;
+    const toque = () => {
+      if (primeiro) {
+        primeiro = false;
+        preloadSounds();
+        destravarMusica();
+      }
+      acordarAudio();
+      acordarMusica();
     };
-    window.addEventListener('pointerdown', unlock);
-    return () => window.removeEventListener('pointerdown', unlock);
+    const voltou = () => {
+      if (document.visibilityState === 'visible') acordarAudio();
+    };
+    window.addEventListener('pointerdown', toque, true);
+    window.addEventListener('keydown', toque, true);
+    document.addEventListener('visibilitychange', voltou);
+    window.addEventListener('pageshow', voltou);
+    return () => {
+      window.removeEventListener('pointerdown', toque, true);
+      window.removeEventListener('keydown', toque, true);
+      document.removeEventListener('visibilitychange', voltou);
+      window.removeEventListener('pageshow', voltou);
+    };
   }, []);
+
+  // Ligar os efeitos ou a música nos ajustes força o áudio de volta, ali mesmo, dentro do toque na chave
+  // ("sempre que ligar e desligar o botão do som, tem que forçar", o Igor).
+  useEffect(
+    () =>
+      useSettings.subscribe((agora, antes) => {
+        if (agora.sound && !antes.sound) forcarAudio();
+        if (agora.musica && !antes.musica) forcarMusica();
+      }),
+    [],
+  );
 
   // Abriu o jogo: conta a visita e confere o apelido guardado.
   useEffect(() => {
