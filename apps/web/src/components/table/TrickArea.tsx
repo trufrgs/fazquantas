@@ -24,6 +24,7 @@ import {
 } from './manilhas';
 import { play } from '../../lib/sound';
 import { tossRotation, trickStacking, type Point, type TableGeometry } from './layout';
+import { avatarBackground, avatarUri } from '../../lib/avatar';
 
 export interface TrickAreaProps {
   plays: Play[];
@@ -46,6 +47,59 @@ export interface TrickAreaProps {
   rodada?: number;
   /** Ritmo do jogo (1 = normal): os golpes acompanham o tempo que a mão fica na mesa. */
   ritmo?: number;
+  /** O avatar de cada um: o rostinho de quem jogou vai na borda da carta, do lado dele. */
+  avatarDe?: (playerId: string) => string;
+}
+
+/**
+ * Onde vai o rostinho do dono: na borda da carta, o mais perto da direção do assento dele que não cubra
+ * o número de carta nenhuma (testa a borda em volta, de 10 em 10 graus a partir da direção do dono).
+ */
+function lugarDoDono(
+  at: Point,
+  dono: Point,
+  cw: number,
+  ch: number,
+  d: number,
+  numeros: readonly { l: number; t: number; r: number; b: number }[],
+): Point {
+  const alvo = Math.atan2(dono.y - at.y, dono.x - at.x);
+  const ponto = (ang: number) => {
+    const ux = Math.cos(ang);
+    const uy = Math.sin(ang);
+    const borda = Math.min(ux ? cw / 2 / Math.abs(ux) : Infinity, uy ? ch / 2 / Math.abs(uy) : Infinity);
+    const k = borda - d * 0.2;
+    return { x: at.x + ux * k, y: at.y + uy * k };
+  };
+  const livre = (c: Point) =>
+    !numeros.some((n) => c.x - d / 2 < n.r && n.l < c.x + d / 2 && c.y - d / 2 < n.b && n.t < c.y + d / 2);
+  for (let passo = 0; passo <= 18; passo++) {
+    for (const sinal of passo === 0 ? [1] : [1, -1]) {
+      const c = ponto(alvo + (sinal * passo * Math.PI) / 18);
+      if (livre(c)) return c;
+    }
+  }
+  return ponto(alvo);
+}
+
+/**
+ * O rostinho de quem jogou, na borda da carta que dá para o assento dele: com as cartas encavaladas,
+ * fica evidente de quem é cada uma ("tem espaço pra deixar mais claro", o Thomas, 30/09/2026).
+ */
+function DonoDaCarta({ seed, x, y, d }: { seed: string; x: number; y: number; d: number }) {
+  return (
+    <motion.span
+      className="pointer-events-none absolute z-[45] overflow-hidden rounded-full ring-2 ring-papel shadow-[0_2px_6px_rgb(0_0_0/0.5)]"
+      style={{ left: x - d / 2, top: y - d / 2, width: d, height: d, background: avatarBackground(seed) }}
+      initial={{ opacity: 0, scale: 0.4 }}
+      animate={{ opacity: 1, scale: 1 }}
+      exit={{ opacity: 0, transition: { duration: 0.12 } }}
+      transition={{ type: 'spring', stiffness: 420, damping: 24, delay: 0.25 }}
+      aria-hidden="true"
+    >
+      <img src={avatarUri(seed)} alt="" draggable={false} className="h-full w-full" />
+    </motion.span>
+  );
 }
 
 export function TrickArea(p: TrickAreaProps) {
@@ -72,6 +126,17 @@ export function TrickArea(p: TrickAreaProps) {
     [ctx, cameraRapida, p.plays, p.resolved, mesa],
   );
   const pontoDe = (playerId: string) => p.geometry.tricks.get(playerId) ?? p.geometry.center;
+  // Os cantos com o número (em cima à esquerda e, de cabeça para baixo, embaixo à direita) de cada carta
+  // na mesa: o rostinho do dono nunca vai por cima deles.
+  const numeros = p.plays.flatMap((play) => {
+    const at = pontoDe(play.playerId);
+    const l = at.x - cw / 2;
+    const t = at.y - ch / 2;
+    return [
+      { l, t, r: l + cw * 0.26, b: t + ch * 0.2 },
+      { l: l + cw * 0.74, t: t + ch * 0.8, r: l + cw, b: t + ch },
+    ];
+  });
   const apanhou = new Map<string, { g: GolpeNaMao; ordem: number }>();
   for (const g of golpes) vitimasEmOrdem(g, (id) => pontoDe(id).x).forEach((id, ordem) => apanhou.set(id, { g, ordem }));
   const cartaDe = (playerId: string) => p.plays.find((pl) => pl.playerId === playerId)?.cardId;
@@ -205,6 +270,18 @@ export function TrickArea(p: TrickAreaProps) {
             </motion.div>
           );
         })}
+        {/* De quem é cada carta: o rostinho na borda que dá para o dono (menos a tua, que vem da mão). */}
+        {p.avatarDe &&
+          p.plays
+            .filter((play) => play.playerId !== p.youId && !(p.resolved && p.cancelled.includes(play.playerId)))
+            .map((play) => {
+              const at = p.geometry.tricks.get(play.playerId) ?? p.geometry.center;
+              const dono = p.geometry.seats.get(play.playerId);
+              if (!dono) return null;
+              const d = Math.max(18, Math.min(28, cw * 0.3));
+              const lugar = lugarDoDono(at, dono, cw, ch, d, numeros);
+              return <DonoDaCarta key={`dono-${play.cardId}`} seed={p.avatarDe!(play.playerId)} x={lugar.x} y={lugar.y} d={d} />;
+            })}
         {/*
           Carimbos acima das outras cartas (senão a carta seguinte cobre o carimbo), mas abaixo da
           vencedora: um carimbo nunca pode parecer estar nela. Cada um vai para a borda de fora da

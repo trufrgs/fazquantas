@@ -41,6 +41,7 @@ sala (`routeWebSocket`) e simula as falhas de verdade de celular:
 | `6-mesa-cheia.mjs` | Mesa com 8 em celular pequeno (`360`, `se`, `mini`): foto do painel de cantada aberto |
 | `7-longe.mjs` | Longe da mesa por muito tempo (`LONGE_MIN`, padrão 3,5): anfitriã no WhatsApp, sala sem ninguém conectado, reabrir o app sem servidor |
 | `8-midia.mjs` | Microfone e câmera com os de mentira do Chromium (`device(nome, { microfone: true })`): só câmera, só microfone, os dois, fechar a câmera (a trilha para), rostos nos assentos e vídeo grande na mesa, queda da sala e volta, tudo fechado sem ligações |
+| `9-oito.mjs` | A sala cheia: 8 pessoas em celulares diferentes (o máximo da sala), todas de microfone e 4 de câmera (malha de 28 ligações), a nona recusada ("A sala está cheia"), partida inteira no automático (`MAX_MIN`, padrão 10) medindo a mesa de 8 no iPhone 15 e no SE |
 
 Referências de tempo (29/09/2026, local): modo avião volta em ~0,2 s; conexão morta é percebida em
 ~16 s e volta em ~0,2 s; jogada com a conexão morta avisa em ~6 s; celular que dormiu volta em ~0,3 s.

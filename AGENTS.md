@@ -82,8 +82,12 @@ pnpm exec playwright test                  # E2E locais (sobem os servidores soz
   a carta da mesa a até 8% da maior possível (com câmera, 20%: o rosto vem antes) e o maior avatar,
   nunca menor que o fixo de antes quando dá (`pisoDoAvatar`). Testes: `layout.test.ts`, todas as telas
   com 2 a 8 na mesa, com e sem câmera.
-- Mesa cheia: as cartas da mão se encavalam, espalhadas até o meio do caminho (cada uma perto de quem
-  jogou), sempre com o número à mostra.
+- **Cartas da mão encavaladas** (escolha do Thomas em 30/09/2026, entre três jeitos desenhados): a
+  carta da mesa cresce até 60% acima da base (`trickCardFor`) e pode encavalar nas outras, como na
+  mesa de verdade, mas o canto com o número de todas fica à mostra (`numerosAMostra`). Cada carta vai
+  o mais perto que dá de quem jogou (`aproximarDosDonos`, só na mesa que aparece) e leva o rostinho do
+  dono na borda que dá para o assento dele, sem cobrir número nenhum (`TrickArea`): fica evidente de
+  quem é cada uma. Com 5 a 8 na mesa, a carta passou de 47–52 px para 75–82 px no iPhone.
 - **Carta na testa:** cada uma fica com o dono, no arranjo natural (quem senta na fileira de cima
   segura embaixo do assento; nas colunas, para dentro), longe do alto da mesa. Outro arranjo só entra
   se render cartas 15% maiores (`ARRANJOS` em `layout.ts`): pelo tamanho, a carta de quem senta no alto

@@ -142,6 +142,8 @@ export function tableGeometry(
   baseBox: SeatBox = SEAT_BOX.normal,
   scale = 1,
   reservas: readonly Rect[] = [],
+  /** Leva cada carta da mão para perto de quem jogou (só na mesa que aparece; o dimensionamento não precisa). */
+  aproximar = false,
 ): TableGeometry {
   const start = youId ? Math.max(0, order.indexOf(youId)) : 0;
   const rotated = order.map((_, i) => order[(start + i) % order.length]!);
@@ -190,6 +192,7 @@ export function tableGeometry(
     height,
     reservas,
   );
+  if (aproximar) aproximarDosDonos(others, seats, tricks, center, trickCard, trickCard * CARD_RATIO, [...seatRects, ...reservas], width, height);
   return { width, height, center, seats, tricks, deck: { x: center.x, y: center.y }, seatBox: box, topo: T, reservas };
 }
 
@@ -246,12 +249,64 @@ function trickSpots(
     tries.push({ t, spots, pts });
   }
   if (tries.length === 0) return trickRow(ids, seats, center, w, h, seatRects, width, height, reservas);
-  const soltas = tries.find((c) => c.t <= 0.56 && all(c.pts, clear));
+  // Cada carta na frente de quem jogou, o mais perto do dono que a mesa deixa (sem encostar em
+  // assento nem sair da mesa): assim fica evidente de quem é cada uma (o Thomas, 30/09/2026).
+  const soltas = tries.filter((c) => all(c.pts, clear)).at(-1);
   if (soltas) return soltas.spots;
-  // Mesa cheia: as cartas se encavalam. Espalha o quanto dá até o meio do caminho (cada uma perto
-  // de quem jogou e menos coberta), sempre com o número à mostra.
+  // As cartas se encavalam: espalha o quanto a mesa deixa, cada uma na frente de quem jogou (fica
+  // evidente de quem é cada uma, o Thomas, 30/09/2026) e menos coberta, sempre com o número à mostra.
   const aMostra = tries.filter((c) => all(c.pts, cornerShows));
-  return (aMostra.filter((c) => c.t <= 0.56).at(-1) ?? aMostra[0] ?? tries[tries.length - 1]!).spots;
+  return (aMostra.at(-1) ?? tries[tries.length - 1]!).spots;
+}
+
+/**
+ * Cada carta da mão vai o mais perto que dá de quem jogou, na linha do centro até o assento dele: sem
+ * sair da mesa, sem cobrir assento nem o canto das frases e com o número de todas à mostra. Com a mesa
+ * cheia, as cartas se encavalam e ficaria difícil saber de quem é cada uma ("tem espaço pra deixar
+ * mais claro", o Thomas, 30/09/2026). A tua (que vem da mão) fica onde está.
+ */
+function aproximarDosDonos(
+  ids: readonly string[],
+  seats: ReadonlyMap<string, Point>,
+  spots: Map<string, Point>,
+  center: Point,
+  w: number,
+  h: number,
+  bloqueios: readonly Rect[],
+  width: number,
+  height: number,
+): void {
+  // Primeiro quem está mais longe do dono (a carta de quem senta no alto costuma ficar no meio). Uma
+  // carta pode destravar a outra (ao subir, deixa de cobrir o número da vizinha): algumas voltas.
+  const longe = (id: string) => {
+    const a = seats.get(id)!;
+    const c = spots.get(id)!;
+    return Math.hypot(a.x - c.x, a.y - c.y);
+  };
+  const cartas = [...ids].filter((i) => seats.has(i) && spots.has(i));
+  for (let volta = 0; volta < 4; volta++) {
+    let andou = false;
+    for (const id of [...cartas].sort((a, b) => longe(b) - longe(a))) {
+      const dono = seats.get(id)!;
+      const dx = dono.x - center.x;
+      const dy = dono.y - center.y;
+      const len = Math.hypot(dx, dy) || 1;
+      const atual = spots.get(id)!;
+      let t = Math.hypot(atual.x - center.x, atual.y - center.y) / len;
+      let melhor = atual;
+      for (t += 0.02; t <= 0.9; t += 0.02) {
+        const p = { x: center.x + dx * t, y: center.y + dy * t };
+        const r = rectAround(p, w, h);
+        if (r.l < 0 || r.r > width || r.t < 0 || r.b > height || bloqueios.some((o) => overlaps(r, o))) break;
+        spots.set(id, p);
+        if (!numerosAMostra([...spots.values()], w, h)) break;
+        melhor = p;
+      }
+      spots.set(id, melhor);
+      if (melhor !== atual) andou = true;
+    }
+    if (!andou) break;
+  }
 }
 
 /**
@@ -389,9 +444,10 @@ export function cardSizes(
 }
 
 /**
- * A carta da mesa do maior tamanho que cabe folgada (até 45% maior que a de `cardSizes`): as cartas da
- * mão não se tocam, não cobrem assento e não saem da mesa. Com espaço sobrando ("às vezes sobra um
- * espacinho na mesa", o Igor, 29/09/2026) ela cresce; na mesa cheia, fica na base.
+ * A carta da mesa do maior tamanho que cabe (até 60% maior que a de `cardSizes`): as cartas da mão não
+ * cobrem assento nem saem da mesa, e podem se encavalar como na mesa de verdade, mas o número (o
+ * canto de cima) de cada uma fica sempre à mostra ("cartas encavaladas", escolha do Thomas em
+ * 30/09/2026). Assim ela cresce também na mesa cheia, sem os rostos diminuírem.
  */
 export function trickCardFor(
   width: number,
@@ -411,12 +467,15 @@ export function trickCardFor(
   return base;
 }
 
-/** Até onde a carta da mesa cresce: 45% acima da base, sem passar de um quarto da mesa. */
+/** Até onde a carta da mesa cresce: 60% acima da base, sem passar de um quarto da mesa. */
 function tetoDaCarta(width: number, base: number, scale: number): number {
-  return Math.min(base * 1.45, width * 0.24, 118 * scale);
+  return Math.min(base * 1.6, width * 0.24, 120 * scale);
 }
 
-/** As cartas da mão (tamanho `w`) cabem sem se tocar, sem cobrir assento e sem sair da mesa? */
+/**
+ * As cartas da mão (tamanho `w`) cabem sem cobrir assento nem sair da mesa, e o número de cada uma
+ * (o canto de cima, à esquerda) fica à mostra, mesmo encavaladas (quem vai por cima segue `trickStacking`)?
+ */
 function mesaFolgada(g: TableGeometry, w: number): boolean {
   const h = w * CARD_RATIO;
   const assentos = [...[...g.seats.values()].filter((p) => p.y < g.height).map((p) => rectAround(p, g.seatBox.w, g.seatBox.h)), ...g.reservas];
@@ -425,8 +484,16 @@ function mesaFolgada(g: TableGeometry, w: number): boolean {
     const r = rectAround(p, w, h);
     return r.l >= 0 && r.r <= g.width && r.t >= 0 && r.b <= g.height && !assentos.some((a) => overlaps(r, a));
   });
-  const soltas = cartas.every((a, i) => cartas.every((b, j) => j <= i || Math.abs(a.x - b.x) >= w + 4 || Math.abs(a.y - b.y) >= h + 4));
-  return dentro && soltas;
+  return dentro && numerosAMostra(cartas, w, h);
+}
+
+/** O canto com o número de cada carta (tamanho `w`×`h`) fica de fora das que vão por cima dela. */
+export function numerosAMostra(cartas: readonly Point[], w: number, h: number): boolean {
+  const ordem = trickStacking(cartas);
+  return cartas.every((a, i) => {
+    const canto = { l: a.x - w / 2, t: a.y - h / 2, r: a.x - w / 2 + w * 0.26, b: a.y - h / 2 + h * 0.2 };
+    return cartas.every((b, j) => j === i || ordem[j]! < ordem[i]! || !overlaps(canto, rectAround(b, w, h), 2));
+  });
 }
 
 /**
