@@ -92,7 +92,9 @@ Cenas de desenvolvimento para revisar o visual: `http://localhost:5173/?cena=emp
 `palpite`, `mao`, `cega`, `cega8`, `muitas`, `fimrodada`, `fimjogo`, `espectador`, `vira`) e `?galeria` com
 o baralho inteiro. Os golpes das manilhas ("Quem mata quem": o espadão corta, o bastião bate, o sete de
 espadas fura, o sete belo brilha e apaga as outras e a de copas, com vira, derrama vinho; a mesa treme a cada pancada) têm cenas que
-jogam uma mão sozinhas: `espadao`, `duelo`, `fraca`, `setespadas`, `setebelo`, `manilhas` e `manilhasvira`.
+jogam uma mão sozinhas: `espadao`, `duelo`, `fraca`, `setespadas`, `setebelo`, `manilhas` e `manilhasvira` (em `manilhas` e
+`duelo` o espadão parte o bastião ao meio). Na carta na testa, `natesta` e `natestatu` mostram quem cantou zero com a manilha
+na própria testa.
 
 ## Código aberto
 

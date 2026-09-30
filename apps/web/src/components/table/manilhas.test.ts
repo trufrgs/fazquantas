@@ -1,7 +1,9 @@
-import { DEFAULT_TIMING, MANILHA_PAUSE_FACTOR, type CardId } from '@fodinha/engine';
+import { DEFAULT_TIMING, MANILHA_PAUSE_FACTOR, type CardId, type PlayerView } from '@fodinha/engine';
 import { describe, expect, it } from 'vitest';
 import {
   acertoDe,
+  bastiaoCortado,
+  manilhaNaTesta,
   impactosDoGolpe,
   tremor,
   chaveDoGolpe,
@@ -198,5 +200,44 @@ describe('a mesa treme com as pancadas', () => {
     for (let i = 1; i < t.times.length; i++) expect(t.times[i]!).toBeGreaterThanOrEqual(t.times[i - 1]!);
     expect([t.x.at(-1), t.y.at(-1)]).toEqual([0, 0]);
     expect(Math.max(...t.x.map(Math.abs))).toBeGreaterThan(0);
+  });
+});
+
+describe('o duelo e a testa', () => {
+  const cartaDe = (plays: ReturnType<typeof mao>) => (id: string) => plays.find((p) => p.playerId === id)?.cardId;
+
+  it('o espadão partindo o bastião que já estava na mesa (ou que chega depois) é o duelo', () => {
+    const antes = mao('C4', 'P1', 'E1', 'C6');
+    // O bastião bate na Nice primeiro; depois o espadão entra cortando o bastião da Lurdes.
+    const corte = golpesDaMao(antes, gaucha, true).find((g) => g.golpe === 'corta')!;
+    expect(corte.momento).toBe('entrada');
+    expect(bastiaoCortado(corte, cartaDe(antes), gaucha)).toBe('lurdes');
+    const depois = mao('C4', 'E1', 'P1', 'C6');
+    const revide = golpesDaMao(depois, gaucha, true).find((g) => g.momento === 'revide')!;
+    expect(bastiaoCortado(revide, cartaDe(depois), gaucha)).toBe('lia');
+    // Sem bastião na mesa, ou golpe que não é de espada: nada de duelo.
+    const semPau = mao('C4', 'O5', 'E1', 'C6');
+    expect(bastiaoCortado(golpesDaMao(semPau, gaucha, true)[0]!, cartaDe(semPau), gaucha)).toBeNull();
+    const pancada = mao('C4', 'P1', 'O5', 'C6');
+    expect(bastiaoCortado(golpesDaMao(pancada, gaucha, true)[0]!, cartaDe(pancada), gaucha)).toBeNull();
+  });
+
+  it('na rodada da carta na testa, quem cantou zero e levou com a manilha na testa ganha a cena', () => {
+    const visao = (vencedor: string, lance: number, carta: CardId, cega = true) =>
+      ({
+        blind: cega,
+        phase: 'trickEnd',
+        rules: { hierarchy: 'gaucha' },
+        vira: null,
+        players: [
+          { id: 'nice', bid: 1 },
+          { id: 'lurdes', bid: lance },
+        ],
+        lastTrick: { winnerId: vencedor, plays: [{ playerId: 'nice', cardId: 'C4' }, { playerId: 'lurdes', cardId: carta }], cancelled: [] },
+      }) as unknown as PlayerView;
+    expect(manilhaNaTesta(visao('lurdes', 0, 'E1'))).toEqual({ playerId: 'lurdes', nome: 'Espadão' });
+    expect(manilhaNaTesta(visao('lurdes', 1, 'E1'))).toBeNull();
+    expect(manilhaNaTesta(visao('lurdes', 0, 'C3'))).toBeNull();
+    expect(manilhaNaTesta(visao('lurdes', 0, 'E1', false))).toBeNull();
   });
 });

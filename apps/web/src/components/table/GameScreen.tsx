@@ -22,7 +22,8 @@ import { InlineTurnTimer, TurnSpotlight, UrgentEdge, useTimeLeft } from './TurnC
 import { formatLeft, isUrgent } from '../../lib/tempo';
 import { haptic } from '../../lib/haptics';
 import { play } from '../../lib/sound';
-import { contextoDaRodada } from './manilhas';
+import { contextoDaRodada, manilhaNaTesta } from './manilhas';
+import { NaTesta } from './NaTesta';
 import { useApp } from '../../stores/app';
 import { useGame, type LiveReaction } from '../../stores/game';
 import { isHost, useOnline } from '../../stores/online';
@@ -46,6 +47,7 @@ import {
   SEAT_BOX,
   tableGeometry,
   tableRevealLayout,
+  trickCardFor,
 } from './layout';
 import { REVEAL_FAN, RevealCards } from './RevealCards';
 import { MySeat, type StatusTone } from './MySeat';
@@ -241,7 +243,12 @@ function Table({
   // Tablet e desktop: tudo cresce junto (assentos, cartas, margens) pela escala da interface.
   const s = useUiScale();
   const compact = isCompact(crowd, vw / s, vh / s);
-  const { hand: handCardW, trick: trickCardW } = cardSizes(vw, vh, crowd, s);
+  const { hand: handCardW, trick: trickBase } = cardSizes(vw, vh, crowd, s);
+  // A carta da mesa cresce quando sobra espaço (até 45% maior), sem encostar em ninguém.
+  const trickCardW = useMemo(
+    () => trickCardFor(table.width, table.height, order, you, trickBase, SEAT_BOX[compact ? 'compact' : 'normal'], s),
+    [table.width, table.height, order, you, trickBase, compact, s],
+  );
   const geometry = useMemo(
     () =>
       tableGeometry(
@@ -381,6 +388,10 @@ function Table({
         ? (view.lastTrick?.plays ?? [])
         : [];
   const winnerId = view.lastTrick?.winnerId ?? null;
+  // Rodada da carta na testa: quem perdeu por ter a manilha na própria testa ganha a sua cena.
+  const naTesta = manilhaNaTesta(view);
+  // A tua cena sai em cima da tua mão (o teu assento fica fora da mesa); a dos outros, no assento.
+  const assentoNaTesta = naTesta && naTesta.playerId !== you ? geometry.seats.get(naTesta.playerId) : undefined;
   const collectTo = winnerId ? (geometry.seats.get(winnerId) ?? geometry.center) : geometry.center;
   const status = statusLine(view, nameOf);
   // Quem cantou por último na ordem da rodada (os balões para o lado só mostram esse).
@@ -575,6 +586,17 @@ function Table({
           )}
           <RoundBanner view={view} shown={banner} />
           <CantadasBanner view={view} seatOf={seatOf} top={cantadasTop(geometry, reveal, view.players.filter((p) => p.inRound).length, s)} />
+          {naTesta && (
+            <NaTesta
+              key={`testa-${view.roundNumber}`}
+              manilha={naTesta.nome}
+              tu={naTesta.playerId === you}
+              x={assentoNaTesta?.x ?? table.width / 2}
+              acima={assentoNaTesta ? assentoNaTesta.y - geometry.seatBox.h / 2 : table.height - 8 * s}
+              abaixo={assentoNaTesta ? assentoNaTesta.y + geometry.seatBox.h / 2 : table.height - 8 * s}
+              largura={table.width}
+            />
+          )}
           <CoachTip tip={bidding ? null : tip} />
           <BidPanel
             open={bidding}

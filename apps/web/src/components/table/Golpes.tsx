@@ -219,6 +219,64 @@ function Gotas({ de, alvo, cw, atraso, ritmo }: { de: Point; alvo: Point; cw: nu
   );
 }
 
+/**
+ * O duelo das duas maiores: o bastão do bastião se levanta da carta para aparar o golpe e a espada
+ * parte ele em dois, com um clarão e lascas voando ("a faca cortando o pau que já tava na mesa, com
+ * efeitinho caprichado", o Igor, 29/09/2026). `corte`: quando a espada passa (desde `atraso`).
+ */
+function BastaoPartido({ alvo, cw, corte, atraso, ritmo }: { alvo: Point; cw: number; corte: number; atraso: number; ritmo: number }) {
+  const w = cw * 0.6;
+  const h = cw * 2.1;
+  const ERGUE = 0.34;
+  const VOA = 0.75;
+  const comeco = Math.max(0, atraso + corte - ERGUE);
+  const total = atraso + corte - comeco + VOA;
+  const noCorte = (atraso + corte - comeco) / total;
+  const metade = (lado: -1 | 1) => (
+    <motion.svg
+      viewBox={lado < 0 ? '0 0 26 48' : '0 48 26 48'}
+      width={w}
+      height={h / 2}
+      className="pointer-events-none absolute z-[61]"
+      style={{ left: alvo.x - w / 2, top: alvo.y - h * 0.62 + (lado < 0 ? 0 : h / 2) }}
+      initial={{ opacity: 0 }}
+      animate={{
+        opacity: [0, 1, 1, 0],
+        x: [0, 0, 0, lado * cw * 1.1],
+        y: [cw * 0.5, 0, 0, lado < 0 ? -cw * 1.2 : cw * 0.7],
+        rotate: [-14, -14, -14, lado < 0 ? -170 : 130],
+      }}
+      transition={{ duration: total / ritmo, delay: comeco / ritmo, times: [0, noCorte * 0.55, noCorte, 1], ease: porTrecho([0.3, 0.7, 0.4, 1], 4) }}
+      aria-hidden="true"
+    >
+      <path d="M10 94 C8 74 6 44 7 24 C7 11 10 3 13 2 C17 3 20 11 19 24 C20 44 18 74 16 94 Z" fill="#5e8f3a" stroke="#2f5220" strokeWidth="1.3" />
+      <path d="M8 32 q-6 -3 -7 -9 M18 46 q7 -2 8 -8 M8 60 q-6 -1 -7 -6" stroke="#2f5220" strokeWidth="1.6" fill="none" />
+    </motion.svg>
+  );
+  return (
+    <>
+      {metade(-1)}
+      {metade(1)}
+      <motion.span
+        className="pointer-events-none absolute z-[62] block rounded-full"
+        style={{
+          left: alvo.x - cw * 0.8,
+          top: alvo.y - cw * 1.1,
+          width: cw * 1.6,
+          height: cw * 1.6,
+          mixBlendMode: 'screen',
+          background: 'radial-gradient(circle, rgb(255 255 255 / 0.95), rgb(255 240 200 / 0.5) 35%, transparent 65%)',
+        }}
+        initial={{ opacity: 0, scale: 0.3 }}
+        animate={{ opacity: [0, 1, 0], scale: [0.3, 1.25, 1.7] }}
+        transition={{ duration: 0.38 / ritmo, delay: (atraso + corte) / ritmo, times: [0, 0.25, 1], ease: porTrecho('easeOut', 3) }}
+        aria-hidden="true"
+      />
+      <Lascas alvo={{ x: alvo.x, y: alvo.y - cw * 0.2 }} cw={cw * 1.7} atraso={atraso + corte} ritmo={ritmo} quantas={18} />
+    </>
+  );
+}
+
 /** Lascas de madeira voando de onde o bastão bateu (menos quando o bastão bate em muitas). */
 function Lascas({ alvo, cw, atraso, ritmo, quantas }: { alvo: Point; cw: number; atraso: number; ritmo: number; quantas: number }) {
   return (
@@ -243,16 +301,55 @@ function Lascas({ alvo, cw, atraso, ritmo, quantas }: { alvo: Point; cw: number;
   );
 }
 
-/** As armas de um golpe, por cima da mesa. `pontoDe`: o centro da carta de cada jogador na mesa. */
-export function ArmaDoGolpe({ g, pontoDe, cw, ritmo }: { g: GolpeNaMao; pontoDe: (playerId: string) => Point; cw: number; ritmo: number }) {
+/**
+ * As armas de um golpe, por cima da mesa. `pontoDe`: o centro da carta de cada jogador na mesa;
+ * `bastiao`: quem teve o bastião partido pela espada (o duelo das duas maiores tem efeito próprio).
+ */
+export function ArmaDoGolpe({
+  g,
+  pontoDe,
+  cw,
+  ritmo,
+  bastiao = null,
+  centro,
+}: {
+  g: GolpeNaMao;
+  pontoDe: (playerId: string) => Point;
+  cw: number;
+  ritmo: number;
+  bastiao?: string | null;
+  /** O meio da mesa (a largura dela é o dobro do `x`): segura o grito do bastião dentro da mesa. */
+  centro: Point;
+}) {
   const reduce = useReducedMotion();
   if (reduce) return null;
   const passo = passoDe(g);
   const de = pontoDe(g.atacante);
-  const alvos = vitimasEmOrdem(g, (id) => pontoDe(id).x).map(pontoDe);
+  const ordem = vitimasEmOrdem(g, (id) => pontoDe(id).x);
+  const alvos = ordem.map(pontoDe);
   if (g.golpe === 'corta') {
     const cortes = alvos.map((_, i) => TEMPO_GOLPE.acerto.corta + i * passo);
-    return <Espada alvos={alvos} cortes={cortes} cw={cw} atraso={TEMPO_GOLPE.inicio} ritmo={ritmo} />;
+    const i = bastiao ? ordem.indexOf(bastiao) : -1;
+    const alvoDoPau = i >= 0 ? alvos[i]! : null;
+    return (
+      <>
+        <Espada alvos={alvos} cortes={cortes} cw={cw} atraso={TEMPO_GOLPE.inicio} ritmo={ritmo} />
+        {alvoDoPau && (
+          <>
+            <BastaoPartido alvo={alvoDoPau} cw={cw} corte={cortes[i]!} atraso={TEMPO_GOLPE.inicio} ritmo={ritmo} />
+            {/* O grito carimba o corte, em cima da carta partida (onde o olho já está), sem sair da
+                mesa (125 px: metade do grito grande). */}
+            <GritoManilha
+              nome="Partiu o bastião"
+              x={Math.min(Math.max(alvoDoPau.x, 125), 2 * centro.x - 125)}
+              y={alvoDoPau.y + 22}
+              ritmo={ritmo}
+              atraso={TEMPO_GOLPE.inicio + cortes[i]! + 0.05}
+            />
+          </>
+        )}
+      </>
+    );
   }
   if (g.golpe === 'brilha') {
     const alcance = Math.max(...alvos.map((a) => Math.hypot(a.x - de.x, a.y - de.y)));
@@ -500,9 +597,23 @@ export function CartaAtingida({
  * O grito da mesa em cima da carta. Grande ("Espadão!") para a manilha que passa a mandar, que entra
  * batendo; pequeno e apagado para a que chega depois de uma mais forte. Some antes de a mão sair.
  */
-export function GritoManilha({ nome, x, y, pequeno = false, ritmo = 1 }: { nome: string; x: number; y: number; pequeno?: boolean; ritmo?: number }) {
+export function GritoManilha({
+  nome,
+  x,
+  y,
+  pequeno = false,
+  ritmo = 1,
+  atraso = 0.18,
+}: {
+  nome: string;
+  x: number;
+  y: number;
+  pequeno?: boolean;
+  ritmo?: number;
+  /** Quando entra (segundos desde que a carta caiu, no ritmo normal). */
+  atraso?: number;
+}) {
   const reduce = useReducedMotion();
-  const POUSO = 0.18;
   const DURA = TEMPO_GOLPE.grito;
   return (
     <motion.span
@@ -517,7 +628,7 @@ export function GritoManilha({ nome, x, y, pequeno = false, ritmo = 1 }: { nome:
           ? { opacity: [0, 1, 1, 0] }
           : { opacity: [0, 1, 1, 0], scale: pequeno ? [0.5, 1.1, 1, 0.96] : [0.3, 1.4, 1, 0.96], y: [10, -6, -8, -14], rotate: pequeno ? [0, 0, 0, 0] : [-10, 4, 0, 0] }
       }
-      transition={{ duration: DURA / ritmo, times: [0, 0.14, 0.75, 1], delay: POUSO / ritmo, ease: porTrecho('easeOut', 4) }}
+      transition={{ duration: DURA / ritmo, times: [0, 0.14, 0.75, 1], delay: atraso / ritmo, ease: porTrecho('easeOut', 4) }}
     >
       {pequeno ? nome : `${nome}!`}
     </motion.span>

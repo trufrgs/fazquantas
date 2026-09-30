@@ -5,6 +5,7 @@ import { Card, CARD_RATIO } from '../cards/Card';
 import { ArmaDoGolpe, CartaAtingida, GritoManilha, SOMBRA_CARTA } from './Golpes';
 import {
   acertoDe,
+  bastiaoCortado,
   chaveDaMao,
   chaveDoGolpe,
   golpeComAnimacao,
@@ -19,6 +20,7 @@ import {
   vitimasEmOrdem,
   type GolpeNaMao,
 } from './manilhas';
+import { play } from '../../lib/sound';
 import { tossRotation, trickStacking, type Point, type TableGeometry } from './layout';
 
 export interface TrickAreaProps {
@@ -68,6 +70,8 @@ export function TrickArea(p: TrickAreaProps) {
   const pontoDe = (playerId: string) => p.geometry.tricks.get(playerId) ?? p.geometry.center;
   const apanhou = new Map<string, { g: GolpeNaMao; ordem: number }>();
   for (const g of golpes) vitimasEmOrdem(g, (id) => pontoDe(id).x).forEach((id, ordem) => apanhou.set(id, { g, ordem }));
+  /** O bastião partido pelo espadão neste golpe (o duelo das duas maiores tem efeito próprio). */
+  const bastiaoDe = (g: GolpeNaMao) => (ctx ? bastiaoCortado(g, (id) => p.plays.find((pl) => pl.playerId === id)?.cardId, ctx) : null);
   /** Direção do golpe (unitária), de quem ataca para a carta que apanha. */
   const direcao = (g: GolpeNaMao, vitima: string) => {
     const a = pontoDe(g.atacante);
@@ -76,20 +80,27 @@ export function TrickArea(p: TrickAreaProps) {
     return { x: (v.x - a.x) / d, y: (v.y - a.y) / d };
   };
 
-  // A mesa treme a cada pancada (cada golpe uma vez, quando começa).
+  // A mesa treme a cada pancada (cada golpe uma vez, quando começa). O bastião partido sacode bem mais
+  // e tem o som da madeira rachando na hora do corte dele (aqui, onde se sabe a ordem da espada).
   const camada = useRef<HTMLDivElement>(null);
   const tremidos = useRef(new Set<string>());
   const reduce = useReducedMotion();
   useEffect(() => {
-    const el = camada.current;
-    if (reduce || !el) return;
     const novos = golpes.filter((g) => !tremidos.current.has(`${chave}:${chaveDoGolpe(g)}`));
     for (const g of novos) tremidos.current.add(`${chave}:${chaveDoGolpe(g)}`);
-    const t = tremor(novos.flatMap(impactosDoGolpe));
-    if (!t) return;
+    const x = (id: string) => (p.geometry.tricks.get(id) ?? p.geometry.center).x;
+    const impactos = novos.flatMap((g) => {
+      const ordem = vitimasEmOrdem(g, x);
+      const bastiao = ctx ? bastiaoCortado(g, (id) => p.plays.find((pl) => pl.playerId === id)?.cardId, ctx) : null;
+      if (bastiao) play('pau', { delayMs: (acertoDe(g, ordem.indexOf(bastiao)) * 1000) / ritmo });
+      return impactosDoGolpe(g, ordem, (id) => id === bastiao);
+    });
+    const el = camada.current;
+    const t = tremor(impactos);
+    if (reduce || !el || !t) return;
     const px = cw / 60;
     animate(el, { x: t.x.map((v) => v * px), y: t.y.map((v) => v * px) }, { duration: t.duracao / ritmo, times: t.times, ease: 'linear' });
-  }, [golpes, chave, reduce, ritmo, cw]);
+  }, [golpes, chave, reduce, ritmo, cw, ctx, p.geometry, p.plays]);
   return (
     <div ref={camada} className="pointer-events-none absolute inset-0" aria-live="polite">
       <AnimatePresence custom={p.collectTo}>
@@ -212,7 +223,7 @@ export function TrickArea(p: TrickAreaProps) {
           );
         })}
       {golpes.map((g) => (
-        <ArmaDoGolpe key={`arma-${chave}-${chaveDoGolpe(g)}`} g={g} pontoDe={pontoDe} cw={cw} ritmo={ritmo} />
+        <ArmaDoGolpe key={`arma-${chave}-${chaveDoGolpe(g)}`} g={g} pontoDe={pontoDe} cw={cw} ritmo={ritmo} bastiao={bastiaoDe(g)} centro={p.geometry.center} />
       ))}
     </div>
   );

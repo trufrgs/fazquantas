@@ -21,7 +21,7 @@
 	@KenneyNL
 	------------------------------
 
-	RPG Audio (corte-1, corte-2, espada: knifeSlice, knifeSlice2, drawKnife3)
+	RPG Audio (corte-1, corte-2, espada, pau: knifeSlice, knifeSlice2, drawKnife3, chop)
 
 	by  Kenney Vleugels (Kenney.nl)
 

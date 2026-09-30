@@ -1,4 +1,4 @@
-import { card, cardName, isManilha, specialName, strength, type CardId, type Play, type Rules, type StrengthCtx } from '@fodinha/engine';
+import { card, cardName, isManilha, specialName, strength, type CardId, type Play, type PlayerView, type Rules, type StrengthCtx } from '@fodinha/engine';
 
 /**
  * "Quem mata quem" (escolhido em 29/09/2026): a manilha ataca as cartas que ganha, do jeito dela.
@@ -195,10 +195,45 @@ export function acertoDe(g: GolpeNaMao, ordem: number): number {
 /** Quanto a mesa treme em cada pancada (em 1/60 da largura da carta): o bastão sacode; a luz, não. */
 export const TREMOR: Readonly<Record<Golpe, number>> = { corta: 5, bate: 10, fura: 6, brilha: 0, vinho: 3 };
 
-/** As pancadas deste golpe: quando (segundos desde a jogada, no ritmo normal) e com que força. */
-export function impactosDoGolpe(g: GolpeNaMao): { t: number; forca: number }[] {
+/**
+ * As pancadas deste golpe: quando (segundos desde a jogada, no ritmo normal) e com que força. `ordem`:
+ * as vítimas na ordem em que apanham (a espada corta da esquerda para a direita); `forte`: quem
+ * apanha feio (o bastião partido pelo espadão sacode a mesa bem mais).
+ */
+export function impactosDoGolpe(
+  g: GolpeNaMao,
+  ordem: readonly string[] = g.vitimas,
+  forte: (playerId: string) => boolean = () => false,
+): { t: number; forca: number }[] {
   const forca = TREMOR[g.golpe];
-  return forca ? g.vitimas.map((_, i) => ({ t: acertoDe(g, i), forca })) : [];
+  return forca ? ordem.map((id, i) => ({ t: acertoDe(g, i), forca: forte(id) ? forca * 2.4 : forca })) : [];
+}
+
+/**
+ * O duelo das duas maiores: a espada que corta a manilha de paus (o espadão partindo o bastião, "a faca
+ * cortando o pau que já tava na mesa", o Igor, 29/09/2026). Devolve quem teve o bastião partido.
+ */
+export function bastiaoCortado(g: GolpeNaMao, cartaDe: (playerId: string) => CardId | undefined, ctx: StrengthCtx): string | null {
+  if (g.golpe !== 'corta') return null;
+  return (
+    g.vitimas.find((id) => {
+      const c = cartaDe(id);
+      return !!c && manilhaDe(c, ctx)?.golpe === 'bate';
+    }) ?? null
+  );
+}
+
+/**
+ * Rodada da carta na testa: quem levou a mão tinha cantado zero e a carta dele era manilha (na testa,
+ * ele não via). Perde o palito por ter a maior carta ("o cara perder a testa porque tava com manilha").
+ */
+export function manilhaNaTesta(view: PlayerView): { playerId: string; nome: string } | null {
+  if (!view.blind || view.phase !== 'trickEnd' || !view.lastTrick?.winnerId) return null;
+  const quem = view.lastTrick.winnerId;
+  if (view.players.find((p) => p.id === quem)?.bid !== 0) return null;
+  const carta = view.lastTrick.plays.find((p) => p.playerId === quem)?.cardId;
+  const m = carta ? manilhaDe(carta, contextoDaRodada(view.rules, view.vira)) : null;
+  return m ? { playerId: quem, nome: m.nome } : null;
 }
 
 /**

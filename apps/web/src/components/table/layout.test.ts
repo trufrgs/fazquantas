@@ -10,6 +10,7 @@ import {
   SEAT_BOX,
   tableGeometry,
   tableRevealLayout,
+  trickCardFor,
   trickStacking,
   type Rect,
 } from './layout';
@@ -116,7 +117,8 @@ describe('cartas à mostra e cartas da vaza', () => {
       const order = Array.from({ length: n }, (_, i) => `p${i}`);
       const others = order.slice(1);
       const box = SEAT_BOX[isCompact(n, t.vw / t.s, t.vh / t.s) ? 'compact' : 'normal'];
-      const { trick } = cardSizes(t.vw, t.vh, n, t.s);
+      // Como na GameScreen: a carta da mesa parte de `cardSizes` e cresce quando sobra espaço.
+      const trick = trickCardFor(t.w, t.h, order, 'p0', cardSizes(t.vw, t.vh, n, t.s).trick, box, t.s);
       const g = tableGeometry(t.w, t.h, order, 'p0', trick, box, t.s);
 
       it(`${t.name}, ${n} jogadores: carta na testa de todos à vista, sem cobrir ninguém`, () => {
@@ -167,7 +169,7 @@ describe('cartas à mostra e cartas da vaza', () => {
     for (let n = 2; n <= 6; n++) {
       const order = Array.from({ length: n }, (_, i) => `p${i}`);
       const box = SEAT_BOX[isCompact(n, 390, 844) ? 'compact' : 'normal'];
-      const { trick } = cardSizes(390, 844, n, 1);
+      const trick = trickCardFor(390, 608, order, 'p0', cardSizes(390, 844, n, 1).trick, box, 1);
       const g = tableGeometry(390, 608, order, 'p0', trick, box, 1);
       const r = tableRevealLayout(g, order.slice(1), { scale: 1, trickCard: trick, compactPanel: false, mySeatH: 47 });
       expect(r.cardWidth, `${n} jogadores`).toBeGreaterThanOrEqual(60);
@@ -202,5 +204,40 @@ describe('mesa de três e a faixa das cantadas', () => {
     expect(topo!).toBeGreaterThan(baixoDosAssentos);
     const oito = Array.from({ length: 8 }, (_, i) => `p${i}`);
     expect(cantadasTop(tableGeometry(360, 430, oito, 'p0', 40, SEAT_BOX.compact), null, 8)).toBeNull();
+  });
+});
+
+describe('carta da mesa do tamanho do espaço', () => {
+  it('quando cresce, as cartas da mão continuam soltas, dentro da mesa e longe dos assentos', () => {
+    for (const t of SCREENS) {
+      for (let n = 2; n <= 8; n++) {
+        const order = Array.from({ length: n }, (_, i) => `p${i}`);
+        const base = cardSizes(t.vw, t.vh, n, 1).trick;
+        const box = SEAT_BOX[isCompact(n, t.vw, t.vh) ? 'compact' : 'normal'];
+        const w = trickCardFor(t.w, t.h, order, 'p0', base, box);
+        expect(w).toBeGreaterThanOrEqual(base);
+        expect(w).toBeLessThanOrEqual(base * 1.45 + 1);
+        if (w === base) continue; // na base, a mesa é a de sempre (cheia: empilhadas, com o número à mostra)
+        const g = tableGeometry(t.w, t.h, order, 'p0', w, box);
+        const h = w * CARD_RATIO;
+        const cartas = [...g.tricks.values()];
+        const assentos = [...g.seats.values()].filter((p) => p.y < t.h).map((p) => rectAround(p, box.w, box.h));
+        for (const p of cartas) {
+          const r = rectAround(p, w, h);
+          expect(r.l >= 0 && r.r <= t.w && r.t >= 0 && r.b <= t.h, `${t.name}, ${n}: carta fora da mesa`).toBe(true);
+          for (const a of assentos) expect(r.l < a.r && a.l < r.r && r.t < a.b && a.t < r.b, `${t.name}, ${n}: carta no assento`).toBe(false);
+        }
+        cartas.forEach((a, i) => cartas.forEach((b, j) => j > i && expect(Math.abs(a.x - b.x) >= w + 4 || Math.abs(a.y - b.y) >= h + 4).toBe(true)));
+      }
+    }
+  });
+
+  it('num celular em pé com quatro na mesa ela cresce de verdade; na mesa cheia e pequena, fica na base', () => {
+    const quatro = ['p0', 'p1', 'p2', 'p3'];
+    const base = cardSizes(390, 844, 4, 1).trick;
+    expect(trickCardFor(390, 608, quatro, 'p0', base, SEAT_BOX.normal)).toBeGreaterThan(base * 1.15);
+    const oito = Array.from({ length: 8 }, (_, i) => `p${i}`);
+    const baseOito = cardSizes(360, 640, 8, 1).trick;
+    expect(trickCardFor(360, 430, oito, 'p0', baseOito, SEAT_BOX.compact)).toBe(baseOito);
   });
 });

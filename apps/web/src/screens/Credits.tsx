@@ -7,7 +7,7 @@ const CREDITS: { what: string; who: string; license: string; url: string }[] = [
     license: 'domínio público',
     url: 'https://commons.wikimedia.org/wiki/Category:Heraclio_Fournier%E2%80%99s_1878_card_deck',
   },
-  { what: 'Sons de cartas, de interface e da espada', who: 'Kenney (Casino Audio, Interface Sounds, RPG Audio)', license: 'CC0', url: 'https://kenney.nl' },
+  { what: 'Sons de cartas, de interface, da espada e do bastião partido', who: 'Kenney (Casino Audio, Interface Sounds, RPG Audio)', license: 'CC0', url: 'https://kenney.nl' },
   { what: 'Música de vitória (bandoneón)', who: 'Fupi, "Win Jingle"', license: 'CC0', url: 'https://opengameart.org/content/win-jingle' },
   {
     what: 'Tango de fundo: "Tango de Manzana"',

@@ -30,7 +30,8 @@ interface Scene {
    * Cena animada: arma a mão (cartas de cada um, na ordem da mesa, primeiro quem puxa) e joga uma a
    * cada 1,4 s depois de abrir, para ver os golpes das manilhas ("Quem mata quem").
    */
-  roteiro?: { vira?: CardId; maos: CardId[][] };
+  /** `cega`: rodada da carta na testa; `cantadas`: quanto cada um cantou (na ordem da mesa; padrão 1). */
+  roteiro?: { vira?: CardId; maos: CardId[][]; cega?: boolean; cantadas?: number[] };
 }
 
 const YOU = 'eu';
@@ -130,6 +131,21 @@ export const SCENES: Record<string, Scene> = {
     until: () => true,
     roteiro: { maos: [['C4', 'O4'], ['E7', 'C5'], ['C6', 'O5'], ['E3', 'O3']] },
   },
+  // Rodada da carta na testa: quem joga em segundo cantou zero com o Espadão na testa (não via) e leva a mão.
+  natesta: {
+    players: 4,
+    seed: 5,
+    until: () => true,
+    roteiro: { cega: true, cantadas: [0, 0, 1, 0], maos: [['C4'], ['E1'], ['O5'], ['C6']] },
+  },
+  // A mesma rodada, com o Espadão na tua testa: tu cantou zero e leva a mão.
+  natestatu: {
+    players: 4,
+    seed: 5,
+    until: () => true,
+    roteiro: { cega: true, cantadas: [1, 0, 0, 0], maos: [['C4'], ['O5'], ['C6'], ['E1']] },
+  },
+
   // O sete belo manda: brilha como ouro e apaga as outras.
   setebelo: {
     players: 4,
@@ -165,9 +181,9 @@ function armar(state: GameState, roteiro: NonNullable<Scene['roteiro']>): GameSt
   s.round.dealerId = YOU;
   s.round.cards = roteiro.maos[0]!.length;
   s.round.vira = roteiro.vira ?? null;
-  s.round.blind = false;
+  s.round.blind = roteiro.cega ?? false;
   s.round.hands = Object.fromEntries(ordem.map((id, i) => [id, roteiro.maos[i] ?? []]));
-  s.round.bids = Object.fromEntries(ordem.map((id) => [id, 1]));
+  s.round.bids = Object.fromEntries(ordem.map((id, i) => [id, roteiro.cantadas?.[i] ?? 1]));
   s.round.tricksWon = Object.fromEntries(ordem.map((id) => [id, 0]));
   s.round.bidTurn = ordem.length;
   s.round.trick = { leaderId: ordem[0]!, plays: [] };

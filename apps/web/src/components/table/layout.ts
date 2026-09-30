@@ -336,6 +336,41 @@ export function cardSizes(
   };
 }
 
+/**
+ * A carta da mesa do maior tamanho que cabe folgada (até 45% maior que a de `cardSizes`): as cartas da
+ * mão não se tocam, não cobrem assento e não saem da mesa. Com espaço sobrando ("às vezes sobra um
+ * espacinho na mesa", o Igor, 29/09/2026) ela cresce; na mesa cheia, fica na base.
+ */
+export function trickCardFor(
+  width: number,
+  height: number,
+  order: readonly string[],
+  youId: string | null,
+  base: number,
+  box: SeatBox = SEAT_BOX.normal,
+  scale = 1,
+): number {
+  if (width <= 0 || height <= 0) return base;
+  const max = Math.min(base * 1.45, width * 0.24, 118 * scale);
+  for (let w = Math.floor(max); w > base; w -= 2) {
+    if (mesaFolgada(tableGeometry(width, height, order, youId, w, box, scale), w)) return w;
+  }
+  return base;
+}
+
+/** As cartas da mão (tamanho `w`) cabem sem se tocar, sem cobrir assento e sem sair da mesa? */
+function mesaFolgada(g: TableGeometry, w: number): boolean {
+  const h = w * CARD_RATIO;
+  const assentos = [...g.seats.values()].filter((p) => p.y < g.height).map((p) => rectAround(p, g.seatBox.w, g.seatBox.h));
+  const cartas = [...g.tricks.values()];
+  const dentro = cartas.every((p) => {
+    const r = rectAround(p, w, h);
+    return r.l >= 0 && r.r <= g.width && r.t >= 0 && r.b <= g.height && !assentos.some((a) => overlaps(r, a));
+  });
+  const soltas = cartas.every((a, i) => cartas.every((b, j) => j <= i || Math.abs(a.x - b.x) >= w + 4 || Math.abs(a.y - b.y) >= h + 4));
+  return dentro && soltas;
+}
+
 /** Retângulo por bordas (px da mesa). */
 export interface Rect {
   l: number;

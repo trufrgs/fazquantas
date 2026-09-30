@@ -20,7 +20,9 @@ export type SoundId =
   /** A lâmina do espadão saindo para o golpe (o "shing" do aço). */
   | 'espada'
   /** A espada cortando uma carta ao meio. */
-  | 'corte';
+  | 'corte'
+  /** A madeira do bastão rachando (o espadão partindo o bastião). */
+  | 'pau';
 
 const FILES: Record<SoundId, string[]> = {
   deal: ['deal-1.mp3', 'deal-2.mp3', 'deal-3.mp3'],
@@ -40,6 +42,7 @@ const FILES: Record<SoundId, string[]> = {
   fumo: ['fumo.mp3'],
   espada: ['espada.mp3'],
   corte: ['corte-1.mp3', 'corte-2.mp3'],
+  pau: ['pau.mp3'],
 };
 
 const VOLUME: Partial<Record<SoundId, number>> = {
@@ -56,6 +59,7 @@ const VOLUME: Partial<Record<SoundId, number>> = {
   fumo: 0.45,
   espada: 0.75,
   corte: 0.9,
+  pau: 1,
 };
 
 const howls = new Map<string, Howl>();
