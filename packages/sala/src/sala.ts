@@ -206,8 +206,8 @@ export interface SalaSalva {
   pace: Pace;
   /** Câmera rápida ligada (salas salvas antes de 30/09/2026 não têm). */
   acelerando?: boolean;
-  /** Quem estava na conversa por voz e se estava mudo (salas salvas antes de 30/09/2026 não têm). */
-  vozes?: [string, boolean][];
+  /** O que cada um tinha aberto (microfone, câmera); salas salvas antes de 30/09/2026 não têm. */
+  midias?: [string, { mic: boolean; camera: boolean }][];
   bestOf: BestOf;
   ranked: boolean;
   password: string | null;
@@ -244,8 +244,8 @@ export class Sala {
   private pace: Pace = DEFAULT_PACE;
   /** Só sobraram bots e alguém pediu: o resto da partida corre em câmera rápida. */
   private acelerando = false;
-  /** Quem está na conversa por voz (e se está mudo). Sai quem cai, sai da sala ou é tirado. */
-  private vozes = new Map<string, boolean>();
+  /** O que cada um abriu para a mesa (microfone, câmera). Some quem cai, sai da sala ou é tirado. */
+  private midias = new Map<string, { mic: boolean; camera: boolean }>();
   private bestOf: BestOf = 1;
   private ranked = false;
   private password: string | null = null;
@@ -360,7 +360,7 @@ export class Sala {
       turnTimeoutSec: this.turnTimeoutSec,
       pace: this.pace,
       acelerando: this.acelerando,
-      vozes: [...this.vozes].map(([playerId, mudo]) => ({ playerId, mudo })),
+      midias: [...this.midias].map(([playerId, m]) => ({ playerId, ...m })),
       bestOf: this.bestOf,
       ranked: this.ranked,
       hasPassword: this.password !== null,
@@ -522,7 +522,7 @@ export class Sala {
     const seat = playerId ? this.human(playerId) : undefined;
     if (!seat || seat.conexao !== conexao) return;
     seat.conexao = null;
-    this.vozes.delete(seat.playerId);
+    this.midias.delete(seat.playerId);
     seat.desconectadoEm = this.deps.relogio.now();
     seat.foraDesde ??= seat.desconectadoEm;
     // Na partida ao vivo, a mesa joga por quem caiu; na assíncrona, a vez espera por ele.
@@ -789,29 +789,28 @@ export class Sala {
   }
 
   // ---------------------------------------------------------------------------
-  // Conversa por voz (o áudio vai direto entre os aparelhos; a sala só diz quem está e repassa o sinal)
+  // Microfone e câmera (o áudio e o vídeo vão direto entre os aparelhos; a sala só diz o que cada um
+  // abriu e repassa o sinal de uma ligação entre duas pessoas dela)
 
-  entrarNaVoz(playerId: string): void {
-    if (!this.human(playerId)?.conexao) throw fail('NOT_IN_ROOM', MESSAGES.voz);
-    if (this.vozes.has(playerId)) return;
-    this.vozes.set(playerId, false);
+  /** O jogador está na sala com conexão (só gente de verdade conversa). */
+  private naSala(playerId: string): boolean {
+    return !!this.human(playerId)?.conexao;
+  }
+
+  estadoDaMidia(playerId: string, mic: boolean, camera: boolean): void {
+    if (!this.naSala(playerId)) throw fail('NOT_IN_ROOM', MESSAGES.voz);
+    const antes = this.midias.get(playerId);
+    if (antes?.mic === mic && antes?.camera === camera) return;
+    if (!mic && !camera) {
+      if (!antes) return;
+      this.midias.delete(playerId);
+    } else this.midias.set(playerId, { mic, camera });
     this.touch();
   }
 
-  sairDaVoz(playerId: string): void {
-    if (this.vozes.delete(playerId)) this.touch();
-  }
-
-  mudoNaVoz(playerId: string, mudo: boolean): void {
-    if (!this.vozes.has(playerId) || this.vozes.get(playerId) === mudo) return;
-    this.vozes.set(playerId, mudo);
-    this.touch();
-  }
-
-  /** Repassa o sinal do WebRTC de um da conversa para outro (quem não está nela não recebe nada). */
-  sinalDeVoz(de: string, para: string, dados: unknown): void {
-    if (de === para || !this.vozes.has(de) || !this.vozes.has(para)) return;
-    this.human(para)?.conexao?.enviar('voz:sinal', { de, dados });
+  sinalDeMidia(de: string, para: string, dados: unknown): void {
+    if (de === para || !this.naSala(de) || !this.naSala(para)) return;
+    this.human(para)?.conexao?.enviar('midia:sinal', { de, dados });
   }
 
   react(playerId: string, reaction: ReactionId): void {
@@ -856,7 +855,7 @@ export class Sala {
       turnTimeoutSec: this.turnTimeoutSec,
       pace: this.pace,
       acelerando: this.acelerando,
-      vozes: [...this.vozes],
+      midias: [...this.midias],
       bestOf: this.bestOf,
       ranked: this.ranked,
       password: this.password,
@@ -883,9 +882,9 @@ export class Sala {
     sala.turnTimeoutSec = saved.turnTimeoutSec;
     sala.pace = saved.pace;
     sala.acelerando = saved.acelerando ?? false;
-    // A conversa por voz continua depois de hibernar (o áudio nem passa por aqui); quem ficou sem
-    // conexão sai dela logo abaixo, com os assentos.
-    sala.vozes = new Map(saved.vozes ?? []);
+    // Microfone e câmera continuam depois de hibernar (o áudio e o vídeo nem passam por aqui); quem
+    // ficou sem conexão some logo abaixo, com os assentos.
+    sala.midias = new Map(saved.midias ?? []);
     sala.bestOf = saved.bestOf;
     sala.ranked = saved.ranked;
     sala.password = saved.password;
@@ -905,7 +904,7 @@ export class Sala {
       }
     }
     for (const seat of sala.humans()) {
-      if (!seat.conexao) sala.vozes.delete(seat.playerId);
+      if (!seat.conexao) sala.midias.delete(seat.playerId);
       if (!seat.conexao) seat.desconectadoEm ??= now;
       seat.foraDesde ??= seat.conexao && seat.visivel ? null : (seat.desconectadoEm ?? now);
     }
@@ -990,7 +989,7 @@ export class Sala {
   }
 
   private unbind(seat: HumanSeat): void {
-    this.vozes.delete(seat.playerId);
+    this.midias.delete(seat.playerId);
     const conexao = seat.conexao;
     if (!conexao) return;
     seat.conexao = null;

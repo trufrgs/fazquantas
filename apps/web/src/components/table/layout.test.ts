@@ -9,6 +9,7 @@ import {
   rectAround,
   SEAT_BOX,
   tableGeometry,
+  seatBoxFor,
   tableRevealLayout,
   trickCardFor,
   trickStacking,
@@ -29,10 +30,10 @@ const SCREENS = [
 
 describe('tableGeometry', () => {
   for (const screen of SCREENS) {
-    for (let n = 2; n <= 8; n++) {
-      it(`${screen.name}, ${n} jogadores: assentos não se sobrepõem e ficam na tela`, () => {
+    for (let n = 2; n <= 8; n++) for (const video of [false, true]) {
+      it(`${screen.name}, ${n} jogadores${video ? ', com câmera' : ''}: assentos não se sobrepõem e ficam na tela`, () => {
         const order = Array.from({ length: n }, (_, i) => `p${i}`);
-        const box = SEAT_BOX[isCompact(n, screen.vw, screen.vh) ? 'compact' : 'normal'];
+        const box = seatBoxFor(isCompact(n, screen.vw, screen.vh), video);
         const g = tableGeometry(screen.w, screen.h, order, 'p0', 48, box);
         const SEAT_W = box.w;
         const SEAT_H = box.h;
@@ -70,10 +71,10 @@ describe('tableGeometry', () => {
       { name: 'celular grande em pé', w: 412, h: 673, vw: 412, vh: 915 },
     ];
     for (const phone of PHONES) {
-      for (let n = 2; n <= 8; n++) {
-        it(`${phone.name}, ${n} jogadores: nenhum assento fica atrás do painel`, () => {
+      for (let n = 2; n <= 8; n++) for (const video of [false, true]) {
+        it(`${phone.name}, ${n} jogadores${video ? ', com câmera' : ''}: nenhum assento fica atrás do painel`, () => {
           const order = Array.from({ length: n }, (_, i) => `p${i}`);
-          const box = SEAT_BOX[isCompact(n, phone.vw, phone.vh) ? 'compact' : 'normal'];
+          const box = seatBoxFor(isCompact(n, phone.vw, phone.vh), video);
           const g = tableGeometry(phone.w, phone.h, order, 'p0', 48, box);
           for (const id of order.slice(1)) {
             const seat = g.seats.get(id)!;
@@ -113,15 +114,15 @@ describe('cartas à mostra e cartas da vaza', () => {
   const overlap = (a: Rect, b: Rect) => a.l < b.r - 2 && b.l < a.r - 2 && a.t < b.b - 2 && b.t < a.b - 2;
 
   for (const t of TABLES) {
-    for (let n = 2; n <= 8; n++) {
+    for (let n = 2; n <= 8; n++) for (const video of [false, true]) {
       const order = Array.from({ length: n }, (_, i) => `p${i}`);
       const others = order.slice(1);
-      const box = SEAT_BOX[isCompact(n, t.vw / t.s, t.vh / t.s) ? 'compact' : 'normal'];
+      const box = seatBoxFor(isCompact(n, t.vw / t.s, t.vh / t.s), video);
       // Como na GameScreen: a carta da mesa parte de `cardSizes` e cresce quando sobra espaço.
       const trick = trickCardFor(t.w, t.h, order, 'p0', cardSizes(t.vw, t.vh, n, t.s).trick, box, t.s);
       const g = tableGeometry(t.w, t.h, order, 'p0', trick, box, t.s);
 
-      it(`${t.name}, ${n} jogadores: carta na testa de todos à vista, sem cobrir ninguém`, () => {
+      it(`${t.name}, ${n} jogadores${video ? ', com câmera' : ''}: carta na testa de todos à vista, sem cobrir ninguém`, () => {
         const compactPanel = compactBidPanel(g, 'p0', t.s, 47 * t.s);
         if (t.compactPanel) expect(compactPanel).toBe(true);
         const r = tableRevealLayout(g, others, { scale: t.s, trickCard: trick, compactPanel, mySeatH: 47 * t.s });
@@ -146,7 +147,7 @@ describe('cartas à mostra e cartas da vaza', () => {
         });
       });
 
-      it(`${t.name}, ${n} jogadores: na vaza, o número de cada carta fica à mostra`, () => {
+      it(`${t.name}, ${n} jogadores${video ? ', com câmera' : ''}: na vaza, o número de cada carta fica à mostra`, () => {
         const spots = order.map((id) => g.tricks.get(id)!);
         const w = trick;
         const h = trick * CARD_RATIO;

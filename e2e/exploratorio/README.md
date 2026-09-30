@@ -40,7 +40,7 @@ sala (`routeWebSocket`) e simula as falhas de verdade de celular:
 | `5-motores.mjs` | Entrar, jogar, modo avião e recarregar no WebKit e no Firefox (`pnpm exec playwright install webkit firefox`) |
 | `6-mesa-cheia.mjs` | Mesa com 8 em celular pequeno (`360`, `se`, `mini`): foto do painel de cantada aberto |
 | `7-longe.mjs` | Longe da mesa por muito tempo (`LONGE_MIN`, padrão 3,5): anfitriã no WhatsApp, sala sem ninguém conectado, reabrir o app sem servidor |
-| `8-voz.mjs` | Conversa por voz com o microfone de mentira do Chromium (`device(nome, { microfone: true })`): três ligando entre si, mudo, partida começando, queda da sala e volta, sair pelo menu |
+| `8-midia.mjs` | Microfone e câmera com os de mentira do Chromium (`device(nome, { microfone: true })`): só câmera, só microfone, os dois, fechar a câmera (a trilha para), rostos nos assentos e vídeo grande na mesa, queda da sala e volta, tudo fechado sem ligações |
 
 Referências de tempo (29/09/2026, local): modo avião volta em ~0,2 s; conexão morta é percebida em
 ~16 s e volta em ~0,2 s; jogada com a conexão morta avisa em ~6 s; celular que dormiu volta em ~0,3 s.

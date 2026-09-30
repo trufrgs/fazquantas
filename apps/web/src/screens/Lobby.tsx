@@ -3,9 +3,8 @@ import { Bell, Crown, KeyRound, Share2, Trophy, UserPlus, X } from 'lucide-react
 import { useEffect, useState } from 'react';
 import { RoomSettings, roomSummary } from '../components/setup/RoomSettings';
 import { RulesEditor, rulesSummary } from '../components/setup/RulesEditor';
-import { Avatar } from '../components/ui/Avatar';
 import { BotaoSom } from '../components/ui/BotaoSom';
-import { BotaoVoz, ConversaNaSala, SinalDeVoz } from '../components/ui/Voz';
+import { ControlesDeMidia, ConversaNaSala, RostoNaMesa, VideoAmpliado } from '../components/ui/Midia';
 import { AdminNotice } from '../components/ui/AdminNotice';
 import { Button } from '../components/ui/Button';
 import { Segmented } from '../components/ui/Controls';
@@ -112,7 +111,7 @@ export function Lobby() {
         >
           Convidar
         </Button>
-        <BotaoVoz />
+        <ControlesDeMidia />
         <BotaoSom />
         </div>
       }
@@ -158,15 +157,13 @@ export function Lobby() {
         {shareMsg && <span className="text-sm font-semibold text-luz">{shareMsg}</span>}
       </div>
       <ConversaNaSala />
+      <VideoAmpliado />
 
       <Panel title={`Na mesa (${room.seats.length}/${room.capacity})`}>
         <ul className="flex flex-col divide-y divide-tinta/10">
           {room.seats.map((s) => (
             <li key={s.playerId} className="flex items-center gap-3 py-2">
-              <span className="relative">
-                <Avatar seed={s.avatar} size={40} dim={s.kind === 'human' && !s.connected} />
-                <SinalDeVoz playerId={s.playerId} size={40} />
-              </span>
+              <RostoNaMesa playerId={s.playerId} seed={s.avatar} size={40} tamanhoVideo={64} dim={s.kind === 'human' && !s.connected} />
               <span className="min-w-0 flex-1">
                 <span className="flex items-center gap-1.5 font-semibold">
                   <span className="truncate">{s.name}</span>

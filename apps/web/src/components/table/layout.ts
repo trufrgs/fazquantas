@@ -32,10 +32,21 @@ export interface SeatBox {
   h: number;
 }
 
-export const SEAT_BOX: Readonly<Record<'normal' | 'compact', SeatBox>> = {
+export const SEAT_BOX: Readonly<Record<'normal' | 'compact' | 'videoNormal' | 'videoCompact', SeatBox>> = {
   normal: { w: 84, h: 92 },
   compact: { w: 72, h: 80 },
+  // Com alguém de câmera aberta, o rosto aparece no lugar do avatar e maior (dá para ver a pessoa).
+  videoNormal: { w: 88, h: 110 },
+  videoCompact: { w: 74, h: 94 },
 };
+
+/** O diâmetro do avatar no assento, e o do rosto quando a pessoa está de câmera aberta. */
+export const AVATAR_NO_ASSENTO = { normal: 50, compact: 40, videoNormal: 68, videoCompact: 52 } as const;
+
+/** O assento da mesa: compacto (mesa cheia, tela pequena) ou não, e maior quando há câmera na mesa. */
+export function seatBoxFor(compact: boolean, video = false): SeatBox {
+  return SEAT_BOX[video ? (compact ? 'videoCompact' : 'videoNormal') : compact ? 'compact' : 'normal'];
+}
 
 export function isCompact(players: number, width: number, height: number): boolean {
   return players >= 6 || width < 380 || height < 640;

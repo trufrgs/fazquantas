@@ -128,10 +128,11 @@ export interface IceServer {
   credential?: string;
 }
 
-/** Quem está na conversa por voz da sala, e se está mudo. */
-export interface VozNaSala {
+/** O que cada um abriu para a mesa: microfone e câmera (só aparece quem abriu alguma coisa). */
+export interface MidiaNaSala {
   playerId: string;
-  mudo: boolean;
+  mic: boolean;
+  camera: boolean;
 }
 
 export interface RoomState {
@@ -156,8 +157,8 @@ export interface RoomState {
   series: SeriesState | null;
   /** Só sobraram bots e alguém pediu para acelerar até o fim (servidores de antes de 30/09/2026 não mandam). */
   acelerando?: boolean;
-  /** Quem está na conversa por voz (servidores de antes de 30/09/2026 não mandam). */
-  vozes?: VozNaSala[];
+  /** Quem abriu microfone ou câmera para a mesa (servidores de antes de 30/09/2026 não mandam). */
+  midias?: MidiaNaSala[];
   /**
    * Depois do fim da partida: quem já pediu a revanche (ou a próxima da série). Servidores de antes
    * de 29/09/2026 não mandam.
@@ -279,14 +280,14 @@ export interface ClientToServerEvents {
   /** Só sobraram bots na mesa: o resto da partida corre em câmera rápida (`ATE_O_FIM`). */
   'game:acelerar': (ack?: (r: Ack) => void) => void;
   /**
-   * Entra na conversa por voz da sala. A resposta traz os servidores ICE (STUN e, quando houver, TURN)
-   * para os áudios se ligarem direto entre os aparelhos (a voz não passa pelo servidor do jogo).
+   * Os servidores ICE (STUN e, quando houver, TURN) para o áudio e o vídeo se ligarem direto entre os
+   * aparelhos (nada disso passa pelo servidor do jogo).
    */
-  'voz:entrar': (ack?: (r: Ack<{ iceServers: IceServer[] }>) => void) => void;
-  'voz:sair': (ack?: (r: Ack) => void) => void;
-  'voz:mudo': (p: { mudo: boolean }, ack?: (r: Ack) => void) => void;
-  /** O sinal do WebRTC (oferta ou resposta) para outro jogador na conversa: o servidor só repassa. */
-  'voz:sinal': (p: { para: string; dados: unknown }) => void;
+  'midia:ice': (ack?: (r: Ack<{ iceServers: IceServer[] }>) => void) => void;
+  /** O que este jogador abriu para a mesa agora (os dois desligados: não aparece mais). */
+  'midia:estado': (p: { mic: boolean; camera: boolean }, ack?: (r: Ack) => void) => void;
+  /** O sinal do WebRTC (oferta, resposta, renegociação) para outro jogador da sala: o servidor só repassa. */
+  'midia:sinal': (p: { para: string; dados: unknown }) => void;
   /** "Voltei": para de jogar por mim. */
   'room:present': (ack?: (r: Ack) => void) => void;
   /** A página ficou visível ou escondida (decide quando mandar notificação). */
@@ -300,8 +301,8 @@ export interface ServerToClientEvents {
   'room:replaced': () => void;
   'game:view': (m: ViewMessage) => void;
   'game:reaction': (r: { playerId: string; reaction: ReactionId; at: number }) => void;
-  /** O sinal do WebRTC de outro jogador da conversa por voz. */
-  'voz:sinal': (p: { de: string; dados: unknown }) => void;
+  /** O sinal do WebRTC de outro jogador da sala (microfone e câmera). */
+  'midia:sinal': (p: { de: string; dados: unknown }) => void;
   /** Recado da administração do jogo para quem está na sala (ex.: "reinício em 5 min"). */
   'room:notice': (n: { text: string; at: number }) => void;
 }

@@ -5,9 +5,8 @@ import { SPEED_MULTIPLIER, useSettings, type Speed } from '../../stores/settings
 import { Button } from '../ui/Button';
 import { Segmented, Toggle } from '../ui/Controls';
 import { Sheet } from '../ui/Sheet';
-import { useTemConversa } from '../ui/Voz';
-import { useVoz } from '../../lib/voz';
-import { useOnline } from '../../stores/online';
+import { useTemConversa } from '../ui/Midia';
+import { midia, useMidia } from '../../lib/midia';
 import { IconeForca } from './ForcaChip';
 
 export interface PauseMenuProps {
@@ -30,8 +29,7 @@ export interface PauseMenuProps {
 
 export function PauseMenu(p: PauseMenuProps) {
   const s = useSettings();
-  const voz = useVoz();
-  const online = useOnline();
+  const aberto = useMidia();
   const conversaPossivel = useTemConversa() && p.online;
   const [confirm, setConfirm] = useState<'exit' | 'restart' | null>(null);
   // Cada abertura começa no menu principal. Ajusta no render (e não remontando a folha) para a
@@ -82,12 +80,26 @@ export function PauseMenu(p: PauseMenuProps) {
             <Toggle checked={s.sound} onChange={(sound) => s.set({ sound })} label="Efeitos" description="Cartas, golpes e avisos." />
             <Toggle checked={s.musica} onChange={(musica) => s.set({ musica })} label="Música" description="O tango de fundo." />
             {conversaPossivel && (
-              <Toggle
-                checked={voz.ligada}
-                onChange={(on) => (on ? online.entrarNaVoz() : online.sairDaVoz())}
-                label="Conversa por voz"
-                description="Fala e ouve quem está na sala, com o microfone. O botão do microfone no alto silencia."
-              />
+              <>
+                <Toggle
+                  checked={aberto.mic}
+                  onChange={() => void midia.alternarMic()}
+                  label="Microfone"
+                  description="A sala toda te ouve. O botão no alto da mesa abre e fecha na hora."
+                />
+                <Toggle
+                  checked={aberto.camera}
+                  onChange={() => void midia.alternarCamera()}
+                  label="Câmera"
+                  description="Teu rosto aparece no lugar do avatar para a sala toda."
+                />
+                <Toggle
+                  checked={s.ouvirConversa}
+                  onChange={(ouvirConversa) => s.set({ ouvirConversa })}
+                  label="Ouvir a conversa"
+                  description="O microfone de quem abriu. Desligado, tu segue vendo as câmeras."
+                />
+              </>
             )}
             <Toggle checked={s.hints} onChange={(hints) => s.set({ hints })} label="Sugerir palpite e carta" description="Na tua vez, marca o palpite e a carta que o jogo faria. Vem desligado." />
             {!p.online && (

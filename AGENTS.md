@@ -109,19 +109,24 @@ ou no `Sala.restore`? Confira cada uma:
 - Roteiros exploratórios que simulam modo avião, conexão morta, buraco negro, rede lenta, WebKit e
   Firefox: [`e2e/exploratorio/`](e2e/exploratorio/README.md).
 
-## Conversa por voz
+## Microfone e câmera
 
-- Pedido do Thomas em 30/09/2026: quem está numa sala online com gente pode entrar na conversa por voz
-  (microfone no alto da mesa e da sala; sair no menu ☰ ou na faixa da sala). O áudio vai **direto entre
-  os aparelhos** (WebRTC em malha, até 8), com `@thaunknown/simple-peer` carregado só quando alguém
-  entra (`lib/voz.ts`); ele precisa do pacote `events` no navegador.
-- A sala só diz quem está (`RoomState.vozes`, que sobrevive à hibernação) e repassa `voz:sinal` entre
-  quem está na conversa. Quem liga é o de id menor; sem trickle (uma oferta e uma resposta por par).
-  Conexão que cai sai da conversa; na volta, o app se anuncia de novo sozinho.
-- `voz:entrar` devolve os servidores ICE: STUN públicos e, com os segredos `TURN_KEY_ID` e
-  `TURN_KEY_TOKEN`, credenciais TURN do Cloudflare Realtime (1.000 GB por mês de graça) para quem está
-  atrás de NAT fechado (alguns 4G). O `_headers` libera o microfone (`microphone=(self)`).
-- Com a conversa ligada, o tango abaixa. Roteiro: `e2e/exploratorio/8-voz.mjs`.
+- Pedidos do Thomas em 30/09/2026 (voz, depois vídeo): numa sala online com gente, cada um escolhe o
+  que abre, **nada, só o microfone, só a câmera ou os dois** (botões no alto da sala e da mesa, e no
+  menu ☰), e a sala toda ouve e vê o que foi aberto. A câmera põe o rosto no lugar do avatar, maior (os
+  assentos crescem: `seatBoxFor(compact, video)`), e tocar no rosto abre o vídeo grande.
+- O áudio e o vídeo vão **direto entre os aparelhos** (WebRTC em malha, até 8), com
+  `@thaunknown/simple-peer` carregado só quando alguém abre algo (`lib/midia.ts`; precisa do pacote
+  `events` no navegador). Duas pessoas se ligam quando uma delas abriu algo; quem liga é o de id menor;
+  sem trickle. Abrir ou fechar a câmera renegocia (a trilha para, a luz apaga); o microfone silencia na
+  hora e solta o aparelho depois de 10 s fechado. Cada ligação tem sessão (oferta de outra sessão
+  recomeça); ligação que não fecha em 12 s recomeça.
+- A sala só diz o que cada um abriu (`RoomState.midias`, que sobrevive à hibernação) e repassa
+  `midia:sinal`. `midia:ice` devolve STUN públicos e, com os segredos `TURN_KEY_ID` e `TURN_KEY_TOKEN`,
+  credenciais TURN do Cloudflare Realtime (1.000 GB por mês de graça) para NAT fechado (alguns 4G).
+- O `_headers` libera câmera e microfone (`camera=(self), microphone=(self)`). Com alguém de microfone
+  aberto, o tango abaixa; "Ouvir a conversa" (menu ☰, som da sala) cala as vozes dos outros. Roteiro:
+  `e2e/exploratorio/8-midia.mjs`.
 
 ## Segredos
 

@@ -3,8 +3,8 @@ import { AnimatePresence, motion } from 'motion/react';
 import { memo, useState } from 'react';
 import type { SeatInfo } from '../../lib/connection';
 import type { LiveReaction } from '../../stores/game';
-import { Avatar } from '../ui/Avatar';
-import { SinalDeVoz } from '../ui/Voz';
+import { RostoNaMesa } from '../ui/Midia';
+import { AVATAR_NO_ASSENTO } from './layout';
 import { Matches } from '../ui/Matches';
 import { Palheiro } from './Palheiro';
 import { rem } from '../../lib/ui-scale';
@@ -252,6 +252,8 @@ export function CantadaBubble({
 export interface SeatProps {
   player: PublicPlayer;
   info: SeatInfo | undefined;
+  /** A pessoa está de câmera aberta: o rosto aparece no lugar do avatar, maior. */
+  video?: boolean;
   x: number;
   y: number;
   isTurn: boolean;
@@ -281,7 +283,9 @@ export interface SeatProps {
 /** Oponente ao redor da mesa. */
 export const Seat = memo(function Seat(p: SeatProps) {
   const { player, info } = p;
-  const avatarSize = p.compact ? 40 : 50;
+  // Com a câmera aberta, o rosto aparece maior no lugar do avatar (o assento da mesa já cresceu).
+  const avatarBase = p.compact ? AVATAR_NO_ASSENTO.compact : AVATAR_NO_ASSENTO.normal;
+  const avatarSize = p.video ? (p.compact ? AVATAR_NO_ASSENTO.videoCompact : AVATAR_NO_ASSENTO.videoNormal) : avatarBase;
   const showTricks = p.phase !== 'bidding';
   const out = player.eliminated;
 
@@ -311,8 +315,7 @@ export const Seat = memo(function Seat(p: SeatProps) {
       >
       <div className="relative z-10">
         {p.isTurn && !out && <TurnRing size={avatarSize} deadline={p.deadline} />}
-        <Avatar seed={info?.avatar ?? player.id} size={avatarSize} dim={out} />
-        <SinalDeVoz playerId={player.id} size={avatarSize} />
+        <RostoNaMesa playerId={player.id} seed={info?.avatar ?? player.id} size={avatarBase} tamanhoVideo={avatarSize} dim={out} />
         {/* Quem demorou jogou: o palheiro some (a vez andou). */}
         <AnimatePresence>{p.pitando && !out && <Palheiro key="palheiro" size={avatarSize} atraso={p.pitandoAtraso} />}</AnimatePresence>
         {!out && (player.isDealer || p.isMao) && (

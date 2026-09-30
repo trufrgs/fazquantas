@@ -28,7 +28,7 @@ describe('criar e entrar', () => {
       turnTimeoutSec: DEFAULT_TURN_TIMEOUT_SEC,
       pace: 'normal',
       acelerando: false,
-      vozes: [],
+      midias: [],
       bestOf: 1,
       ranked: false,
       hasPassword: false,

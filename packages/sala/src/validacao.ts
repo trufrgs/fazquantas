@@ -172,10 +172,10 @@ export const joinRoomSchema = z.object({
 
 export const presenceSchema = z.object({ visible: z.boolean() });
 
-export const vozMudoSchema = z.object({ mudo: z.boolean() });
+export const midiaEstadoSchema = z.object({ mic: z.boolean(), camera: z.boolean() });
 
-/** O sinal do WebRTC vai como veio (oferta ou resposta com os candidatos); só confere o destino. */
-export const vozSinalSchema = z.object({ para: z.string().min(1).max(64), dados: z.unknown() });
+/** O sinal do WebRTC vai como veio (oferta, resposta, renegociação); só confere o destino. */
+export const midiaSinalSchema = z.object({ para: z.string().min(1).max(64), dados: z.unknown() });
 
 export const addBotSchema = z.object({ difficulty: difficultySchema });
 

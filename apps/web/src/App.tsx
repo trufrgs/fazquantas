@@ -5,7 +5,7 @@ import { CardSprite } from './components/cards/sprite';
 import { GameScreen } from './components/table/GameScreen';
 import { aoAbrir } from './lib/conta';
 import { abaixarMusica, acordarMusica, destravarMusica, forcarMusica, ligarMusica } from './lib/musica';
-import { useVoz } from './lib/voz';
+import { midia } from './lib/midia';
 import { isNative, multiplayer } from './lib/platform';
 import { acordarAudio, forcarAudio, preloadSounds, setSoundEnabled } from './lib/sound';
 import { useApp } from './stores/app';
@@ -40,9 +40,11 @@ export function App() {
   const [code, setCode] = useState(inviteCode);
 
   useEffect(() => setSoundEnabled(sound), [sound]);
-  // Na conversa por voz o tango fica baixinho.
-  const naConversa = useVoz((s) => s.ligada);
-  useEffect(() => abaixarMusica(naConversa), [naConversa]);
+  // Com alguém de microfone aberto na sala, o tango fica baixinho; e o "Ouvir a conversa" vale na hora.
+  const conversando = useOnline((s) => s.room?.midias?.some((m) => m.mic) ?? false);
+  useEffect(() => abaixarMusica(conversando), [conversando]);
+  const ouvirConversa = useSettings((s) => s.ouvirConversa);
+  useEffect(() => midia.setOuvir(ouvirConversa), [ouvirConversa]);
   // O tango de fundo toca só na sala (esperando) e na mesa; nos menus, não (nem no admin).
   const naSala = screen === 'lobby' || screen === 'game';
   useEffect(() => ligarMusica(musica && naSala && !isAdminPath), [musica, naSala]);
@@ -66,6 +68,7 @@ export function App() {
       }
       acordarAudio();
       acordarMusica();
+      midia.acordar();
     };
     const voltou = () => {
       if (document.visibilityState === 'visible') acordarAudio();

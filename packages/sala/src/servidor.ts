@@ -21,8 +21,8 @@ import {
   removeSeatSchema,
   setBotSchema,
   updateRoomSchema,
-  vozMudoSchema,
-  vozSinalSchema,
+  midiaEstadoSchema,
+  midiaSinalSchema,
 } from './validacao';
 
 /** Os STUN públicos (Cloudflare e Google): bastam para a voz ligar direto na maioria das redes. */
@@ -94,10 +94,9 @@ const EVENTS: ReadonlySet<string> = new Set<EventName>([
   'game:action',
   'game:react',
   'game:acelerar',
-  'voz:entrar',
-  'voz:sair',
-  'voz:mudo',
-  'voz:sinal',
+  'midia:ice',
+  'midia:estado',
+  'midia:sinal',
   'presence',
 ]);
 
@@ -436,26 +435,20 @@ export class SalaServidor {
         sala.act(playerId, action);
         return;
       }
-      case 'voz:entrar': {
-        const { sala, playerId } = this.membership(conexao);
-        sala.entrarNaVoz(playerId);
+      case 'midia:ice': {
+        this.membership(conexao);
         return { iceServers: await this.servidoresIce() };
       }
-      case 'voz:sair': {
+      case 'midia:estado': {
+        const { mic, camera } = parsePayload(midiaEstadoSchema, payload);
         const { sala, playerId } = this.membership(conexao);
-        sala.sairDaVoz(playerId);
+        sala.estadoDaMidia(playerId, mic, camera);
         return;
       }
-      case 'voz:mudo': {
-        const { mudo } = parsePayload(vozMudoSchema, payload);
+      case 'midia:sinal': {
+        const { para, dados } = parsePayload(midiaSinalSchema, payload);
         const { sala, playerId } = this.membership(conexao);
-        sala.mudoNaVoz(playerId, mudo);
-        return;
-      }
-      case 'voz:sinal': {
-        const { para, dados } = parsePayload(vozSinalSchema, payload);
-        const { sala, playerId } = this.membership(conexao);
-        sala.sinalDeVoz(playerId, para, dados);
+        sala.sinalDeMidia(playerId, para, dados);
         return;
       }
       case 'game:acelerar': {

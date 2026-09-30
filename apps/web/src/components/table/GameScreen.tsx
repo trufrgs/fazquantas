@@ -26,6 +26,7 @@ import { acelerarMusica } from '../../lib/musica';
 import { play } from '../../lib/sound';
 import { contextoDaRodada, emCameraRapida, manilhaNaTesta } from './manilhas';
 import { NaTesta } from './NaTesta';
+import { useAlgumaCamera, VideoAmpliado } from '../ui/Midia';
 import { useApp } from '../../stores/app';
 import { useGame, type LiveReaction } from '../../stores/game';
 import { isHost, useOnline } from '../../stores/online';
@@ -46,7 +47,7 @@ import {
   cardSizes,
   compactBidPanel,
   isCompact,
-  SEAT_BOX,
+  seatBoxFor,
   tableGeometry,
   tableRevealLayout,
   trickCardFor,
@@ -247,10 +248,14 @@ function Table({
   const s = useUiScale();
   const compact = isCompact(crowd, vw / s, vh / s);
   const { hand: handCardW, trick: trickBase } = cardSizes(vw, vh, crowd, s);
+  // Alguém de câmera aberta: os assentos crescem para o rosto caber maior que o avatar.
+  const algumaCamera = useAlgumaCamera();
+  const comCamera = useOnline((st) => st.room?.midias?.filter((m) => m.camera).map((m) => m.playerId).join(',') ?? '');
+  const seatBox = seatBoxFor(compact, algumaCamera);
   // A carta da mesa cresce quando sobra espaço (até 45% maior), sem encostar em ninguém.
   const trickCardW = useMemo(
-    () => trickCardFor(table.width, table.height, order, you, trickBase, SEAT_BOX[compact ? 'compact' : 'normal'], s),
-    [table.width, table.height, order, you, trickBase, compact, s],
+    () => trickCardFor(table.width, table.height, order, you, trickBase, seatBox, s),
+    [table.width, table.height, order, you, trickBase, seatBox, s],
   );
   const geometry = useMemo(
     () =>
@@ -260,10 +265,10 @@ function Table({
         order,
         you,
         trickCardW,
-        SEAT_BOX[compact ? 'compact' : 'normal'],
+        seatBox,
         s,
       ),
-    [table.width, table.height, order, you, trickCardW, compact, s],
+    [table.width, table.height, order, you, trickCardW, seatBox, s],
   );
   // Cartas à mostra (rodada às cegas; quem saiu vê tudo): na frente de cada assento, do maior
   // tamanho que não cobre ninguém nem fica atrás do painel de palpite ou do chip das manilhas.
@@ -555,6 +560,7 @@ function Table({
                 return (
                   <Seat
                     key={p.id}
+                    video={comCamera.split(',').includes(p.id)}
                     player={p}
                     info={seatOf(p.id)}
                     x={at.x}
@@ -610,6 +616,7 @@ function Table({
             />
           )}
           <CoachTip tip={bidding ? null : tip} />
+          <VideoAmpliado />
           <BidPanel
             open={bidding}
             cards={view.cardsThisRound}

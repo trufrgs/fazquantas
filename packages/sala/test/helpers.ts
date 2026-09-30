@@ -146,7 +146,7 @@ export class ClienteTeste implements Conexao {
   readonly states: RoomState[] = [];
   readonly views: ViewMessage[] = [];
   readonly reactions: Reaction[] = [];
-  /** Sinais da conversa por voz que chegaram (de quem e o quê). */
+  /** Sinais de microfone e câmera que chegaram (de quem e o quê). */
   readonly sinais: { de: string; dados: unknown }[] = [];
   /** Ordem de chegada (eventos e respostas), para conferir a sequência. */
   readonly events: string[] = [];
@@ -174,7 +174,7 @@ export class ClienteTeste implements Conexao {
       this.views.push(d as ViewMessage);
       for (const l of [...this.viewListeners]) l(d as ViewMessage);
     } else if (evento === 'game:reaction') this.reactions.push(d as Reaction);
-    else if (evento === 'voz:sinal') this.sinais.push(d as { de: string; dados: unknown });
+    else if (evento === 'midia:sinal') this.sinais.push(d as { de: string; dados: unknown });
     else if (evento === 'room:kicked') this.kicked += 1;
     else if (evento === 'room:replaced') this.replaced += 1;
     this.events.push(evento);

@@ -39,6 +39,8 @@ export interface SettingsState {
   claimed: string | null;
   /** Tango de fundo, baixinho, na sala e na mesa (independente dos efeitos). */
   musica: boolean;
+  /** Ouvir a conversa da mesa online (o microfone de quem abriu). */
+  ouvirConversa: boolean;
   set: (patch: Partial<Omit<SettingsState, 'set'>>) => void;
 }
 
@@ -61,6 +63,7 @@ export const useSettings = create<SettingsState>()(
       notify: false,
       claimed: null,
       musica: true,
+      ouvirConversa: true,
       set: (patch) => set(patch),
     }),
     {

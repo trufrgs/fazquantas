@@ -1,8 +1,8 @@
 import type { Phase, PublicPlayer } from '@fodinha/engine';
 import { AnimatePresence } from 'motion/react';
 import type { LiveReaction } from '../../stores/game';
-import { Avatar } from '../ui/Avatar';
-import { SinalDeVoz } from '../ui/Voz';
+import { RostoNaMesa } from '../ui/Midia';
+import { useMidia } from '../../lib/midia';
 import { Matches } from '../ui/Matches';
 import { Palheiro } from './Palheiro';
 import { BidBadge, CantadaBubble, DealerChip, MaoChip, ReactionBubble, TurnRing } from './Seat';
@@ -37,13 +37,14 @@ const TONE: Record<StatusTone, string> = {
 
 /** Sua faixa acima da mão: avatar, vidas, palpite e o que está acontecendo. */
 export function MySeat({ player, avatar, phase, remaining, startingLives, status, reaction, isTurn, deadline, isMao, round, pitando = false }: MySeatProps) {
+  // A tua câmera aberta: a prévia fica maior que o avatar.
+  const rosto = useMidia((s) => (s.local ? 56 : 40));
   return (
     <div className="relative z-20 flex items-center gap-2.5 px-3">
       <div className="relative">
-        {isTurn && !player.eliminated && <TurnRing key={deadline ?? 0} size={40} deadline={deadline} />}
-        <Avatar seed={avatar} size={40} dim={player.eliminated} />
-        <SinalDeVoz playerId={player.id} size={40} />
-        <AnimatePresence>{pitando && !player.eliminated && <Palheiro key="palheiro" size={40} atraso={1.7} />}</AnimatePresence>
+        {isTurn && !player.eliminated && <TurnRing key={deadline ?? 0} size={rosto} deadline={deadline} />}
+        <RostoNaMesa playerId={player.id} seed={avatar} size={40} tamanhoVideo={56} dim={player.eliminated} />
+        <AnimatePresence>{pitando && !player.eliminated && <Palheiro key="palheiro" size={rosto} atraso={1.7} />}</AnimatePresence>
         {phase === 'bidding' && <CantadaBubble bid={player.bid} round={round} placement="above" edge="left" />}
         <ReactionBubble reaction={reaction} placement="above" edge="left" />
       </div>

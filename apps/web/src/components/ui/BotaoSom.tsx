@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useSettings } from '../../stores/settings';
 import { IconButton } from './Button';
 import { Toggle } from './Controls';
+import { useTemConversa } from './Midia';
 
 /**
  * O som no alto da sala de espera: um toque abre as duas chaves, independentes, a música (o tango) e
@@ -13,6 +14,8 @@ export function BotaoSom() {
   const sound = useSettings((s) => s.sound);
   const musica = useSettings((s) => s.musica);
   const set = useSettings((s) => s.set);
+  const ouvirConversa = useSettings((s) => s.ouvirConversa);
+  const temConversa = useTemConversa();
   const [aberto, setAberto] = useState(false);
   const caixa = useRef<HTMLDivElement>(null);
   // Toque fora ou Esc fecha.
@@ -46,6 +49,9 @@ export function BotaoSom() {
         >
           <Toggle checked={musica} onChange={(on) => set({ musica: on })} label="Música" description="O tango de fundo" />
           <Toggle checked={sound} onChange={(on) => set({ sound: on })} label="Efeitos" description="Cartas, golpes e avisos" />
+          {temConversa && (
+            <Toggle checked={ouvirConversa} onChange={(on) => set({ ouvirConversa: on })} label="Conversa" description="O microfone de quem abriu" />
+          )}
         </div>
       )}
     </div>
