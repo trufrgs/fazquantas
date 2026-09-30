@@ -25,6 +25,7 @@ import { haptic } from '../../lib/haptics';
 import { acelerarMusica } from '../../lib/musica';
 import { play } from '../../lib/sound';
 import { contextoDaRodada, emCameraRapida, manilhaNaTesta } from './manilhas';
+import { CARD_RATIO } from '../cards/Card';
 import { NaTesta } from './NaTesta';
 import { galoDeUmToque } from './frases';
 import { useAlgumaCamera, VideoAmpliado } from '../ui/Midia';
@@ -390,8 +391,12 @@ function Table({
       ? 'jogar'
       : null;
 
-  // A dica que está na tela (a do palpite só quando cabe no painel).
-  const shownTip = bidding ? (panelFits.withTip ? tip : null) : tip;
+  // A dica que está na tela (a do palpite só quando cabe no painel). Com a dica, o painel sobe: na
+  // rodada às cegas ele não pode chegar nas cartas na testa, que é o que se lê para cantar (no
+  // celular pequeno, cobria as quatro de uma vez, 30/09/2026).
+  const topoComDica = table.height - ((142 + BID_TIP_H) * s - mySeatH);
+  const testaLivre = !reveal || [...reveal.spots.values()].every((p) => p.y + (reveal.cardWidth * CARD_RATIO) / 2 <= topoComDica);
+  const shownTip = bidding ? (panelFits.withTip && testaLivre ? tip : null) : tip;
   const send = async (action: ClientAction) => {
     markTipSeen(shownTip);
     setPendingAt(view.seq);
