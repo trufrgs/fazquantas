@@ -654,7 +654,6 @@ function Table({
               ctx={contextoDaRodada(view.rules, view.vira)}
               rodada={view.roundNumber}
               ritmo={ritmo}
-              avatarDe={(id) => seatOf(id)?.avatar ?? id}
             />
           )}
           <RoundBanner view={view} shown={banner} />

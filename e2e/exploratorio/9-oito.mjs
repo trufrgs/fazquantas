@@ -1,8 +1,8 @@
 // Exploratório 9: a sala cheia (30/09/2026). Oito pessoas, o máximo de uma sala (`ROOM_CAPACITY` =
 // `MAX_PLAYERS` = 8), cada uma num celular diferente: todas abrem o microfone e quatro a câmera (a malha
 // de WebRTC com 8 aparelhos, 28 ligações). Uma nona pessoa tenta entrar e a sala recusa. Depois, uma
-// partida inteira no automático, medindo a mesa de 8 em dois celulares (cartas encavaladas, rostinho
-// do dono em cada carta, número sempre à mostra, alto da mesa cabendo na tela).
+// partida inteira no automático, medindo a mesa de 8 em dois celulares (cartas encavaladas, número
+// sempre à mostra, alto da mesa cabendo na tela).
 import { actOnce, closeAll, createRoom, device, flag, joinByLink, log, report, sleep, startGame, OUT } from './lib.mjs';
 
 const MAX_MIN = Number(process.env.MAX_MIN ?? 10);
@@ -87,15 +87,14 @@ while (Date.now() - inicio < MAX_MIN * 60000) {
         const alto = document.querySelector('header');
         const camada = document.querySelector('.mesa .pointer-events-none.absolute.inset-0[aria-live="polite"]');
         const cartas = camada ? [...camada.children].filter((e) => e.getAttribute('role') === 'img').map((e) => ({ l: e.offsetLeft, t: e.offsetTop, w: e.offsetWidth, h: e.offsetHeight, z: Number(e.style.zIndex) })) : [];
-        const donos = camada ? [...camada.querySelectorAll('span.z-\\[45\\]')].map((e) => ({ l: e.offsetLeft, t: e.offsetTop, w: e.offsetWidth, h: e.offsetHeight })) : [];
         const sob = (a, b) => a.l < b.l + b.w - 3 && b.l < a.l + a.w - 3 && a.t < b.t + b.h - 3 && b.t < a.t + a.h - 3;
         let cobertos = 0;
         for (const c of cartas) {
           const canto = { l: c.l, t: c.t, w: c.w * 0.26, h: c.h * 0.2 };
-          if (cartas.some((o) => o !== c && o.z > c.z && o.z < 50 && sob(canto, o)) || donos.some((o) => sob(canto, o))) cobertos++;
+          if (cartas.some((o) => o !== c && o.z > c.z && o.z < 50 && sob(canto, o))) cobertos++;
         }
         const videos = [...document.querySelectorAll('.mesa video')].map((v) => Math.round(v.getBoundingClientRect().width));
-        return { altoCabe: alto.scrollWidth <= innerWidth, cartas: cartas.length, largura: cartas[0]?.w ?? null, donos: donos.length, cobertos, videos };
+        return { altoCabe: alto.scrollWidth <= innerWidth, cartas: cartas.length, largura: cartas[0]?.w ?? null, cobertos, videos };
       });
       log('o4', `${d.label} (${PESSOAS[devs.indexOf(d)][1]}): ${JSON.stringify(m)}`);
       if (!m.altoCabe) flag('o4', `${d.label}: o alto da mesa não cabe`);
