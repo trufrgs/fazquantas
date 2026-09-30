@@ -74,7 +74,7 @@ describe('ritmo', () => {
   });
 
   it('a partida calma demora mais que a normal', async () => {
-    const timing = { botThinkMs: [20, 20] as [number, number], trickPauseMs: 20, roundPauseMs: 20, bidsRevealMs: 20, forcedPlayMs: 20, dealMs: 0, awayActMs: 20 };
+    const timing = { botThinkMs: [20, 20] as [number, number], trickPauseMs: 20, lastCardMs: 0, roundPauseMs: 20, bidsRevealMs: 20, forcedPlayMs: 20, dealMs: 0, awayActMs: 20 };
     // Mesmo sorteio nas duas partidas: a única diferença é o ritmo (sem isso o teste oscilava).
     const seeded = () => {
       let x = 42;

@@ -41,6 +41,11 @@ export interface HostTiming {
   botThinkMs: [number, number];
   /** Pausa mostrando a vaza completa antes de recolher. */
   trickPauseMs: number;
+  /**
+   * A mais na pausa da mão: a última carta aparece inteira antes de a vencedora subir por cima dela
+   * (o Thomas, 30/09/2026). Não multiplica com a manilha.
+   */
+  lastCardMs: number;
   /** Pausa no resumo do fim da rodada (dá tempo de ler o placar). */
   roundPauseMs: number;
   /**
@@ -65,6 +70,7 @@ export const MANILHA_PAUSE_FACTOR = 1.7;
 export const DEFAULT_TIMING: Readonly<HostTiming> = Object.freeze({
   botThinkMs: [650, 1250] as [number, number],
   trickPauseMs: 1300,
+  lastCardMs: 600,
   roundPauseMs: 7500,
   bidsRevealMs: 2600,
   forcedPlayMs: 650,
@@ -75,6 +81,7 @@ export const DEFAULT_TIMING: Readonly<HostTiming> = Object.freeze({
 export const INSTANT_TIMING: Readonly<HostTiming> = Object.freeze({
   botThinkMs: [0, 0] as [number, number],
   trickPauseMs: 0,
+  lastCardMs: 0,
   roundPauseMs: 0,
   bidsRevealMs: 0,
   forcedPlayMs: 0,
@@ -386,7 +393,10 @@ export class GameHost {
     if (s.phase === 'trickEnd') {
       const ctx = strengthCtx(s);
       const comManilha = s.round.completedTricks.at(-1)?.plays.some((p) => isManilha(card(p.cardId), ctx)) ?? false;
-      this.after(this.scaled(this.timing.trickPauseMs * (comManilha ? MANILHA_PAUSE_FACTOR : 1) + extraMs), () => this.advance());
+      this.after(
+        this.scaled(this.timing.trickPauseMs * (comManilha ? MANILHA_PAUSE_FACTOR : 1) + this.timing.lastCardMs + extraMs),
+        () => this.advance(),
+      );
       return;
     }
     if (s.phase === 'roundEnd') {

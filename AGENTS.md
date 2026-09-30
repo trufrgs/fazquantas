@@ -93,6 +93,10 @@ pnpm exec playwright test                  # E2E locais (sobem os servidores soz
   segura embaixo do assento; nas colunas, para dentro), longe do alto da mesa. Outro arranjo só entra
   se render cartas 15% maiores (`ARRANJOS` em `layout.ts`): pelo tamanho, a carta de quem senta no alto
   ia para o lado dele, encostada no cabeçalho (print do Thomas, 30/09/2026). Cena: `?cena=cega4`.
+- **A última carta aparece inteira:** quando a mão fecha, a vencedora espera 0,6 s para subir por cima
+  (`SEGURA_A_VENCEDORA` em `TrickArea`) e a última carta fica por cima de todas nesse instante; o
+  anfitrião dá esse tempo a mais na pausa da mão (`lastCardMs`, 600 ms), então o destaque da
+  vencedora dura o mesmo de antes (pedido do Thomas em 30/09/2026).
 - **O alto da mesa** (escolha do Thomas em 30/09/2026, opção A): ☰, a rodada no meio (tocar abre a
   caderneta) e, com gente na sala, microfone e câmera, um botão para cada. As três frases favoritas
   (★ no quadro) e o "+" ficam numa pílula no canto de baixo da mesa, à direita, perto do polegar; na

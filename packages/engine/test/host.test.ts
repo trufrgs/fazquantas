@@ -171,8 +171,8 @@ describe('GameHost', () => {
       }
       clock.advance(10);
     }
-    expect([...pausas.sem]).toEqual([DEFAULT_TIMING.trickPauseMs]);
-    expect([...pausas.com]).toEqual([DEFAULT_TIMING.trickPauseMs * MANILHA_PAUSE_FACTOR]);
+    expect([...pausas.sem]).toEqual([DEFAULT_TIMING.trickPauseMs + DEFAULT_TIMING.lastCardMs]);
+    expect([...pausas.com]).toEqual([DEFAULT_TIMING.trickPauseMs * MANILHA_PAUSE_FACTOR + DEFAULT_TIMING.lastCardMs]);
   });
 
   it('shows every hand to an eliminated human when asked to', () => {
