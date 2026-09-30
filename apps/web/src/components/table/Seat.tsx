@@ -4,7 +4,7 @@ import { memo, useState } from 'react';
 import type { SeatInfo } from '../../lib/connection';
 import type { LiveReaction } from '../../stores/game';
 import { RostoNaMesa } from '../ui/Midia';
-import { AVATAR_NO_ASSENTO } from './layout';
+import { AVATAR_GRANDE } from './layout';
 import { Matches } from '../ui/Matches';
 import { Palheiro } from './Palheiro';
 import { rem } from '../../lib/ui-scale';
@@ -262,7 +262,14 @@ export interface SeatProps {
   remaining: number;
   startingLives: number;
   reaction: LiveReaction | undefined;
+  /** Assento pequeno (mesa cheia em tela pequena): palitos e balões menores. */
   compact: boolean;
+  /** Diâmetro do avatar e do rosto de quem abriu a câmera, e a largura do assento (px na escala 1). */
+  avatar: number;
+  rosto: number;
+  largura: number;
+  /** Senta na fileira de cima: os balões abrem para baixo (ou para o lado, na carta na testa). */
+  noAlto: boolean;
   /** É mão: palpita e joga primeiro na rodada. */
   isMao: boolean;
   /** Rodada atual (o balão da cantada toca uma vez por rodada). */
@@ -283,15 +290,17 @@ export interface SeatProps {
 /** Oponente ao redor da mesa. */
 export const Seat = memo(function Seat(p: SeatProps) {
   const { player, info } = p;
-  // Com a câmera aberta, o rosto aparece maior no lugar do avatar (o assento da mesa já cresceu).
-  const avatarBase = p.compact ? AVATAR_NO_ASSENTO.compact : AVATAR_NO_ASSENTO.normal;
-  const avatarSize = p.video ? (p.compact ? AVATAR_NO_ASSENTO.videoCompact : AVATAR_NO_ASSENTO.videoNormal) : avatarBase;
+  // O tamanho vem da mesa (cresce com o espaço); com a câmera aberta, o rosto aparece no lugar do
+  // avatar, e maior.
+  const avatarSize = p.video ? p.rosto : p.avatar;
+  // Assento grande: nome e palitos crescem junto (a altura do assento já conta com isso).
+  const grande = p.rosto >= AVATAR_GRANDE;
   const showTricks = p.phase !== 'bidding';
   const out = player.eliminated;
 
   // Quem senta no alto não tem espaço em cima: o balão abre embaixo do assento, ou para o lado na
   // rodada da carta na testa (embaixo fica a carta dele).
-  const placement: BubblePlacement = p.y < 90 ? (p.blind ? (p.side ?? 'right') : 'below') : 'above';
+  const placement: BubblePlacement = p.noAlto ? (p.blind ? (p.side ?? 'right') : 'below') : 'above';
   // Balões para o lado (fileira de cima na carta na testa) caem um sobre o outro: só o último fica.
   const sideways = placement === 'left' || placement === 'right';
   const bubbles = (
@@ -309,13 +318,14 @@ export const Seat = memo(function Seat(p: SeatProps) {
     // de um assento ficava atrás do avatar de quem vinha depois (27/09–29/09/2026).
     <div className="absolute flex h-0 w-0 items-center justify-center" style={{ left: p.x, top: p.y }}>
       <div
-        className={`relative flex shrink-0 flex-col items-center ${p.compact ? 'w-[4.5rem]' : 'w-[5.25rem]'}`}
+        className="relative flex shrink-0 flex-col items-center"
+        style={{ width: rem(p.largura) }}
         role="group"
         aria-label={`${player.name}${out ? ', fora do jogo' : ''}`}
       >
       <div className="relative z-10">
         {p.isTurn && !out && <TurnRing size={avatarSize} deadline={p.deadline} />}
-        <RostoNaMesa playerId={player.id} seed={info?.avatar ?? player.id} size={avatarBase} tamanhoVideo={avatarSize} dim={out} />
+        <RostoNaMesa playerId={player.id} seed={info?.avatar ?? player.id} size={p.avatar} tamanhoVideo={p.rosto} dim={out} />
         {/* Quem demorou jogou: o palheiro some (a vez andou). */}
         <AnimatePresence>{p.pitando && !out && <Palheiro key="palheiro" size={avatarSize} atraso={p.pitandoAtraso} />}</AnimatePresence>
         {!out && (player.isDealer || p.isMao) && (
@@ -346,7 +356,7 @@ export const Seat = memo(function Seat(p: SeatProps) {
         )}
       </div>
       <span
-        className={`relative z-10 mt-1 max-w-full truncate px-1 text-center text-xs font-bold texto-gravado transition-colors ${
+        className={`relative z-10 mt-1 max-w-full truncate px-1 text-center font-bold texto-gravado transition-colors ${grande ? 'text-sm' : 'text-xs'} ${
           out ? 'text-papel/50 line-through' : p.isTurn ? 'text-ouros' : 'text-papel'
         }`}
       >
@@ -356,7 +366,7 @@ export const Seat = memo(function Seat(p: SeatProps) {
         {out ? (
           <span className="rounded-full bg-copas/85 px-2 text-[0.6875rem] font-bold text-papel">fora</span>
         ) : (
-          <Matches lives={player.lives} starting={p.startingLives} size={p.compact ? 11 : 13} />
+          <Matches lives={player.lives} starting={p.startingLives} size={p.compact ? 11 : grande ? 15 : 13} />
         )}
       </div>
       {/* Âncoras dos balões, sem camada própria (sem z-index nem transform): embaixo, o assento

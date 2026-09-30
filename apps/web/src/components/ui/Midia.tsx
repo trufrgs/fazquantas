@@ -30,7 +30,7 @@ function useAberto(playerId: string) {
  * pede a permissão no primeiro toque). Nada aberto é o padrão; aberto fica verde, e o microfone acende
  * enquanto tu fala. A sala toda ouve e vê o que tu abrir.
  */
-export function ControlesDeMidia() {
+export function ControlesDeMidia({ compacto = false }: { compacto?: boolean }) {
   const tem = useTemConversa();
   const erro = useMidia((s) => s.erro);
   const mic = useMidia((s) => s.mic);
@@ -45,13 +45,15 @@ export function ControlesDeMidia() {
   if (!tem) return null;
   return (
     <div className="relative">
-      {/* Tela estreita (celular pequeno): um botão só, que abre as duas chaves; senão, os dois botões. */}
-      <div className="min-[360px]:hidden">
-        <MidiaCompacta />
+      {/* Na mesa (e em tela estreita): um botão só, que abre as chaves; na sala, os dois botões. */}
+      <div className={compacto ? '' : 'min-[360px]:hidden'}>
+        <MidiaCompacta falando={falando && mic} />
       </div>
-      <div className="max-[359px]:hidden">
-        <DoisBotoes falando={falando && mic} />
-      </div>
+      {!compacto && (
+        <div className="max-[359px]:hidden">
+          <DoisBotoes falando={falando && mic} />
+        </div>
+      )}
       {erro && (
         <span
           role="alert"
@@ -101,8 +103,8 @@ function DoisBotoes({ falando }: { falando: boolean }) {
   );
 }
 
-/** Em tela estreita: um botão com o estado (câmera, microfone ou nada) que abre as duas chaves. */
-function MidiaCompacta() {
+/** Um botão com o estado (câmera, microfone ou nada) que abre as chaves de microfone e câmera. */
+function MidiaCompacta({ falando }: { falando: boolean }) {
   const { mic, camera } = useMidia();
   const ouvirConversa = useSettings((s) => s.ouvirConversa);
   const set = useSettings((s) => s.set);
@@ -125,7 +127,7 @@ function MidiaCompacta() {
         aria-haspopup="dialog"
         aria-expanded={aberto}
         onClick={() => setAberto((a) => !a)}
-        className={mic || camera ? 'bg-paus' : ''}
+        className={`${mic || camera ? 'bg-paus' : ''} ${falando ? 'ring-2 ring-[rgb(120_220_140)] shadow-[0_0_14px_3px_rgb(120_220_140/0.6)]' : ''}`}
       >
         <Icone size={20} />
       </IconButton>
@@ -199,6 +201,8 @@ export function RostoNaMesa({
     return !!r && r.getVideoTracks().some((t) => t.readyState === 'live');
   });
   const falando = useMidia((s) => !!s.falando[playerId]);
+  // No teu rosto, depois de abrir o microfone uma vez, o selo é o botão de abrir e fechar (a um toque).
+  const meuMic = useMidia((s) => (eu && s.usouMic ? s.mic : null));
   const comVideo = aberto.camera && temVideo && !!stream;
   const d = comVideo ? tamanhoVideo : size;
   return (
@@ -225,14 +229,28 @@ export function RostoNaMesa({
           style={{ width: `calc(${rem(d)} + 6px)`, height: `calc(${rem(d)} + 6px)` }}
         />
       )}
-      {(aberto.mic || aberto.camera) && (
-        <span
-          className={`absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full text-papel ring-2 ring-noite/60 ${aberto.mic ? 'bg-paus' : 'bg-copas'}`}
-          aria-label={aberto.mic ? (falando ? 'falando' : 'microfone aberto') : 'microfone fechado'}
-          role="img"
+      {meuMic !== null ? (
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            void midia.alternarMic();
+          }}
+          aria-label={meuMic ? 'Fechar o microfone' : 'Abrir o microfone'}
+          className={`absolute -right-2 -top-2 flex h-7 w-7 items-center justify-center rounded-full text-papel ring-2 ring-noite/60 active:scale-90 ${meuMic ? 'bg-paus' : 'bg-copas'}`}
         >
-          {aberto.mic ? <Mic size={11} strokeWidth={2.6} /> : <MicOff size={11} strokeWidth={2.6} />}
-        </span>
+          {meuMic ? <Mic size={14} strokeWidth={2.6} /> : <MicOff size={14} strokeWidth={2.6} />}
+        </button>
+      ) : (
+        (aberto.mic || aberto.camera) && (
+          <span
+            className={`absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full text-papel ring-2 ring-noite/60 ${aberto.mic ? 'bg-paus' : 'bg-copas'}`}
+            aria-label={aberto.mic ? (falando ? 'falando' : 'microfone aberto') : 'microfone fechado'}
+            role="img"
+          >
+            {aberto.mic ? <Mic size={11} strokeWidth={2.6} /> : <MicOff size={11} strokeWidth={2.6} />}
+          </span>
+        )
       )}
     </span>
   );

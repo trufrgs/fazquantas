@@ -7,7 +7,7 @@ import { aoAbrir } from './lib/conta';
 import { abaixarMusica, acordarMusica, destravarMusica, forcarMusica, ligarMusica } from './lib/musica';
 import { midia } from './lib/midia';
 import { isNative, multiplayer } from './lib/platform';
-import { acordarAudio, forcarAudio, preloadSounds, setSoundEnabled } from './lib/sound';
+import { acordarAudio, dormirAudio, forcarAudio, preloadSounds, setSoundEnabled } from './lib/sound';
 import { useApp } from './stores/app';
 import { abaSubstituida, savedSession, useOnline } from './stores/online';
 import { useSettings } from './stores/settings';
@@ -70,18 +70,27 @@ export function App() {
       acordarMusica();
       midia.acordar();
     };
+    // Saiu do app: para o áudio de verdade (efeitos e conversa; o tango se solta sozinho), senão o
+    // iPhone segue mostrando o ícone de som tocando na tela de início (30/09/2026).
+    const dormir = () => {
+      dormirAudio();
+      midia.dormir();
+    };
     const voltou = () => {
       if (document.visibilityState === 'visible') acordarAudio();
+      else dormir();
     };
     window.addEventListener('pointerdown', toque, true);
     window.addEventListener('keydown', toque, true);
     document.addEventListener('visibilitychange', voltou);
     window.addEventListener('pageshow', voltou);
+    window.addEventListener('pagehide', dormir);
     return () => {
       window.removeEventListener('pointerdown', toque, true);
       window.removeEventListener('keydown', toque, true);
       document.removeEventListener('visibilitychange', voltou);
       window.removeEventListener('pageshow', voltou);
+      window.removeEventListener('pagehide', dormir);
     };
   }, []);
 

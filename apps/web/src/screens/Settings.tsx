@@ -24,6 +24,7 @@ export function Settings() {
           <Toggle checked={s.musica} onChange={(musica) => s.set({ musica })} label="Música" description="Um tango de fundo, baixinho, na sala e na mesa." />
           <Toggle checked={s.haptics} onChange={(haptics) => s.set({ haptics })} label="Vibração" description="Na tua vez e quando perde palito." />
           <Toggle checked={s.hints} onChange={(hints) => s.set({ hints })} label="Sugerir palpite e carta" description="Na tua vez, marca o palpite e a carta que o jogo faria. Vem desligado." />
+          <Toggle checked={s.resumoDaRodada} onChange={(resumoDaRodada) => s.set({ resumoDaRodada })} label="Resumo da rodada" description="No fim de cada rodada, quem cantou, quem fez e quem queimou palito." />
           {multiplayer && notifyState() !== 'unsupported' && (
             <Toggle
               checked={s.notify && notifyState() === 'granted'}

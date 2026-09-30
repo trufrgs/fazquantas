@@ -1,4 +1,5 @@
 import { maxCardsFor, nextProgression, type PlayerView } from '@fodinha/engine';
+import { X } from 'lucide-react';
 import { motion } from 'motion/react';
 import type { SeatInfo } from '../../lib/connection';
 import { Avatar } from '../ui/Avatar';
@@ -28,18 +29,34 @@ export interface RoundSummaryProps {
   onContinue?: () => void;
   /** Só sobraram bots (tu acabou de sair): dá para passar o resto em câmera rápida dali mesmo. */
   onAcelerar?: () => void;
+  /** Esconde o resumo desta rodada (o "×" no canto). */
+  onEsconder: () => void;
+  /** Não mostra mais o resumo (volta nos ajustes ou no menu da mesa). */
+  onNaoMostrar: () => void;
 }
 
 /** Resumo do fim da rodada: quanto cada um pediu e fez, palitos queimados e os que sobram. */
-export function RoundSummary({ open, view, seats, autoMs, onContinue, onAcelerar }: RoundSummaryProps) {
+export function RoundSummary({ open, view, seats, autoMs, onContinue, onAcelerar, onEsconder, onNaoMostrar }: RoundSummaryProps) {
   const rec = view.history.at(-1);
   const next = nextCards(view);
   return (
     <Sheet open={open && !!rec} label="Fim da rodada" backdrop={false} onClose={onContinue}>
       {rec && (
-        <div onClick={onContinue} role="presentation">
+        <div onClick={onContinue} role="presentation" className="relative">
+          <button
+            type="button"
+            aria-label="Esconder o resumo"
+            title="Esconder"
+            onClick={(e) => {
+              e.stopPropagation();
+              onEsconder();
+            }}
+            className="absolute -right-1 -top-1 flex h-9 w-9 items-center justify-center rounded-full text-tinta-2 active:scale-90 active:bg-tinta/10"
+          >
+            <X size={20} />
+          </button>
           <h2
-            className="font-display text-2xl font-bold"
+            className="pr-10 font-display text-2xl font-bold"
             style={{ fontVariationSettings: '"SOFT" 100, "WONK" 1' }}
           >
             Fim da rodada {rec.number}
@@ -130,6 +147,16 @@ export function RoundSummary({ open, view, seats, autoMs, onContinue, onAcelerar
               <span className="text-sm text-tinta-2">Continuando…</span>
             )}
           </div>
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onNaoMostrar();
+            }}
+            className="mt-2 text-xs font-semibold text-tinta-2 underline underline-offset-2"
+          >
+            Não mostrar mais o resumo (volta no menu ☰)
+          </button>
           <div className="mt-3 h-1 overflow-hidden rounded-full bg-tinta/10">
             <motion.div
               key={rec.number}

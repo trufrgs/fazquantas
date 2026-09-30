@@ -1,15 +1,18 @@
 import { describe, expect, it } from 'vitest';
 import { CARD_RATIO } from '../cards/Card';
 import {
+  AVATAR_FAIXA,
   BID_PANEL,
+  caixaDoAssento,
   cantadasTop,
   cardSizes,
   compactBidPanel,
   isCompact,
+  mesaDimensionada,
+  pisoDoAvatar,
   rectAround,
   SEAT_BOX,
   tableGeometry,
-  seatBoxFor,
   tableRevealLayout,
   trickCardFor,
   trickStacking,
@@ -28,21 +31,31 @@ const SCREENS = [
   { name: 'desktop', w: 1180, h: 640, vw: 1440, vh: 900 },
 ];
 
+/** Como na GameScreen: avatar (ou rosto) e carta da mesa do tamanho do espaço que sobra. */
+function mesaComo(t: { w: number; h: number; vw: number; vh: number; s?: number }, n: number, video: boolean) {
+  const s = t.s ?? 1;
+  const order = Array.from({ length: n }, (_, i) => `p${i}`);
+  const base = cardSizes(t.vw, t.vh, n, s).trick;
+  const piso = pisoDoAvatar(n, t.vw / s, t.vh / s, video);
+  const m = mesaDimensionada({ width: t.w, height: t.h, order, youId: 'p0', trickBase: base, scale: s, video, mySeatH: 47 * s, piso });
+  const g = tableGeometry(t.w, t.h, order, 'p0', m.trickCard, m.box, s);
+  return { m, g, order, base, piso };
+}
+
 describe('tableGeometry', () => {
   for (const screen of SCREENS) {
     for (let n = 2; n <= 8; n++) for (const video of [false, true]) {
       it(`${screen.name}, ${n} jogadores${video ? ', com câmera' : ''}: assentos não se sobrepõem e ficam na tela`, () => {
-        const order = Array.from({ length: n }, (_, i) => `p${i}`);
-        const box = seatBoxFor(isCompact(n, screen.vw, screen.vh), video);
-        const g = tableGeometry(screen.w, screen.h, order, 'p0', 48, box);
+        const { g, order } = mesaComo(screen, n, video);
+        const box = g.seatBox;
         const SEAT_W = box.w;
         const SEAT_H = box.h;
         const seats = order.slice(1).map((id) => g.seats.get(id)!);
         for (const s of seats) {
           expect(s.x - SEAT_W / 2).toBeGreaterThanOrEqual(0);
           expect(s.x + SEAT_W / 2).toBeLessThanOrEqual(screen.w);
-          expect(s.y).toBeGreaterThanOrEqual(0);
-          expect(s.y).toBeLessThanOrEqual(screen.h);
+          expect(s.y - SEAT_H / 2).toBeGreaterThanOrEqual(-1);
+          expect(s.y + SEAT_H / 2).toBeLessThanOrEqual(screen.h + 1);
         }
         for (let i = 0; i < seats.length; i++) {
           for (let j = i + 1; j < seats.length; j++) {
@@ -73,15 +86,19 @@ describe('tableGeometry', () => {
     for (const phone of PHONES) {
       for (let n = 2; n <= 8; n++) for (const video of [false, true]) {
         it(`${phone.name}, ${n} jogadores${video ? ', com câmera' : ''}: nenhum assento fica atrás do painel`, () => {
-          const order = Array.from({ length: n }, (_, i) => `p${i}`);
-          const box = seatBoxFor(isCompact(n, phone.vw, phone.vh), video);
-          const g = tableGeometry(phone.w, phone.h, order, 'p0', 48, box);
-          for (const id of order.slice(1)) {
-            const seat = g.seats.get(id)!;
-            expect(seat.y + box.h / 2, id).toBeLessThanOrEqual(phone.h - BID_PANEL.band);
-          }
+          const { g } = mesaComo(phone, n, video);
+          // O painel inteiro (não a barra de uma linha) cabe sem cobrir ninguém.
+          expect(compactBidPanel(g, 'p0', 1, 47)).toBe(false);
         });
       }
+      it(`${phone.name}: com o assento de referência, os assentos ficam acima da faixa do painel`, () => {
+        for (let n = 2; n <= 8; n++) {
+          const order = Array.from({ length: n }, (_, i) => `p${i}`);
+          const box = SEAT_BOX[isCompact(n, phone.vw, phone.vh) ? 'compact' : 'normal'];
+          const g = tableGeometry(phone.w, phone.h, order, 'p0', 48, box);
+          for (const id of order.slice(1)) expect(g.seats.get(id)!.y + box.h / 2, `${n}: ${id}`).toBeLessThanOrEqual(phone.h - BID_PANEL.band);
+        }
+      });
     }
 
     it('em tela larga o painel não chega nos lados e as colunas usam a altura toda', () => {
@@ -115,12 +132,10 @@ describe('cartas à mostra e cartas da vaza', () => {
 
   for (const t of TABLES) {
     for (let n = 2; n <= 8; n++) for (const video of [false, true]) {
-      const order = Array.from({ length: n }, (_, i) => `p${i}`);
+      // Como na GameScreen: avatar e carta da mesa do tamanho do espaço.
+      const { m, g, order } = mesaComo(t, n, video);
       const others = order.slice(1);
-      const box = seatBoxFor(isCompact(n, t.vw / t.s, t.vh / t.s), video);
-      // Como na GameScreen: a carta da mesa parte de `cardSizes` e cresce quando sobra espaço.
-      const trick = trickCardFor(t.w, t.h, order, 'p0', cardSizes(t.vw, t.vh, n, t.s).trick, box, t.s);
-      const g = tableGeometry(t.w, t.h, order, 'p0', trick, box, t.s);
+      const trick = m.trickCard;
 
       it(`${t.name}, ${n} jogadores${video ? ', com câmera' : ''}: carta na testa de todos à vista, sem cobrir ninguém`, () => {
         const compactPanel = compactBidPanel(g, 'p0', t.s, 47 * t.s);
@@ -166,14 +181,11 @@ describe('cartas à mostra e cartas da vaza', () => {
     }
   }
 
-  it('no celular em pé, com até 6 jogadores, as cartas na testa passam de 60 px', () => {
-    for (let n = 2; n <= 6; n++) {
-      const order = Array.from({ length: n }, (_, i) => `p${i}`);
-      const box = SEAT_BOX[isCompact(n, 390, 844) ? 'compact' : 'normal'];
-      const trick = trickCardFor(390, 608, order, 'p0', cardSizes(390, 844, n, 1).trick, box, 1);
-      const g = tableGeometry(390, 608, order, 'p0', trick, box, 1);
-      const r = tableRevealLayout(g, order.slice(1), { scale: 1, trickCard: trick, compactPanel: false, mySeatH: 47 });
-      expect(r.cardWidth, `${n} jogadores`).toBeGreaterThanOrEqual(60);
+  it('no celular em pé, com até 7 jogadores, as cartas na testa passam de 60 px (com câmera também)', () => {
+    for (let n = 2; n <= 7; n++) for (const video of [false, true]) {
+      const { m, g, order } = mesaComo({ w: 390, h: 608, vw: 390, vh: 844 }, n, video);
+      const r = tableRevealLayout(g, order.slice(1), { scale: 1, trickCard: m.trickCard, compactPanel: false, mySeatH: 47 });
+      expect(r.cardWidth, `${n} jogadores${video ? ', com câmera' : ''}`).toBeGreaterThanOrEqual(60);
     }
   });
 
@@ -211,15 +223,13 @@ describe('mesa de três e a faixa das cantadas', () => {
 describe('carta da mesa do tamanho do espaço', () => {
   it('quando cresce, as cartas da mão continuam soltas, dentro da mesa e longe dos assentos', () => {
     for (const t of SCREENS) {
-      for (let n = 2; n <= 8; n++) {
-        const order = Array.from({ length: n }, (_, i) => `p${i}`);
-        const base = cardSizes(t.vw, t.vh, n, 1).trick;
-        const box = SEAT_BOX[isCompact(n, t.vw, t.vh) ? 'compact' : 'normal'];
-        const w = trickCardFor(t.w, t.h, order, 'p0', base, box);
+      for (let n = 2; n <= 8; n++) for (const video of [false, true]) {
+        const { m, g, base } = mesaComo(t, n, video);
+        const w = m.trickCard;
+        const box = g.seatBox;
         expect(w).toBeGreaterThanOrEqual(base);
         expect(w).toBeLessThanOrEqual(base * 1.45 + 1);
-        if (w === base) continue; // na base, a mesa é a de sempre (cheia: empilhadas, com o número à mostra)
-        const g = tableGeometry(t.w, t.h, order, 'p0', w, box);
+        if (w === base) continue; // na base, a mesa é a de sempre (cheia: encavaladas, com o número à mostra)
         const h = w * CARD_RATIO;
         const cartas = [...g.tricks.values()];
         const assentos = [...g.seats.values()].filter((p) => p.y < t.h).map((p) => rectAround(p, box.w, box.h));
@@ -240,5 +250,47 @@ describe('carta da mesa do tamanho do espaço', () => {
     const oito = Array.from({ length: 8 }, (_, i) => `p${i}`);
     const baseOito = cardSizes(360, 640, 8, 1).trick;
     expect(trickCardFor(360, 430, oito, 'p0', baseOito, SEAT_BOX.compact)).toBe(baseOito);
+  });
+});
+
+describe('assento do tamanho do espaço', () => {
+  const PHONE = { w: 390, h: 608, vw: 390, vh: 844 };
+
+  it('o assento acompanha o avatar: selos dos lados, nome e palitos embaixo', () => {
+    for (let a = AVATAR_FAIXA.avatar.min; a <= AVATAR_FAIXA.video.max; a += 2) {
+      const box = caixaDoAssento(a);
+      expect(box.w).toBeGreaterThanOrEqual(a + 24);
+      expect(box.w).toBeGreaterThanOrEqual(70); // o nome precisa de largura
+      expect(box.h).toBeGreaterThanOrEqual(a + 42);
+    }
+  });
+
+  it('com espaço sobrando, o avatar cresce (celular em pé, quatro na mesa) e o rosto com câmera cresce mais', () => {
+    const avatar = mesaComo(PHONE, 4, false).m;
+    const rosto = mesaComo(PHONE, 4, true).m;
+    expect(avatar.avatar).toBeGreaterThanOrEqual(64);
+    expect(rosto.rosto).toBeGreaterThanOrEqual(96);
+    // Quem não abriu a câmera fica no teto do avatar.
+    expect(rosto.avatar).toBeLessThanOrEqual(AVATAR_FAIXA.avatar.max);
+  });
+
+  it('nunca fica (quase) menor que o assento fixo de antes, e a carta da mesa encolhe pouco em troca', () => {
+    for (const t of SCREENS) {
+      for (let n = 2; n <= 8; n++) for (const video of [false, true]) {
+        const { m, base, piso, order } = mesaComo(t, n, video);
+        const nome = `${t.name}, ${n}${video ? ', câmera' : ''}`;
+        expect(m.rosto, nome).toBeGreaterThanOrEqual(piso - 4);
+        expect(m.trickCard, nome).toBeGreaterThanOrEqual(base);
+        if (video) continue; // com câmera, o rosto vem antes (a carta pode ficar até 20% menor)
+        const antes = trickCardFor(t.w, t.h, order, 'p0', base, SEAT_BOX[isCompact(n, t.vw, t.vh) ? 'compact' : 'normal']);
+        // Até 8% menor que a maior possível; no celular deitado com a mesa cheia, cede um pouco mais
+        // para a carta na testa ficar legível (de 39 para 59 px).
+        expect(m.trickCard, nome).toBeGreaterThanOrEqual(antes * 0.85);
+      }
+    }
+  });
+
+  it('no celular em pé com a mesa cheia, o painel de palpite continua inteiro', () => {
+    for (const n of [6, 7, 8]) expect(compactBidPanel(mesaComo(PHONE, n, false).g, 'p0', 1, 47), `${n}`).toBe(false);
   });
 });

@@ -67,9 +67,11 @@ export const GALOS = [
 export type Galo = (typeof GALOS)[number]['valor'];
 
 /**
- * Reações rápidas da mesa, na fala de quem joga: espanto e aprovação em expressões gaúchas de uso
- * corrente, as provocações de sempre (cagão para quem não arrisca, cumadrera para quem emparda de
- * propósito) e o "é galo" para combinar de deixar uma carta passar.
+ * Reações rápidas da mesa, na fala de quem joga. O quadro (`FRASES_DO_QUADRO`) traz as que a turma usa
+ * de verdade (pedidos do Igor e do Thomas, 29 e 30/09/2026): o "é galo" para combinar de deixar uma
+ * carta passar, o cagão para quem não arrisca, a cumadrera para quem emparda de propósito, o guloso para
+ * quem faz mais do que cantou, e os desabafos. As outras continuam valendo (os bots ainda falam, e quem
+ * está numa versão antiga do app também manda).
  */
 export type ReactionId =
   | 'masbah'
@@ -84,8 +86,20 @@ export type ReactionId =
   | 'cumadrera'
   | 'chinelao'
   | 'chorao'
+  | 'guloso'
+  | 'fezTodas'
+  | 'queMerda'
+  | 'fdp'
+  | 'galo'
   | `galo-${Galo}`;
 export const REACTIONS: readonly { id: ReactionId; emoji: string; label: string }[] = [
+  { id: 'galo', emoji: '🐓', label: 'É galo, hein!' },
+  { id: 'cagao', emoji: '💩', label: 'Cagão!' },
+  { id: 'cumadrera', emoji: '🤝', label: 'Cumadrera!' },
+  { id: 'guloso', emoji: '🐷', label: 'Guloso!' },
+  { id: 'fezTodas', emoji: '🏆', label: 'Parabéns, fez todas!' },
+  { id: 'queMerda', emoji: '🤦', label: 'Mas que merda, tchê!' },
+  { id: 'fdp', emoji: '🤬', label: 'Filha da puta!' },
   { id: 'masbah', emoji: '😮', label: 'Mas bah!' },
   { id: 'barbaridade', emoji: '😱', label: 'Barbaridade!' },
   { id: 'tri', emoji: '👏', label: 'Tri!' },
@@ -94,12 +108,16 @@ export const REACTIONS: readonly { id: ReactionId; emoji: string; label: string 
   { id: 'barbada', emoji: '😎', label: 'Que barbada!' },
   { id: 'teacalma', emoji: '🧉', label: 'Te acalma!' },
   { id: 'deuprati', emoji: '👋', label: 'Deu pra ti!' },
-  { id: 'cagao', emoji: '💩', label: 'Cagão!' },
-  { id: 'cumadrera', emoji: '🤝', label: 'Cumadrera!' },
   { id: 'chinelao', emoji: '🩴', label: 'Chinelão!' },
   { id: 'chorao', emoji: '😭', label: 'Chorão!' },
   ...GALOS.map((g) => ({ id: `galo-${g.valor}` as const, emoji: '🐓', label: `${g.nome} é galo, hein!` })),
 ];
+
+/** O quadro de frases da mesa: as que a turma manda (e "Mas bah!" para fechar duas fileiras de quatro). */
+export const FRASES_DO_QUADRO: readonly ReactionId[] = ['galo', 'cagao', 'cumadrera', 'guloso', 'fezTodas', 'queMerda', 'fdp', 'masbah'];
+
+/** As favoritas de quem nunca escolheu (ficam na mesa a um toque). */
+export const FAVORITAS_PADRAO: readonly ReactionId[] = ['galo', 'cagao', 'masbah'];
 
 export type SeatPublic =
   | {

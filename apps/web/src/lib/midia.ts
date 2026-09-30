@@ -40,6 +40,8 @@ export interface EstadoDaMidia {
   versao: number;
   /** O rosto que alguém tocou para ver grande. */
   ampliado: string | null;
+  /** Já abriu o microfone nesta sala: o selo no teu rosto vira o botão de abrir e fechar. */
+  usouMic: boolean;
 }
 
 export const useMidia = create<EstadoDaMidia>(() => ({
@@ -52,6 +54,7 @@ export const useMidia = create<EstadoDaMidia>(() => ({
   remotos: {},
   versao: 0,
   ampliado: null,
+  usouMic: false,
 }));
 
 /** Volume (0 a 1) que conta como fala, e quanto a fala "segura" depois. */
@@ -212,7 +215,7 @@ class MidiaDaMesa {
         this.adicionar(trilha);
         this.medir(this.eu ?? 'eu', new MediaStream([trilha]));
       }
-      useMidia.setState({ mic: true });
+      useMidia.setState({ mic: true, usouMic: true });
     }
     this.depoisDeMudar();
   }
@@ -469,6 +472,15 @@ class MidiaDaMesa {
     if (mudou) useMidia.setState({ falando });
   }
 
+  /**
+   * O jogo saiu da frente: cala a conversa e o medidor de fala (o iPhone não deixa o microfone em
+   * segundo plano, e com áudio vivo ele seguia mostrando o ícone de som). O toque na volta acorda.
+   */
+  dormir(): void {
+    for (const a of this.audios.values()) a.pause();
+    if (this.ctx?.state === 'running') void this.ctx.suspend().catch(() => undefined);
+  }
+
   /** Saiu da sala: fecha tudo e solta o microfone e a câmera. */
   sairDaSala(): void {
     for (const id of [...this.pares.keys()]) this.fechar(id);
@@ -483,6 +495,9 @@ class MidiaDaMesa {
     for (const id of [...this.medidores.keys()]) this.pararMedidor(id);
     if (this.laco !== null) window.clearInterval(this.laco);
     this.laco = null;
+    // O medidor de fala fica sem ninguém: fecha o contexto (aberto, o áudio do aparelho seguia ativo).
+    void this.ctx?.close().catch(() => undefined);
+    this.ctx = null;
     if (this.religar !== null) window.clearTimeout(this.religar);
     this.religar = null;
     this.ice = null;
@@ -491,7 +506,7 @@ class MidiaDaMesa {
     this.abertos = new Map();
     this.filas = new Map();
     this.eu = null;
-    useMidia.setState({ mic: false, camera: false, pedindo: null, falando: {}, local: null, remotos: {}, ampliado: null });
+    useMidia.setState({ mic: false, camera: false, pedindo: null, falando: {}, local: null, remotos: {}, ampliado: null, usouMic: false });
   }
 
   /** Para depurar e para os roteiros de teste: as ligações e o que chegou de cada um. */

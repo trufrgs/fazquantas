@@ -26,6 +26,7 @@ import { acelerarMusica } from '../../lib/musica';
 import { play } from '../../lib/sound';
 import { contextoDaRodada, emCameraRapida, manilhaNaTesta } from './manilhas';
 import { NaTesta } from './NaTesta';
+import { galoDeUmToque } from './frases';
 import { useAlgumaCamera, VideoAmpliado } from '../ui/Midia';
 import { useApp } from '../../stores/app';
 import { useGame, type LiveReaction } from '../../stores/game';
@@ -46,11 +47,10 @@ import {
   cantadasTop,
   cardSizes,
   compactBidPanel,
-  isCompact,
-  seatBoxFor,
+  mesaDimensionada,
+  pisoDoAvatar,
   tableGeometry,
   tableRevealLayout,
-  trickCardFor,
 } from './layout';
 import { REVEAL_FAN, RevealCards } from './RevealCards';
 import { MySeat, type StatusTone } from './MySeat';
@@ -246,17 +246,34 @@ function Table({
   const crowd = view.players.length;
   // Tablet e desktop: tudo cresce junto (assentos, cartas, margens) pela escala da interface.
   const s = useUiScale();
-  const compact = isCompact(crowd, vw / s, vh / s);
   const { hand: handCardW, trick: trickBase } = cardSizes(vw, vh, crowd, s);
   // Alguém de câmera aberta: os assentos crescem para o rosto caber maior que o avatar.
   const algumaCamera = useAlgumaCamera();
   const comCamera = useOnline((st) => st.room?.midias?.filter((m) => m.camera).map((m) => m.playerId).join(',') ?? '');
-  const seatBox = seatBoxFor(compact, algumaCamera);
-  // A carta da mesa cresce quando sobra espaço (até 45% maior), sem encostar em ninguém.
-  const trickCardW = useMemo(
-    () => trickCardFor(table.width, table.height, order, you, trickBase, seatBox, s),
-    [table.width, table.height, order, you, trickBase, seatBox, s],
+  // O painel de palpite desce por cima da tua faixa; em mesa baixa (celular deitado) vira uma linha.
+  const mySeatH = mySeatSize.height || 47 * s;
+  // Avatar (ou rosto) e carta da mesa do tamanho do espaço que sobra: a carta fica perto da maior
+  // possível e o assento cresce com o resto, sem ficar menor que o de antes (mesa cheia: 40 px).
+  const piso = pisoDoAvatar(crowd, vw / s, vh / s, algumaCamera);
+  const comVira = view.rules.hierarchy === 'vira';
+  const mesa = useMemo(
+    () =>
+      mesaDimensionada({
+        width: table.width,
+        height: table.height,
+        order,
+        youId: you,
+        trickBase,
+        scale: s,
+        video: algumaCamera,
+        mySeatH,
+        chip: comVira,
+        piso,
+      }),
+    [table.width, table.height, order, you, trickBase, s, algumaCamera, mySeatH, comVira, piso],
   );
+  const seatBox = mesa.box;
+  const trickCardW = mesa.trickCard;
   const geometry = useMemo(
     () =>
       tableGeometry(
@@ -282,8 +299,6 @@ function Table({
     : 0;
   // Na rodada às cegas o arranjo vale até a última carta ser jogada (ela sai de onde estava).
   const revealing = maxShown > 0 || (view.blind && showing);
-  // O painel de palpite desce por cima da tua faixa; em mesa baixa (celular deitado) vira uma linha.
-  const mySeatH = mySeatSize.height || 47 * s;
   // Barra de uma linha em mesa baixa ou quando o painel normal cobriria algum assento. A dica da
   // primeira vez só entra no painel se, com ela, ele ainda não cobrir ninguém (na mesa cheia de
   // celular pequeno, cobria as cartas na testa de quem senta embaixo, justo na hora de lê-las).
@@ -470,6 +485,15 @@ function Table({
   const vivos = view.players.filter((p) => !p.eliminated);
   const soBots = spectating && vivos.length > 1 && vivos.every((p) => seats.find((s) => s.id === p.id)?.kind === 'bot');
   const cameraRapida = emCameraRapida(ritmo);
+  // O resumo do fim da rodada: dá para esconder o desta rodada ou não mostrar mais (pedido do Igor,
+  // 30/09/2026). Sem ele, no jogo local a pausa de leitura acaba logo (não há o que ler).
+  const [resumoEscondido, setResumoEscondido] = useState<number | null>(null);
+  const resumoAberto = view.phase === 'roundEnd' && !cameraRapida && settings.resumoDaRodada && resumoEscondido !== view.roundNumber;
+  useEffect(() => {
+    if (online || view.phase !== 'roundEnd' || resumoAberto || cameraRapida) return undefined;
+    const t = window.setTimeout(() => conn.skipPause?.(), 1500);
+    return () => window.clearTimeout(t);
+  }, [online, view.phase, view.roundNumber, resumoAberto, cameraRapida, conn]);
   // Na câmera rápida o tango corre junto.
   useEffect(() => {
     acelerarMusica(cameraRapida && view.phase !== 'gameOver');
@@ -522,6 +546,8 @@ function Table({
         onMenu={() => setMenu(true)}
         onScore={() => setScore(true)}
         onReact={() => setPicker((v) => !v)}
+        onFrase={(r) => conn.react(r)}
+        galo={() => galoDeUmToque(trickPlays.map((pl) => pl.cardId), contextoDaRodada(view.rules, view.vira))}
         note={asyncNote}
       />
 
@@ -571,10 +597,14 @@ function Table({
                     remaining={remaining}
                     startingLives={view.rules.startingLives}
                     reaction={reactionFor(p.id)}
-                    compact={compact}
+                    compact={mesa.compact}
+                    avatar={mesa.avatar}
+                    rosto={mesa.rosto}
+                    largura={mesa.box.w}
+                    noAlto={at.y <= geometry.topo + 1}
                     isMao={view.order[0] === p.id}
                     round={view.roundNumber}
-                    edge={at.x < 80 ? 'left' : at.x > table.width - 80 ? 'right' : null}
+                    edge={at.x - seatBox.w * s / 2 < 12 * s ? 'left' : at.x + seatBox.w * s / 2 > table.width - 12 * s ? 'right' : null}
                     side={at.x < table.width / 2 ? 'right' : 'left'}
                     blind={view.blind}
                     lastToBid={lastBidder === p.id}
@@ -709,7 +739,9 @@ function Table({
       </div>
 
       <RoundSummary
-        open={view.phase === 'roundEnd' && !cameraRapida}
+        open={resumoAberto}
+        onEsconder={() => setResumoEscondido(view.roundNumber)}
+        onNaoMostrar={() => settings.set({ resumoDaRodada: false })}
         view={view}
         seats={seats}
         autoMs={autoMs}
@@ -775,6 +807,8 @@ function Table({
       <ReactionPicker
         open={picker}
         onClose={closePicker}
+        naMesa={trickPlays.map((pl) => pl.cardId)}
+        ctx={contextoDaRodada(view.rules, view.vira)}
         onPick={(r) => {
           conn.react(r);
           setPicker(false);

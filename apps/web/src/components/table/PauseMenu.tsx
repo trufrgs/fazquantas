@@ -102,6 +102,7 @@ export function PauseMenu(p: PauseMenuProps) {
               </>
             )}
             <Toggle checked={s.hints} onChange={(hints) => s.set({ hints })} label="Sugerir palpite e carta" description="Na tua vez, marca o palpite e a carta que o jogo faria. Vem desligado." />
+            <Toggle checked={s.resumoDaRodada} onChange={(resumoDaRodada) => s.set({ resumoDaRodada })} label="Resumo da rodada" description="No fim de cada rodada, quem cantou, quem fez e quem queimou palito." />
             {!p.online && (
               <div className="py-3">
                 <span className="mb-2 block font-semibold">Ritmo do jogo</span>

@@ -73,6 +73,27 @@ pnpm exec playwright test                  # E2E locais (sobem os servidores soz
 - A `main` publica sozinha (CI → Cloudflare). Mudança grande ou arriscada vai por PR.
 - Horas que aparecem para pessoas: horário de Brasília (`America/Sao_Paulo`).
 
+## A mesa na tela
+
+- **Tamanho do espaço** (pedido do Thomas em 30/09/2026: "usar o espaço de forma inteligente e
+  dinâmica"): `mesaDimensionada` (`components/table/layout.ts`) testa os avatares de 84 a 36 px (com
+  alguém de câmera aberta, o rosto vai de 136 a 48) e escolhe, nesta ordem: assentos na tela sem se
+  encostar, cartas da mão longe deles, carta na testa legível (60 px), painel de palpite inteiro; daí,
+  a carta da mesa a até 8% da maior possível (com câmera, 20%: o rosto vem antes) e o maior avatar,
+  nunca menor que o fixo de antes quando dá (`pisoDoAvatar`). Testes: `layout.test.ts`, todas as telas
+  com 2 a 8 na mesa, com e sem câmera.
+- Mesa cheia: as cartas da mão se encavalam, espalhadas até o meio do caminho (cada uma perto de quem
+  jogou), sempre com o número à mostra.
+- **O alto da mesa:** ☰, a rodada (tocar abre a caderneta), microfone e câmera num botão só (com gente
+  na sala) e as três frases favoritas a um toque (★ no quadro de frases) com o "+" para o quadro. O
+  quadro tem as frases que a turma usa; o "é galo" sugere as cartas da mão, a que está levando primeiro
+  (é ela que passa), e o genérico; o 🐓 do alto manda a que está levando (com manilha levando, o genérico).
+- **Resumo da rodada:** o × esconde o desta rodada; "Não mostrar mais" desliga (volta nos ajustes e no
+  menu ☰). No jogo local sem resumo, a rodada seguinte começa em 1,5 s.
+- **Som ao sair do app:** o iPhone só tira o ícone de som da tela de início quando o áudio para de
+  verdade. Ao esconder o jogo, os efeitos suspendem (`dormirAudio`), a conversa pausa (`midia.dormir`)
+  e o tango vai fora (não só pausa); ao sair da sala, o medidor de fala fecha. O toque na volta acorda.
+
 ## Conexão e volta à sala
 
 Regras que já custaram bug com gente jogando (rodada de QA de 29/09/2026). Mexeu em
@@ -114,7 +135,7 @@ ou no `Sala.restore`? Confira cada uma:
 - Pedidos do Thomas em 30/09/2026 (voz, depois vídeo): numa sala online com gente, cada um escolhe o
   que abre, **nada, só o microfone, só a câmera ou os dois** (botões no alto da sala e da mesa, e no
   menu ☰), e a sala toda ouve e vê o que foi aberto. A câmera põe o rosto no lugar do avatar, maior (os
-  assentos crescem: `seatBoxFor(compact, video)`), e tocar no rosto abre o vídeo grande.
+  assentos crescem com o espaço, ver "A mesa na tela"), e tocar no rosto abre o vídeo grande.
 - O áudio e o vídeo vão **direto entre os aparelhos** (WebRTC em malha, até 8), com
   `@thaunknown/simple-peer` carregado só quando alguém abre algo (`lib/midia.ts`; precisa do pacote
   `events` no navegador). Duas pessoas se ligam quando uma delas abriu algo; quem liga é o de id menor;

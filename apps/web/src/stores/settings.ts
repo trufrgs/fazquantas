@@ -1,10 +1,13 @@
 import {
   DEFAULT_RULES,
+  FAVORITAS_PADRAO,
   GAUCHO_AVATARS,
   PROFILE_KEY_PATTERN,
+  REACTIONS,
   normalizeRules,
   randomToken,
   type BotDifficulty,
+  type ReactionId,
   type Rules,
 } from '@fodinha/engine';
 import { create } from 'zustand';
@@ -41,6 +44,10 @@ export interface SettingsState {
   musica: boolean;
   /** Ouvir a conversa da mesa online (o microfone de quem abriu). */
   ouvirConversa: boolean;
+  /** As três frases que ficam no alto da mesa, a um toque (★ no quadro de frases). */
+  frasesFavoritas: ReactionId[];
+  /** Mostrar o resumo no fim de cada rodada (quem cantou, fez e queimou). */
+  resumoDaRodada: boolean;
   set: (patch: Partial<Omit<SettingsState, 'set'>>) => void;
 }
 
@@ -64,6 +71,8 @@ export const useSettings = create<SettingsState>()(
       claimed: null,
       musica: true,
       ouvirConversa: true,
+      frasesFavoritas: [...FAVORITAS_PADRAO],
+      resumoDaRodada: true,
       set: (patch) => set(patch),
     }),
     {
@@ -90,7 +99,9 @@ export const useSettings = create<SettingsState>()(
         const p = (persisted ?? {}) as Partial<SettingsState>;
         const key = typeof p.profileKey === 'string' && PROFILE_KEY_PATTERN.test(p.profileKey) ? p.profileKey : current.profileKey;
         const speed = p.speed && p.speed in SPEED_MULTIPLIER ? p.speed : current.speed;
-        return { ...current, ...p, speed, profileKey: key, rules: normalizeRules(p.rules ?? current.rules) };
+        // Favoritas: só frases que existem, no máximo três (o resto some sem reclamar).
+        const favoritas = Array.isArray(p.frasesFavoritas) ? p.frasesFavoritas.filter((id) => REACTIONS.some((r) => r.id === id)).slice(0, 3) : current.frasesFavoritas;
+        return { ...current, ...p, speed, profileKey: key, frasesFavoritas: favoritas, rules: normalizeRules(p.rules ?? current.rules) };
       },
     },
   ),

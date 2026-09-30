@@ -76,6 +76,20 @@ Howler.autoSuspend = false;
 const contexto = (): AudioContext | undefined => (Howler as { ctx?: AudioContext }).ctx ?? undefined;
 
 /**
+ * O jogo saiu da frente: suspende os efeitos. Com o contexto rodando (mesmo em silêncio), o iPhone
+ * seguia mostrando o ícone de som na tela de início (30/09/2026). A volta acorda (`acordarAudio`).
+ */
+export function dormirAudio(): void {
+  const ctx = contexto();
+  if (!ctx || ctx.state !== 'running') return;
+  try {
+    void ctx.suspend().catch(() => undefined);
+  } catch {
+    // sem áudio
+  }
+}
+
+/**
  * Acorda o áudio parado: o iPhone suspende ou interrompe o áudio quando o jogo sai da frente, numa
  * ligação ou num áudio do WhatsApp, e só deixa voltar dentro de um toque. Chamada a cada toque na tela
  * (e quando o jogo volta para a frente, que às vezes basta). O buffer vazio é o destrave do iPhone.

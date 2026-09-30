@@ -1,68 +1,104 @@
-import { GALOS, REACTIONS, type ReactionId } from '@fodinha/engine';
+import { FRASES_DO_QUADRO, REACTIONS, type CardId, type ReactionId, type StrengthCtx } from '@fodinha/engine';
+import { Star } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
+import { useSettings } from '../../stores/settings';
+import { alternarFavorita, sugestoesDeGalo } from './frases';
 
-/** As frases do quadro (o "é galo" tem a fileira dele, com a carta). */
-const FRASES = REACTIONS.filter((r) => !r.id.startsWith('galo-'));
+const info = (id: ReactionId) => REACTIONS.find((r) => r.id === id)!;
 
-export function ReactionPicker({ open, onPick, onClose }: { open: boolean; onPick: (r: ReactionId) => void; onClose: () => void }) {
+/**
+ * O quadro de frases: as oito que a turma usa, cada uma com a ★ para ficar no alto da mesa (até três).
+ * O "é galo" já sugere as cartas que estão na mesa (e o genérico); sem carta na mesa, vai direto.
+ */
+export function ReactionPicker({ open, ...p }: QuadroProps & { open: boolean }) {
+  return <AnimatePresence>{open && <Quadro {...p} />}</AnimatePresence>;
+}
+
+interface QuadroProps {
+  onPick: (r: ReactionId) => void;
+  onClose: () => void;
+  naMesa: readonly CardId[];
+  ctx: StrengthCtx | null;
+}
+
+/** O quadro aberto (monta a cada vez que abre: as sugestões do galo começam fechadas). */
+function Quadro({ onPick, onClose, naMesa, ctx }: QuadroProps) {
+  const favoritas = useSettings((s) => s.frasesFavoritas);
+  const set = useSettings((s) => s.set);
+  const [galo, setGalo] = useState(false);
+  // Fecha sozinho depois de um tempo (abrir as sugestões do galo dá mais tempo).
   useEffect(() => {
-    if (!open) return undefined;
-    const t = window.setTimeout(onClose, 8000);
+    const t = window.setTimeout(onClose, 10_000);
     return () => window.clearTimeout(t);
-  }, [open, onClose]);
+  }, [onClose, galo]);
+  const sugestoes = ctx ? sugestoesDeGalo(naMesa, ctx) : ['galo' as ReactionId];
+  const tocar = (id: ReactionId) => {
+    if (id === 'galo' && sugestoes.length > 1) setGalo((g) => !g);
+    else onPick(id);
+  };
   return (
-    <AnimatePresence>
-      {open && (
-        <>
-          <div className="ate-o-fim fixed inset-0 z-40" onClick={onClose} aria-hidden="true" />
-          <motion.div
-            role="menu"
-            aria-label="Reações"
-            className="papel absolute right-3 z-50 flex max-w-[calc(100vw-1.5rem)] flex-col gap-1.5 rounded-3xl p-2 shadow-2xl"
-            style={{ top: 'calc(3.6rem + var(--safe-top))' }}
-            initial={{ opacity: 0, scale: 0.85, y: -8 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.9, y: -6 }}
-            transition={{ type: 'spring', stiffness: 500, damping: 30 }}
-          >
-            <div className="grid grid-cols-4 gap-1">
-              {FRASES.map((r) => (
+    <>
+      <div className="ate-o-fim fixed inset-0 z-40" onClick={onClose} aria-hidden="true" />
+      <motion.div
+        role="menu"
+        aria-label="Frases"
+        className="papel absolute right-3 z-50 flex max-w-[calc(100vw-1.5rem)] flex-col gap-1 rounded-3xl p-2 shadow-2xl"
+        style={{ top: 'calc(3.6rem + var(--safe-top))' }}
+        initial={{ opacity: 0, scale: 0.85, y: -8 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.9, y: -6 }}
+        transition={{ type: 'spring', stiffness: 500, damping: 30 }}
+      >
+        <div className="grid grid-cols-4 gap-1">
+          {FRASES_DO_QUADRO.map((id) => {
+            const r = info(id);
+            const fav = favoritas.includes(id);
+            return (
+              <div key={id} className="relative">
                 <button
-                  key={r.id}
                   type="button"
                   role="menuitem"
-                  onClick={() => onPick(r.id)}
-                  className="flex w-[4.5rem] flex-col items-center gap-0.5 rounded-2xl px-1 py-2 transition active:scale-95 active:bg-tinta/10"
+                  aria-expanded={id === 'galo' && sugestoes.length > 1 ? galo : undefined}
+                  onClick={() => tocar(id)}
+                  className={`flex h-full w-[4.6rem] flex-col items-center gap-0.5 rounded-2xl px-1 pb-2 pt-2.5 transition active:scale-95 active:bg-tinta/10 ${id === 'galo' && galo ? 'bg-tinta/10' : ''}`}
                 >
                   <span className="text-2xl leading-none">{r.emoji}</span>
-                  <span className="text-[0.6875rem] font-semibold text-tinta-2">{r.label}</span>
+                  <span className="text-center text-[0.6875rem] font-semibold leading-tight text-tinta-2">{r.label}</span>
+                </button>
+                <button
+                  type="button"
+                  aria-pressed={fav}
+                  aria-label={fav ? `Tirar "${r.label}" do alto da mesa` : `Deixar "${r.label}" no alto da mesa`}
+                  onClick={() => set({ frasesFavoritas: alternarFavorita(favoritas, id) })}
+                  className="absolute -right-0.5 -top-0.5 flex h-7 w-7 items-center justify-center rounded-full active:scale-90"
+                >
+                  <Star size={14} className={fav ? 'fill-ouros text-ouros-escuro' : 'text-tinta/30'} />
+                </button>
+              </div>
+            );
+          })}
+        </div>
+        {galo && (
+          <div className="flex flex-col gap-1 border-t border-tinta/10 px-1 pt-1.5" role="group" aria-label="Qual é galo?">
+            <span className="text-[0.6875rem] font-semibold text-tinta-2">🐓 Qual carta é galo?</span>
+            <div className="flex flex-wrap gap-1">
+              {sugestoes.map((id) => (
+                <button
+                  key={id}
+                  type="button"
+                  role="menuitem"
+                  onClick={() => onPick(id)}
+                  className="rounded-full bg-tinta/8 px-3 py-1.5 text-sm font-bold text-tinta ring-1 ring-tinta/10 active:scale-95"
+                >
+                  {id === 'galo' ? 'Só "é galo"' : info(id).label.replace(', hein!', '')}
                 </button>
               ))}
             </div>
-            {/* "2 é galo, hein!": combina com a mesa de deixar essa carta passar. */}
-            <div className="flex flex-col gap-1 border-t border-tinta/10 px-1 pt-1.5" role="group" aria-label="É galo">
-              <span className="flex items-center gap-1 text-[0.6875rem] font-semibold text-tinta-2">
-                <span className="text-lg leading-none">🐓</span> É galo, hein! Qual carta?
-              </span>
-              <div className="grid grid-cols-10 gap-0.5">
-                {GALOS.map((g) => (
-                  <button
-                    key={g.valor}
-                    type="button"
-                    role="menuitem"
-                    aria-label={`${g.nome} é galo`}
-                    onClick={() => onPick(`galo-${g.valor}`)}
-                    className="rounded-lg bg-tinta/5 py-1.5 font-display text-sm font-bold tabular-nums text-tinta transition active:scale-95 active:bg-tinta/15"
-                  >
-                    {g.nome}
-                  </button>
-                ))}
-              </div>
-            </div>
-          </motion.div>
-        </>
-      )}
-    </AnimatePresence>
+          </div>
+        )}
+        <p className="px-1 pt-0.5 text-center text-[0.6875rem] text-tinta-2">★ deixa a frase no alto da mesa, a um toque (até três)</p>
+      </motion.div>
+    </>
   );
 }

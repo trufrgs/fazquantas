@@ -209,16 +209,27 @@ export class LocalConnection implements GameConnection {
       if (rec) {
         const out = rec.eliminated.find((id) => id !== YOU && bots.some((b) => b.id === id));
         const bigMiss = Object.keys(rec.bids).find((id) => (rec.livesBefore[id] ?? 0) - (rec.livesAfter[id] ?? 0) >= 2);
+        // Cantou todas (com três cartas ou mais) e fez; e quem fez mais do que cantou.
+        const fezTodas = Object.keys(rec.bids).find((id) => rec.cards >= 3 && rec.bids[id] === rec.cards && rec.tricks[id] === rec.cards);
+        const guloso = Object.keys(rec.bids).find((id) => (rec.tricks[id] ?? 0) > (rec.bids[id] ?? 0));
         if (out && this.rng.next() < 0.6) {
-          // Quem saiu lamenta, ou alguém tira sarro.
+          // Quem saiu lamenta (ou xinga), ou alguém tira sarro.
           const teaser = pick(aliveBots.filter((b) => b.id !== out));
           reaction =
             teaser && this.rng.next() < 0.5
               ? { playerId: teaser.id, reaction: 'deuprati' }
-              : { playerId: out, reaction: 'barbaridade' };
+              : { playerId: out, reaction: pick(['barbaridade', 'fdp', 'queMerda'] as ReactionId[])! };
+        } else if (fezTodas && this.rng.next() < 0.7) {
+          const quem = pick(aliveBots.filter((b) => b.id !== fezTodas));
+          if (quem) reaction = { playerId: quem.id, reaction: 'fezTodas' };
         } else if (bigMiss && this.rng.next() < 0.45) {
+          // Queimou dois palitos: xinga a própria sorte, ou alguém tira sarro.
           const teaser = pick(aliveBots.filter((b) => b.id !== bigMiss));
-          if (teaser) reaction = { playerId: teaser.id, reaction: pick(['masbah', 'teacalma'] as ReactionId[])! };
+          if (bots.some((b) => b.id === bigMiss) && this.rng.next() < 0.5) reaction = { playerId: bigMiss, reaction: 'queMerda' };
+          else if (teaser) reaction = { playerId: teaser.id, reaction: pick(['masbah', 'teacalma'] as ReactionId[])! };
+        } else if (guloso && this.rng.next() < 0.3) {
+          const quem = pick(aliveBots.filter((b) => b.id !== guloso));
+          if (quem) reaction = { playerId: quem.id, reaction: 'guloso' };
         } else if (rec.cards >= 4 && this.rng.next() < 0.2) {
           const exact = aliveBots.find((b) => rec.bids[b.id] === rec.tricks[b.id]);
           if (exact) reaction = { playerId: exact.id, reaction: pick(['barbada', 'tri'] as ReactionId[])! };

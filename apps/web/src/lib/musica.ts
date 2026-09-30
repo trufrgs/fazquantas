@@ -29,13 +29,31 @@ function querTocar(): boolean {
 function howl(): Howl {
   if (!faixa) {
     const h = new Howl({ src: [`${import.meta.env.BASE_URL}${ARQUIVO}`], html5: true, loop: true, volume: 0 });
-    // Acabou de sumir: pausa (a não ser que tenha voltado a querer tocar no meio do caminho).
+    // Acabou de sumir: solta a faixa (a não ser que tenha voltado a querer tocar no meio do caminho).
     h.on('fade', () => {
-      if (!querTocar() && h.playing()) h.pause();
+      if (!querTocar() && faixa === h) soltar();
     });
     faixa = h;
   }
   return faixa;
+}
+
+/**
+ * Joga a faixa fora. Pausada, ela seguia viva num `<audio>` e o iPhone mostrava o jogo "tocando" na
+ * tela de início mesmo depois de sair da mesa (o Thomas, 30/09/2026); sem ela, o ícone de som some.
+ */
+function soltar(): void {
+  try {
+    faixa?.unload();
+  } catch {
+    // sem áudio
+  }
+  faixa = null;
+  try {
+    if ('mediaSession' in navigator) navigator.mediaSession.playbackState = 'none';
+  } catch {
+    // sem controle de mídia
+  }
 }
 
 /**
@@ -49,10 +67,12 @@ function aplicar(): void {
       if (!h.playing()) h.play();
       const v = h.volume();
       if (Math.abs(v - volumeAlvo()) > 0.01) h.fade(v, volumeAlvo(), ENTRADA_MS);
-    } else if (faixa?.playing()) {
+    } else if (faixa) {
+      // Saiu do app: solta na hora. Em segundo plano o iPhone para os relógios, a descida de fininho
+      // nunca terminava e o tango ficava "tocando" no mudo.
       const v = faixa.volume();
-      if (v > 0.01) faixa.fade(v, 0, SAIDA_MS);
-      else faixa.pause();
+      if (document.visibilityState === 'visible' && faixa.playing() && v > 0.01) faixa.fade(v, 0, SAIDA_MS);
+      else soltar();
     }
   } catch {
     // sem áudio
@@ -100,12 +120,7 @@ function saindoDeVerdade(h: Howl): boolean {
  */
 export function forcarMusica(): void {
   destravada = true;
-  try {
-    faixa?.unload();
-  } catch {
-    // sem áudio
-  }
-  faixa = null;
+  soltar();
   aplicar();
 }
 
@@ -118,4 +133,7 @@ export function acordarMusica(): void {
   forcarMusica();
 }
 
-if (typeof document !== 'undefined') document.addEventListener('visibilitychange', aplicar);
+if (typeof document !== 'undefined') {
+  document.addEventListener('visibilitychange', aplicar);
+  window.addEventListener('pagehide', soltar);
+}

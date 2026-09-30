@@ -18,8 +18,20 @@ async function ate(cond, ms = 15000) {
   return null;
 }
 
-const abrir = (d, o) => d.page.getByRole('button', { name: o === 'mic' ? 'Abrir o microfone' : 'Abrir a câmera' }).first().click();
-const fechar = (d, o) => d.page.getByRole('button', { name: o === 'mic' ? 'Fechar o microfone' : 'Fechar a câmera' }).first().click();
+/**
+ * Abre ou fecha o microfone ou a câmera: pelos botões da sala; na mesa, pelo botão só do alto (abre as
+ * chaves) ou, no microfone, pelo selo do teu rosto.
+ */
+async function alternar(d, o, abrirOuFechar) {
+  const nome = `${abrirOuFechar} ${o === 'mic' ? 'o microfone' : 'a câmera'}`;
+  const direto = d.page.getByRole('button', { name: nome }).first();
+  if (await direto.isVisible().catch(() => false)) return direto.click();
+  await d.page.getByRole('button', { name: /^Microfone e câmera/ }).click();
+  await d.page.getByRole('switch', { name: o === 'mic' ? /Microfone/ : /Câmera/ }).click();
+  await d.page.keyboard.press('Escape').catch(() => {});
+}
+const abrir = (d, o) => alternar(d, o, 'Abrir');
+const fechar = (d, o) => alternar(d, o, 'Fechar');
 const videosNaTela = (d) => d.page.locator('video').count();
 
 const ana = await device('Ana', { microfone: true });
@@ -83,6 +95,15 @@ await sleep(1500);
 const naMesa = await videosNaTela(beto);
 if (naMesa !== 1) flag('m5', 'na mesa do Beto devia haver um vídeo (o do Caio)', { naMesa });
 await beto.shot('midia-m5-mesa');
+// O alto da mesa cabe na tela e o rosto do Caio no assento é grande (o assento cresce com o espaço).
+const alto = await beto.page.evaluate(() => {
+  const h = document.querySelector('header');
+  const v = document.querySelector('.mesa video');
+  return { cabe: (h?.scrollWidth ?? 0) <= innerWidth, rosto: v ? Math.round(v.getBoundingClientRect().width) : null };
+});
+if (!alto.cabe) flag('m5', 'o alto da mesa não cabe na tela', alto);
+if ((alto.rosto ?? 0) < 68) flag('m5', 'o rosto no assento devia ter pelo menos 68 px', alto);
+else log('m5', `rosto do Caio no assento: ${alto.rosto} px`);
 await beto.page.getByRole('button', { name: 'Ver o vídeo grande' }).first().click();
 await sleep(700);
 const grande = await beto.page.getByRole('dialog', { name: /Vídeo de/ }).isVisible().catch(() => false);

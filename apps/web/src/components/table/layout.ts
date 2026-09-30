@@ -24,6 +24,8 @@ export interface TableGeometry {
   deck: Point;
   /** Tamanho do assento já na escala da interface. */
   seatBox: SeatBox;
+  /** Altura (y) da fileira de cima: quem senta ali abre os balões para baixo ou para o lado. */
+  topo: number;
 }
 
 /** Tamanho do assento (widget) na tela; compacto em mesa cheia ou tela pequena. */
@@ -32,24 +34,23 @@ export interface SeatBox {
   h: number;
 }
 
-export const SEAT_BOX: Readonly<Record<'normal' | 'compact' | 'videoNormal' | 'videoCompact', SeatBox>> = {
+/** Assentos de referência (avatar de 50 px, e de 40 px na mesa cheia): o tamanho fixo de antes. */
+export const SEAT_BOX: Readonly<Record<'normal' | 'compact', SeatBox>> = {
   normal: { w: 84, h: 92 },
   compact: { w: 72, h: 80 },
-  // Com alguém de câmera aberta, o rosto aparece no lugar do avatar e maior (dá para ver a pessoa).
-  videoNormal: { w: 88, h: 110 },
-  videoCompact: { w: 74, h: 94 },
 };
-
-/** O diâmetro do avatar no assento, e o do rosto quando a pessoa está de câmera aberta. */
-export const AVATAR_NO_ASSENTO = { normal: 50, compact: 40, videoNormal: 68, videoCompact: 52 } as const;
-
-/** O assento da mesa: compacto (mesa cheia, tela pequena) ou não, e maior quando há câmera na mesa. */
-export function seatBoxFor(compact: boolean, video = false): SeatBox {
-  return SEAT_BOX[video ? (compact ? 'videoCompact' : 'videoNormal') : compact ? 'compact' : 'normal'];
-}
 
 export function isCompact(players: number, width: number, height: number): boolean {
   return players >= 6 || width < 380 || height < 640;
+}
+
+/**
+ * O menor avatar (ou rosto) do assento quando dá: o tamanho fixo de antes de ele crescer com o
+ * espaço (50 px; 40 em mesa cheia ou tela pequena; com câmera, 68 e 52). `vw`×`vh` na escala 1.
+ */
+export function pisoDoAvatar(players: number, vw: number, vh: number, video: boolean): number {
+  const compacto = isCompact(players, vw, vh);
+  return video ? (compacto ? 52 : 68) : compacto ? 40 : 50;
 }
 
 /**
@@ -134,8 +135,9 @@ export function tableGeometry(
 
   const L = box.w / 2 + 4 * scale;
   const R = Math.max(L + 1, width - box.w / 2 - 4 * scale);
-  const T = 62 * scale;
-  const B = Math.max(T + 1, Math.min(height - 46 * scale, T + (height - T) * 0.78));
+  // A fileira de cima encosta 16 px abaixo da barra; o pé das colunas, na base da mesa.
+  const T = Math.max(62 * scale, box.h / 2 + 16 * scale);
+  const B = Math.max(T + 1, Math.min(height - Math.max(46 * scale, box.h / 2), T + (height - T) * 0.78));
   const panelW = Math.min(width - 2 * BID_PANEL.margin * scale, BID_PANEL.maxWidth * scale);
   const panelOverSides = (width - panelW) / 2 < box.w + 4 * scale;
   const limit = panelOverSides ? height - BID_PANEL.band * scale - box.h / 2 - 12 * scale : null;
@@ -144,7 +146,7 @@ export function tableGeometry(
   const places = placeSeats(others.length, L, R, T, B, box, limit, barLimit);
 
   // O monte da vaza fica no meio da faixa livre entre os assentos do topo e a sua mão.
-  const seatBottom = T + 50 * scale;
+  const seatBottom = T + Math.max(50 * scale, box.h / 2 + 4 * scale);
   const center = { x: width / 2, y: (seatBottom + height) / 2 };
 
   const seats = new Map<string, Point>();
@@ -162,7 +164,7 @@ export function tableGeometry(
     width,
     height,
   );
-  return { width, height, center, seats, tricks, deck: { x: center.x, y: center.y }, seatBox: box };
+  return { width, height, center, seats, tricks, deck: { x: center.x, y: center.y }, seatBox: box, topo: T };
 }
 
 /**
@@ -216,11 +218,12 @@ function trickSpots(
     tries.push({ t, spots, pts });
   }
   if (tries.length === 0) return trickRow(ids, seats, center, w, h, seatRects, width, height);
-  return (
-    tries.find((c) => c.t <= 0.56 && all(c.pts, clear)) ??
-    tries.find((c) => all(c.pts, cornerShows)) ??
-    tries[tries.length - 1]!
-  ).spots;
+  const soltas = tries.find((c) => c.t <= 0.56 && all(c.pts, clear));
+  if (soltas) return soltas.spots;
+  // Mesa cheia: as cartas se encavalam. Espalha o quanto dá até o meio do caminho (cada uma perto
+  // de quem jogou e menos coberta), sempre com o número à mostra.
+  const aMostra = tries.filter((c) => all(c.pts, cornerShows));
+  return (aMostra.filter((c) => c.t <= 0.56).at(-1) ?? aMostra[0] ?? tries[tries.length - 1]!).spots;
 }
 
 /**
@@ -362,11 +365,16 @@ export function trickCardFor(
   scale = 1,
 ): number {
   if (width <= 0 || height <= 0) return base;
-  const max = Math.min(base * 1.45, width * 0.24, 118 * scale);
+  const max = tetoDaCarta(width, base, scale);
   for (let w = Math.floor(max); w > base; w -= 2) {
     if (mesaFolgada(tableGeometry(width, height, order, youId, w, box, scale), w)) return w;
   }
   return base;
+}
+
+/** Até onde a carta da mesa cresce: 45% acima da base, sem passar de um quarto da mesa. */
+function tetoDaCarta(width: number, base: number, scale: number): number {
+  return Math.min(base * 1.45, width * 0.24, 118 * scale);
 }
 
 /** As cartas da mão (tamanho `w`) cabem sem se tocar, sem cobrir assento e sem sair da mesa? */
@@ -380,6 +388,155 @@ function mesaFolgada(g: TableGeometry, w: number): boolean {
   });
   const soltas = cartas.every((a, i) => cartas.every((b, j) => j <= i || Math.abs(a.x - b.x) >= w + 4 || Math.abs(a.y - b.y) >= h + 4));
   return dentro && soltas;
+}
+
+/**
+ * Diâmetro do avatar no assento (px na escala 1): do mínimo (mesa cheia em tela pequena) ao máximo
+ * (mesa com espaço sobrando). Com alguém de câmera aberta, o rosto cresce bem mais: dá para ver a
+ * pessoa. Quem não abriu a câmera fica com o avatar até o teto do avatar.
+ */
+export const AVATAR_FAIXA = {
+  avatar: { min: 36, max: 84 },
+  video: { min: 48, max: 136 },
+} as const;
+
+/** Avatar a partir do qual o nome e os palitos do assento crescem junto. */
+export const AVATAR_GRANDE = 64;
+
+/** O assento em volta de um avatar de `a` px (escala 1): os selos saem dos lados; nome e palitos, embaixo. */
+export function caixaDoAssento(a: number): SeatBox {
+  return { w: Math.round(Math.max(a + 24, a * 0.6 + 48)), h: Math.round(a + (a >= AVATAR_GRANDE ? 48 : 42)) };
+}
+
+export interface MesaDimensionada {
+  /** Diâmetro do avatar (px na escala 1). */
+  avatar: number;
+  /** Diâmetro do rosto de quem está de câmera aberta (px na escala 1). */
+  rosto: number;
+  /** O assento (px na escala 1; o `tableGeometry` multiplica pela escala). */
+  box: SeatBox;
+  /** Largura da carta da mesa (px). */
+  trickCard: number;
+  /** Assento pequeno: nome e palitos menores. */
+  compact: boolean;
+}
+
+interface OpcaoDeMesa {
+  a: number;
+  carta: number;
+  /** Largura da carta na testa (rodada às cegas) e se ela coube sem cobrir rosto nem outra carta. */
+  testa: number;
+  testaCabe: boolean;
+  assentos: boolean;
+  vaza: boolean;
+  painel: boolean;
+}
+
+/**
+ * O tamanho dos assentos (avatar ou rosto) e da carta da mesa para esta tela e esta gente, usando
+ * o espaço que sobra ("o espaço da câmera e do avatar poderia ser maior", o Thomas, 30/09/2026).
+ * A carta da mesa fica perto do maior tamanho possível e o avatar cresce com o resto; com alguém de
+ * câmera aberta, o rosto ganha mais. As regras de escolha estão em `escolherMesa`.
+ */
+export function mesaDimensionada(o: {
+  width: number;
+  height: number;
+  order: readonly string[];
+  youId: string | null;
+  /** A carta da mesa de `cardSizes`: o piso dela. */
+  trickBase: number;
+  scale?: number;
+  /** Alguém de câmera aberta na sala. */
+  video?: boolean;
+  /** Altura da tua faixa (o painel de palpite desce por cima dela). */
+  mySeatH?: number;
+  /** Mesa com vira (o chip dela ocupa o canto de baixo). */
+  chip?: boolean;
+  /**
+   * O avatar (ou rosto) não fica menor que isto quando dá: o tamanho de antes do assento crescer
+   * com o espaço (50 px; 40 em mesa cheia ou tela pequena; com câmera, 68 e 52).
+   */
+  piso?: number;
+}): MesaDimensionada {
+  const s = o.scale ?? 1;
+  const faixa = o.video ? AVATAR_FAIXA.video : AVATAR_FAIXA.avatar;
+  const final = (a: number, carta: number): MesaDimensionada => ({
+    avatar: Math.min(a, AVATAR_FAIXA.avatar.max),
+    rosto: a,
+    box: caixaDoAssento(a),
+    trickCard: carta,
+    compact: a < 46,
+  });
+  if (o.width <= 0 || o.height <= 0) return final(o.video ? 68 : 50, o.trickBase);
+  const mySeatH = o.mySeatH ?? 47 * s;
+  const others = o.order.filter((id) => id !== o.youId);
+  const avaliar = (a: number): OpcaoDeMesa => {
+    const box = caixaDoAssento(a);
+    const g0 = tableGeometry(o.width, o.height, o.order, o.youId, o.trickBase, box, s);
+    const assentos = assentosNaTela(g0);
+    const vaza = cartasLongeDosAssentos(g0, o.trickBase);
+    const painel = !compactBidPanel(g0, o.youId, s, mySeatH);
+    const carta = assentos && vaza ? trickCardFor(o.width, o.height, o.order, o.youId, o.trickBase, box, s) : o.trickBase;
+    const g = carta === o.trickBase ? g0 : tableGeometry(o.width, o.height, o.order, o.youId, carta, box, s);
+    const r = tableRevealLayout(g, others, { scale: s, trickCard: carta, compactPanel: !painel, mySeatH, chip: o.chip });
+    return { a, carta, testa: r.cardWidth, testaCabe: r.cabe !== false, assentos, vaza, painel };
+  };
+  const opcoes: OpcaoDeMesa[] = [];
+  for (let a = faixa.max; a >= faixa.min; a -= 2) opcoes.push(avaliar(a));
+  const escolha = escolherMesa(opcoes, { base: o.trickBase, folga: o.video ? 0.8 : 0.92, s, piso: o.piso ?? 0, rostoPrimeiro: !!o.video });
+  return final(escolha.a, escolha.carta);
+}
+
+/**
+ * Entre as opções (do maior avatar para o menor), filtrando nesta ordem: assentos na tela e cartas
+ * da mão longe deles; carta na testa sem cobrir ninguém e legível (60 px, ou a maior que der);
+ * painel de palpite inteiro; carta da mesa a até `folga` da maior possível e avatar de pelo menos
+ * `piso` (com câmera, o rosto vem antes da carta). Das que sobram, o maior avatar. Cada filtro só
+ * vale se alguma opção passa nele (um avatar menor nem sempre dá mais espaço: a mesa muda de arranjo
+ * aos saltos).
+ */
+function escolherMesa(
+  opcoes: readonly OpcaoDeMesa[],
+  { base, folga, s, piso, rostoPrimeiro }: { base: number; folga: number; s: number; piso: number; rostoPrimeiro: boolean },
+): OpcaoDeMesa {
+  const seDer = (lista: readonly OpcaoDeMesa[], ok: (op: OpcaoDeMesa) => boolean) => {
+    const passam = lista.filter(ok);
+    return passam.length > 0 ? passam : lista;
+  };
+  let lista = seDer(seDer(opcoes, (op) => op.assentos), (op) => op.vaza);
+  lista = seDer(lista, (op) => op.testaCabe);
+  // A carta na testa (só na rodada às cegas) precisa ser legível: 60 px, ou a maior que der.
+  const testaMin = Math.min(Math.max(...lista.map((op) => op.testa)), 60 * s);
+  lista = seDer(lista, (op) => op.testa >= testaMin);
+  // O painel de palpite inteiro (e não a barra de uma linha), se der sem encolher o avatar.
+  lista = seDer(lista, (op) => op.painel && op.a >= piso);
+  const peloRosto = (l: readonly OpcaoDeMesa[]) => seDer(l, (op) => op.a >= piso);
+  const pelaCarta = (l: readonly OpcaoDeMesa[]) => {
+    const pisoDaCarta = Math.max(base, Math.max(...l.map((op) => op.carta)) * folga) - 1;
+    return seDer(l, (op) => op.carta >= pisoDaCarta);
+  };
+  lista = rostoPrimeiro ? pelaCarta(peloRosto(lista)) : peloRosto(pelaCarta(lista));
+  return lista[0]!;
+}
+
+/** Os assentos dos outros cabem na mesa sem se encostar? */
+function assentosNaTela(g: TableGeometry): boolean {
+  const box = g.seatBox;
+  const rects = [...g.seats.values()].filter((p) => p.y < g.height).map((p) => rectAround(p, box.w, box.h));
+  return (
+    rects.every((r) => r.l >= -1 && r.r <= g.width + 1 && r.t >= -1 && r.b <= g.height + 1) &&
+    rects.every((a, i) => rects.every((b, j) => j <= i || !overlaps(a, b, 1)))
+  );
+}
+
+/** As cartas da mão (largura `w`) ficam na mesa sem cobrir assento (podem se encavalar, como na mesa cheia)? */
+function cartasLongeDosAssentos(g: TableGeometry, w: number): boolean {
+  const h = w * CARD_RATIO;
+  const assentos = [...g.seats.values()].filter((p) => p.y < g.height).map((p) => rectAround(p, g.seatBox.w, g.seatBox.h));
+  return [...g.tricks.values()].every((p) => {
+    const r = rectAround(p, w, h);
+    return r.l >= -1 && r.r <= g.width + 1 && r.t >= -1 && r.b <= g.height + 1 && !assentos.some((a) => overlaps(r, a, 1));
+  });
 }
 
 /** Retângulo por bordas (px da mesa). */
@@ -403,6 +560,8 @@ export interface RevealLayout {
   cardWidth: number;
   /** Centro das cartas de cada jogador. */
   spots: Map<string, Point>;
+  /** `false` no último recurso (a carta mínima, cada uma onde der, podendo encostar). */
+  cabe?: boolean;
 }
 
 /**
@@ -529,7 +688,7 @@ export function revealLayout(
   };
   return (
     best(false) ??
-    best(true) ?? { cardWidth: opts.minWidth, spots: place(opts.minWidth, false, true).spots }
+    best(true) ?? { cardWidth: opts.minWidth, spots: place(opts.minWidth, false, true).spots, cabe: false }
   );
 }
 

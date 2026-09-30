@@ -8,6 +8,9 @@ const mundo = vi.hoisted(() => {
     resume: vi.fn(async () => {
       ctx.state = 'running';
     }),
+    suspend: vi.fn(async () => {
+      ctx.state = 'suspended';
+    }),
     createBuffer: vi.fn(() => ({})),
     createBufferSource: vi.fn(() => ({ buffer: null, connect: vi.fn(), start: vi.fn() })),
     destination: {},
@@ -68,6 +71,16 @@ describe('som que não se perde', () => {
     som.forcarAudio();
     expect(mundo.Howler.unload).toHaveBeenCalledTimes(1);
     expect(mundo.ctx.resume).toHaveBeenCalledTimes(2);
+  });
+
+  it('saiu do app: os efeitos dormem (com o contexto rodando, o iPhone mostrava o ícone de som) e o toque acorda', () => {
+    som.dormirAudio();
+    expect(mundo.ctx.suspend).toHaveBeenCalledTimes(1);
+    expect(mundo.ctx.state).toBe('suspended');
+    som.dormirAudio(); // já dormindo: nada
+    expect(mundo.ctx.suspend).toHaveBeenCalledTimes(1);
+    som.acordarAudio();
+    expect(mundo.ctx.resume).toHaveBeenCalledTimes(1);
   });
 
   it('com o áudio rodando, acordar não mexe em nada', () => {
