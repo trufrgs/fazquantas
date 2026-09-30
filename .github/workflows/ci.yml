@@ -103,12 +103,15 @@ jobs:
         env:
           VAPID_PRIVADO: ${{ secrets.VAPID_PRIVADO }}
           ADMIN_SENHA: ${{ secrets.ADMIN_SENHA }}
+          # A chave TURN do Cloudflare Realtime (conversa por voz em rede fechada); sem ela, só STUN.
+          TURN_KEY_ID: ${{ secrets.TURN_KEY_ID }}
+          TURN_KEY_TOKEN: ${{ secrets.TURN_KEY_TOKEN }}
         # Os valores vão num arquivo temporário (nunca em argumentos nem em log) e o arquivo some.
         run: |
           umask 077
           node -e '
             const s = {};
-            for (const k of ["VAPID_PRIVADO", "ADMIN_SENHA"]) if (process.env[k]) s[k] = process.env[k];
+            for (const k of ["VAPID_PRIVADO", "ADMIN_SENHA", "TURN_KEY_ID", "TURN_KEY_TOKEN"]) if (process.env[k]) s[k] = process.env[k];
             process.stdout.write(JSON.stringify(s));
           ' > "$RUNNER_TEMP/segredos.json"
           pnpm --filter @fodinha/worker exec wrangler deploy --message "${GITHUB_SHA::7}" --secrets-file "$RUNNER_TEMP/segredos.json"

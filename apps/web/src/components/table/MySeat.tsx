@@ -2,6 +2,7 @@ import type { Phase, PublicPlayer } from '@fodinha/engine';
 import { AnimatePresence } from 'motion/react';
 import type { LiveReaction } from '../../stores/game';
 import { Avatar } from '../ui/Avatar';
+import { SinalDeVoz } from '../ui/Voz';
 import { Matches } from '../ui/Matches';
 import { Palheiro } from './Palheiro';
 import { BidBadge, CantadaBubble, DealerChip, MaoChip, ReactionBubble, TurnRing } from './Seat';
@@ -41,6 +42,7 @@ export function MySeat({ player, avatar, phase, remaining, startingLives, status
       <div className="relative">
         {isTurn && !player.eliminated && <TurnRing key={deadline ?? 0} size={40} deadline={deadline} />}
         <Avatar seed={avatar} size={40} dim={player.eliminated} />
+        <SinalDeVoz playerId={player.id} size={40} />
         <AnimatePresence>{pitando && !player.eliminated && <Palheiro key="palheiro" size={40} atraso={1.7} />}</AnimatePresence>
         {phase === 'bidding' && <CantadaBubble bid={player.bid} round={round} placement="above" edge="left" />}
         <ReactionBubble reaction={reaction} placement="above" edge="left" />

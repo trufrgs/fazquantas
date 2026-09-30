@@ -109,12 +109,26 @@ ou no `Sala.restore`? Confira cada uma:
 - Roteiros exploratórios que simulam modo avião, conexão morta, buraco negro, rede lenta, WebKit e
   Firefox: [`e2e/exploratorio/`](e2e/exploratorio/README.md).
 
+## Conversa por voz
+
+- Pedido do Thomas em 30/09/2026: quem está numa sala online com gente pode entrar na conversa por voz
+  (microfone no alto da mesa e da sala; sair no menu ☰ ou na faixa da sala). O áudio vai **direto entre
+  os aparelhos** (WebRTC em malha, até 8), com `@thaunknown/simple-peer` carregado só quando alguém
+  entra (`lib/voz.ts`); ele precisa do pacote `events` no navegador.
+- A sala só diz quem está (`RoomState.vozes`, que sobrevive à hibernação) e repassa `voz:sinal` entre
+  quem está na conversa. Quem liga é o de id menor; sem trickle (uma oferta e uma resposta por par).
+  Conexão que cai sai da conversa; na volta, o app se anuncia de novo sozinho.
+- `voz:entrar` devolve os servidores ICE: STUN públicos e, com os segredos `TURN_KEY_ID` e
+  `TURN_KEY_TOKEN`, credenciais TURN do Cloudflare Realtime (1.000 GB por mês de graça) para quem está
+  atrás de NAT fechado (alguns 4G). O `_headers` libera o microfone (`microphone=(self)`).
+- Com a conversa ligada, o tango abaixa. Roteiro: `e2e/exploratorio/8-voz.mjs`.
+
 ## Segredos
 
 - **Nunca** em arquivo do repositório, em argumento de comando (`argv`) ou em log.
-- Fonte da verdade: **segredos do GitHub** (`CLOUDFLARE_API_TOKEN`, `VAPID_PRIVADO`, `ADMIN_SENHA`);
-  a CI publica o Worker já com `VAPID_PRIVADO` e `ADMIN_SENHA` (`wrangler deploy --secrets-file`,
-  uma publicação só: cada publicação reinicia as salas abertas).
+- Fonte da verdade: **segredos do GitHub** (`CLOUDFLARE_API_TOKEN`, `VAPID_PRIVADO`, `ADMIN_SENHA`,
+  `TURN_KEY_ID`, `TURN_KEY_TOKEN`); a CI publica o Worker já com os do Worker (`wrangler deploy
+  --secrets-file`, uma publicação só: cada publicação reinicia as salas abertas).
 - Cópias locais no Keychain do macOS: `pessoal/fazquantas/<nome>` (conta `trufrgs`). Para mandar um
   valor do Keychain a outro lugar, use pipe (`security find-generic-password … -w | gh secret set …`).
 - Variável não secreta: `CLOUDFLARE_ACCOUNT_ID` (variável do repositório no GitHub).

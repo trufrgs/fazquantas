@@ -1,5 +1,6 @@
 import { Menu, NotebookPen, SmilePlus } from 'lucide-react';
 import { IconButton } from '../ui/Button';
+import { BotaoVoz } from '../ui/Voz';
 
 export interface TopBarProps {
   /** Linha extra (sala assíncrona: de quem é a vez e até quando). */
@@ -33,6 +34,7 @@ export function TopBar(p: TopBarProps) {
         {p.note && <span className="text-xs font-bold text-ouros">{p.note}</span>}
       </div>
       <div className="flex gap-2">
+        <BotaoVoz />
         <IconButton label="Reagir" onClick={p.onReact}>
           <SmilePlus size={21} />
         </IconButton>

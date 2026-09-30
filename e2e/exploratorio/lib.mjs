@@ -9,9 +9,12 @@ mkdirSync(OUT, { recursive: true });
 
 const engines = { chromium, webkit, firefox };
 const browsers = {};
-export async function browser(engine = 'chromium') {
-  browsers[engine] ??= await engines[engine].launch();
-  return browsers[engine];
+/** Microfone de mentira do Chromium (apita sem parar) e permissão sem perguntar: para a conversa por voz. */
+const MICROFONE = ['--use-fake-ui-for-media-stream', '--use-fake-device-for-media-stream', '--autoplay-policy=no-user-gesture-required'];
+export async function browser(engine = 'chromium', { microfone = false } = {}) {
+  const chave = microfone ? `${engine}+microfone` : engine;
+  browsers[chave] ??= await engines[engine].launch(microfone ? { args: MICROFONE } : {});
+  return browsers[chave];
 }
 export async function closeAll() {
   for (const b of Object.values(browsers)) await b.close().catch(() => {});
@@ -35,8 +38,8 @@ export function key() {
  * Um aparelho: contexto isolado (como uma janela anônima). `name: null` = sem nada salvo (primeira
  * visita de verdade, com tutorial). Registra erros, WebSockets abertos e mensagens de fechamento.
  */
-export async function device(label, { name = label, engine = 'chromium', dev = 'Pixel 7', viewport, settings = {}, preset = true } = {}) {
-  const b = await browser(engine);
+export async function device(label, { name = label, engine = 'chromium', dev = 'Pixel 7', viewport, settings = {}, preset = true, microfone = false } = {}) {
+  const b = await browser(engine, { microfone });
   const d = engine === 'firefox' ? { ...devices['Desktop Firefox'], viewport: viewport ?? { width: 412, height: 860 } } : { ...devices[dev], ...(viewport ? { viewport } : {}) };
   const ctx = await b.newContext(d);
   const page = await ctx.newPage();

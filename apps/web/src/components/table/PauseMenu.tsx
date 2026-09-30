@@ -5,6 +5,9 @@ import { SPEED_MULTIPLIER, useSettings, type Speed } from '../../stores/settings
 import { Button } from '../ui/Button';
 import { Segmented, Toggle } from '../ui/Controls';
 import { Sheet } from '../ui/Sheet';
+import { useTemConversa } from '../ui/Voz';
+import { useVoz } from '../../lib/voz';
+import { useOnline } from '../../stores/online';
 import { IconeForca } from './ForcaChip';
 
 export interface PauseMenuProps {
@@ -27,6 +30,9 @@ export interface PauseMenuProps {
 
 export function PauseMenu(p: PauseMenuProps) {
   const s = useSettings();
+  const voz = useVoz();
+  const online = useOnline();
+  const conversaPossivel = useTemConversa() && p.online;
   const [confirm, setConfirm] = useState<'exit' | 'restart' | null>(null);
   // Cada abertura começa no menu principal. Ajusta no render (e não remontando a folha) para a
   // animação de saída continuar mostrando o que estava na tela.
@@ -75,6 +81,14 @@ export function PauseMenu(p: PauseMenuProps) {
           <div className="mt-2 divide-y divide-tinta/10 rounded-2xl bg-tinta/5 px-4">
             <Toggle checked={s.sound} onChange={(sound) => s.set({ sound })} label="Efeitos" description="Cartas, golpes e avisos." />
             <Toggle checked={s.musica} onChange={(musica) => s.set({ musica })} label="Música" description="O tango de fundo." />
+            {conversaPossivel && (
+              <Toggle
+                checked={voz.ligada}
+                onChange={(on) => (on ? online.entrarNaVoz() : online.sairDaVoz())}
+                label="Conversa por voz"
+                description="Fala e ouve quem está na sala, com o microfone. O botão do microfone no alto silencia."
+              />
+            )}
             <Toggle checked={s.hints} onChange={(hints) => s.set({ hints })} label="Sugerir palpite e carta" description="Na tua vez, marca o palpite e a carta que o jogo faria. Vem desligado." />
             {!p.online && (
               <div className="py-3">

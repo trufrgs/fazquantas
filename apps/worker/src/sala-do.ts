@@ -23,6 +23,7 @@ import { painelStub, type ResumoSala } from './painel-do';
 import { rankingStub } from './ranking-do';
 import { horaBrasilia } from './hora';
 import { AlarmClock } from './relogio';
+import { servidoresIce, type SegredosTurn } from './voz';
 
 /**
  * Anfitrião fora da mesa por esse tempo (sala ao vivo): a coroa passa para quem está nela, para
@@ -233,6 +234,7 @@ export class SalaDO extends DurableObject<Env> {
       aoTerminarRanqueada: (p) => void this.registrarRanking(p),
       aoAvisar: (a) => this.avisar(a),
       conferirPerfil: (profileId, nome) => contasStub(this.env).conferir(profileId, nome),
+      servidoresIce: () => servidoresIce(this.env as SegredosTurn),
     });
     if (this.acabou) this.servidor.markEnded(this.fimMotivo);
     return this.servidor;

@@ -3,6 +3,7 @@ import {
   type Ack,
   type BotDifficulty,
   type ClientAction,
+  type IceServer,
   type JoinResult,
   type ReactionId,
   type RoomState,
@@ -18,6 +19,7 @@ import { serverUrl } from '../lib/platform';
 import { SalaSocket, type DisconnectReason } from '../lib/sala-socket';
 import { forgetRoom, knownRoom, rememberRoom } from '../lib/minhas-salas';
 import { storage } from '../lib/storage';
+import { conversa, type TransporteDaVoz } from '../lib/voz';
 import { useApp } from './app';
 import { useGame } from './game';
 import { useSettings } from './settings';
@@ -221,6 +223,9 @@ interface OnlineState {
   /** `auto`: a volta que o app faz sozinho (abrir o app); não toma o lugar de outro aparelho em uso. */
   join: (code: string, opts?: { useToken?: boolean; password?: string; auto?: boolean }) => Promise<boolean>;
   leave: () => void;
+  /** Conversa por voz da sala (o microfone pede permissão no primeiro toque). */
+  entrarNaVoz: () => void;
+  sairDaVoz: () => void;
   /** Larga a mesa sem sair da sala (assíncrona): o lugar fica, e a sala segue nas "tuas salas". */
   park: () => void;
   update: (patch: RoomUpdatePayload) => Promise<string | null>;
@@ -368,6 +373,7 @@ function openSocket(code: string): SalaSocket {
       if (arrived.length > 0) warnRoom(`${arrived.map((x) => x.name).join(' e ')} entrou na sala.`, 'entrou');
     }
     useOnline.setState({ room, status: 'online' });
+    conversa.sincronizar(room.vozes ?? []);
     const app = useApp.getState();
     if (room.status !== 'lobby' && connection) app.swap('lobby', 'game');
     if (room.status === 'lobby' && useGame.getState().conn?.kind === 'online') {
@@ -393,6 +399,7 @@ function openSocket(code: string): SalaSocket {
     else app.swap('lobby', 'game');
   });
   s.on('game:reaction', (r) => connection?.pushReaction({ playerId: r.playerId, reaction: r.reaction }));
+  s.on('voz:sinal', (p) => conversa.receberSinal(p.de, p.dados));
   s.on('room:kicked', () => useOnline.setState({ kicked: true }));
   s.on('room:notice', (n) => {
     useOnline.setState({ notice: n });
@@ -465,6 +472,7 @@ function ateVoltar(ms: number): Promise<boolean> {
 }
 
 function resetOnline() {
+  conversa.sair(false);
   closeSocket();
   if (useGame.getState().conn?.kind === 'online') useGame.getState().detach();
   connection = null;
@@ -472,6 +480,17 @@ function resetOnline() {
   joinSeq++; // nem a volta automática que ainda tentava entrar
   useOnline.setState({ room: null, status: 'idle', passwordFor: null, notice: null, voltando: null });
 }
+
+/** A conversa por voz fala com a sala pelo mesmo socket da partida. */
+const transporteDaVoz: TransporteDaVoz = {
+  entrar: async () => {
+    const r = await request<{ iceServers: IceServer[] }>('voz:entrar');
+    return r.ok ? r.iceServers : null;
+  },
+  sair: () => socket?.emit('voz:sair'),
+  mudo: (mudo) => socket?.emit('voz:mudo', { mudo }),
+  sinal: (para, dados) => socket?.emit('voz:sinal', { para, dados }),
+};
 
 async function request<T extends object = object>(event: Parameters<SalaSocket['request']>[0], payload?: unknown): Promise<Ack<T>> {
   const s = socket;
@@ -646,6 +665,11 @@ export const useOnline = create<OnlineState>((set) => ({
     return r.ok ? null : r.error.message;
   },
   backToLobby: () => pedir('room:lobby'),
+  entrarNaVoz: () => {
+    const room = useOnline.getState().room;
+    if (room) void conversa.entrar(room.youId, transporteDaVoz);
+  },
+  sairDaVoz: () => conversa.sair(),
   present: () => pedir('room:present'),
   clearError: () => set({ error: null, kicked: false, passwordFor: null }),
 }));

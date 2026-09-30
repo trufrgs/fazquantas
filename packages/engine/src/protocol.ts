@@ -121,6 +121,19 @@ export type SeatPublic =
 
 export type RoomStatus = 'lobby' | 'playing' | 'finished';
 
+/** Um servidor ICE (STUN/TURN) para ligar o áudio da conversa por voz, no formato do `RTCIceServer`. */
+export interface IceServer {
+  urls: string | string[];
+  username?: string;
+  credential?: string;
+}
+
+/** Quem está na conversa por voz da sala, e se está mudo. */
+export interface VozNaSala {
+  playerId: string;
+  mudo: boolean;
+}
+
 export interface RoomState {
   code: string;
   status: RoomStatus;
@@ -143,6 +156,8 @@ export interface RoomState {
   series: SeriesState | null;
   /** Só sobraram bots e alguém pediu para acelerar até o fim (servidores de antes de 30/09/2026 não mandam). */
   acelerando?: boolean;
+  /** Quem está na conversa por voz (servidores de antes de 30/09/2026 não mandam). */
+  vozes?: VozNaSala[];
   /**
    * Depois do fim da partida: quem já pediu a revanche (ou a próxima da série). Servidores de antes
    * de 29/09/2026 não mandam.
@@ -263,6 +278,15 @@ export interface ClientToServerEvents {
   'game:react': (p: { reaction: ReactionId }) => void;
   /** Só sobraram bots na mesa: o resto da partida corre em câmera rápida (`ATE_O_FIM`). */
   'game:acelerar': (ack?: (r: Ack) => void) => void;
+  /**
+   * Entra na conversa por voz da sala. A resposta traz os servidores ICE (STUN e, quando houver, TURN)
+   * para os áudios se ligarem direto entre os aparelhos (a voz não passa pelo servidor do jogo).
+   */
+  'voz:entrar': (ack?: (r: Ack<{ iceServers: IceServer[] }>) => void) => void;
+  'voz:sair': (ack?: (r: Ack) => void) => void;
+  'voz:mudo': (p: { mudo: boolean }, ack?: (r: Ack) => void) => void;
+  /** O sinal do WebRTC (oferta ou resposta) para outro jogador na conversa: o servidor só repassa. */
+  'voz:sinal': (p: { para: string; dados: unknown }) => void;
   /** "Voltei": para de jogar por mim. */
   'room:present': (ack?: (r: Ack) => void) => void;
   /** A página ficou visível ou escondida (decide quando mandar notificação). */
@@ -276,6 +300,8 @@ export interface ServerToClientEvents {
   'room:replaced': () => void;
   'game:view': (m: ViewMessage) => void;
   'game:reaction': (r: { playerId: string; reaction: ReactionId; at: number }) => void;
+  /** O sinal do WebRTC de outro jogador da conversa por voz. */
+  'voz:sinal': (p: { de: string; dados: unknown }) => void;
   /** Recado da administração do jogo para quem está na sala (ex.: "reinício em 5 min"). */
   'room:notice': (n: { text: string; at: number }) => void;
 }

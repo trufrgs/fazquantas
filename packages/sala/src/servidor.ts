@@ -2,6 +2,7 @@ import {
   WS_CLOSE,
   type Ack,
   type ClientToServerEvents,
+  type IceServer,
   type ProtocolError,
   type WireToServer,
 } from '@fodinha/engine';
@@ -20,7 +21,12 @@ import {
   removeSeatSchema,
   setBotSchema,
   updateRoomSchema,
+  vozMudoSchema,
+  vozSinalSchema,
 } from './validacao';
+
+/** Os STUN públicos (Cloudflare e Google): bastam para a voz ligar direto na maioria das redes. */
+export const STUN_PUBLICOS: readonly IceServer[] = [{ urls: ['stun:stun.cloudflare.com:3478', 'stun:stun.l.google.com:19302'] }];
 
 /** Maior mensagem aceita de um cliente (uma jogada tem poucas dezenas de bytes). */
 export const MAX_MESSAGE_BYTES = 16 * 1024;
@@ -62,6 +68,12 @@ export interface ServidorDeps extends Omit<SalaDeps, 'aoEncerrar'> {
   ): Promise<{ bloqueado: boolean; nome: string; avatar: string | null; perfil?: string | null; apelidoDeOutro?: boolean }>;
   /** Prazo da conferência do perfil (padrão `PERFIL_PRAZO_MS`; os testes encurtam). */
   perfilPrazoMs?: number;
+  /**
+   * Os servidores ICE da conversa por voz (o Worker gera credenciais TURN de curta duração). Sem isso,
+   * ou se falhar, vão só os STUN públicos: a voz liga direto na maioria das redes, menos atrás de NAT
+   * mais fechado (alguns 4G).
+   */
+  servidoresIce?(): Promise<IceServer[]>;
   rateLimit?: RateLimitOptions;
 }
 
@@ -82,6 +94,10 @@ const EVENTS: ReadonlySet<string> = new Set<EventName>([
   'game:action',
   'game:react',
   'game:acelerar',
+  'voz:entrar',
+  'voz:sair',
+  'voz:mudo',
+  'voz:sinal',
   'presence',
 ]);
 
@@ -272,6 +288,17 @@ export class SalaServidor {
   }
 
   /** A conexão tem de estar sentada nesta sala. */
+  /** Os servidores ICE para a voz: os do Worker (com TURN) ou, sem eles, os STUN públicos. */
+  private async servidoresIce(): Promise<IceServer[]> {
+    try {
+      const servidores = await this.deps.servidoresIce?.();
+      if (servidores && servidores.length > 0) return servidores;
+    } catch (error) {
+      this.deps.logger.warn('servidores ICE: ficou só no STUN', error);
+    }
+    return [...STUN_PUBLICOS];
+  }
+
   private membership(conexao: Conexao): { sala: Sala; playerId: string } {
     const sala = this.sala;
     const playerId = conexao.jogadorId;
@@ -407,6 +434,28 @@ export class SalaServidor {
         const { action } = parsePayload(gameActionSchema, payload);
         const { sala, playerId } = this.membership(conexao);
         sala.act(playerId, action);
+        return;
+      }
+      case 'voz:entrar': {
+        const { sala, playerId } = this.membership(conexao);
+        sala.entrarNaVoz(playerId);
+        return { iceServers: await this.servidoresIce() };
+      }
+      case 'voz:sair': {
+        const { sala, playerId } = this.membership(conexao);
+        sala.sairDaVoz(playerId);
+        return;
+      }
+      case 'voz:mudo': {
+        const { mudo } = parsePayload(vozMudoSchema, payload);
+        const { sala, playerId } = this.membership(conexao);
+        sala.mudoNaVoz(playerId, mudo);
+        return;
+      }
+      case 'voz:sinal': {
+        const { para, dados } = parsePayload(vozSinalSchema, payload);
+        const { sala, playerId } = this.membership(conexao);
+        sala.sinalDeVoz(playerId, para, dados);
         return;
       }
       case 'game:acelerar': {

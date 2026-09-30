@@ -172,6 +172,11 @@ export const joinRoomSchema = z.object({
 
 export const presenceSchema = z.object({ visible: z.boolean() });
 
+export const vozMudoSchema = z.object({ mudo: z.boolean() });
+
+/** O sinal do WebRTC vai como veio (oferta ou resposta com os candidatos); só confere o destino. */
+export const vozSinalSchema = z.object({ para: z.string().min(1).max(64), dados: z.unknown() });
+
 export const addBotSchema = z.object({ difficulty: difficultySchema });
 
 export const setBotSchema = z.object({ playerId: playerIdSchema, difficulty: difficultySchema });

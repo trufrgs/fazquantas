@@ -10,12 +10,17 @@ import { Howl } from 'howler';
 
 const ARQUIVO = 'music/tango-de-manzana.mp3';
 const VOLUME = 0.22;
+/** Com a conversa por voz ligada, o tango fica bem baixinho (não abafa ninguém nem volta pelo microfone). */
+const VOLUME_NA_CONVERSA = 0.07;
 const ENTRADA_MS = 2000;
 const SAIDA_MS = 700;
 
 let faixa: Howl | null = null;
 let ligada = false;
 let destravada = false;
+let abaixada = false;
+
+const volumeAlvo = () => (abaixada ? VOLUME_NA_CONVERSA : VOLUME);
 
 function querTocar(): boolean {
   return ligada && destravada && document.visibilityState === 'visible';
@@ -43,7 +48,7 @@ function aplicar(): void {
       const h = howl();
       if (!h.playing()) h.play();
       const v = h.volume();
-      if (Math.abs(v - VOLUME) > 0.01) h.fade(v, VOLUME, ENTRADA_MS);
+      if (Math.abs(v - volumeAlvo()) > 0.01) h.fade(v, volumeAlvo(), ENTRADA_MS);
     } else if (faixa?.playing()) {
       const v = faixa.volume();
       if (v > 0.01) faixa.fade(v, 0, SAIDA_MS);
@@ -57,6 +62,13 @@ function aplicar(): void {
 /** Liga ou desliga a música (som e música ligados nos ajustes). */
 export function ligarMusica(on: boolean): void {
   ligada = on;
+  aplicar();
+}
+
+/** A conversa por voz ligou ou desligou: o tango abaixa ou volta. */
+export function abaixarMusica(on: boolean): void {
+  if (abaixada === on) return;
+  abaixada = on;
   aplicar();
 }
 

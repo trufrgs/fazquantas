@@ -4,6 +4,7 @@ import { memo, useState } from 'react';
 import type { SeatInfo } from '../../lib/connection';
 import type { LiveReaction } from '../../stores/game';
 import { Avatar } from '../ui/Avatar';
+import { SinalDeVoz } from '../ui/Voz';
 import { Matches } from '../ui/Matches';
 import { Palheiro } from './Palheiro';
 import { rem } from '../../lib/ui-scale';
@@ -311,6 +312,7 @@ export const Seat = memo(function Seat(p: SeatProps) {
       <div className="relative z-10">
         {p.isTurn && !out && <TurnRing size={avatarSize} deadline={p.deadline} />}
         <Avatar seed={info?.avatar ?? player.id} size={avatarSize} dim={out} />
+        <SinalDeVoz playerId={player.id} size={avatarSize} />
         {/* Quem demorou jogou: o palheiro some (a vez andou). */}
         <AnimatePresence>{p.pitando && !out && <Palheiro key="palheiro" size={avatarSize} atraso={p.pitandoAtraso} />}</AnimatePresence>
         {!out && (player.isDealer || p.isMao) && (
