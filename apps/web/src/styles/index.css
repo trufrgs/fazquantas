@@ -268,3 +268,21 @@ html.app-ios body {
     animation: chamar-atencao 2.6s ease-out infinite;
   }
 }
+
+/*
+ * A fumaça de quem espera (`components/table/Fumaca.tsx`): cada nuvem é um degradê redondo, sem
+ * desfoque (que pesa no celular), num vaivém lento. `--vai` desencontra as nuvens.
+ */
+@keyframes fumaca-vaga {
+  from {
+    transform: translate(-7%, 5%) scale(1);
+  }
+  to {
+    transform: translate(8%, -6%) scale(1.16);
+  }
+}
+.fumaca-nuvem {
+  background: radial-gradient(circle, rgb(240 235 226 / 0.96) 0, rgb(228 222 212 / 0.82) 36%, rgb(222 215 204 / 0) 70%);
+  animation: fumaca-vaga var(--vai, 9s) ease-in-out infinite alternate;
+  will-change: transform;
+}

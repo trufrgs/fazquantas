@@ -10,9 +10,20 @@ export const REVEAL_FAN = 1.3;
  * Cartas à mostra dos outros: a da testa (rodada às cegas) ou a mão toda (para quem saiu e
  * assiste). Ficam na frente de cada assento, no tamanho que `revealLayout` calculou.
  */
-export function RevealCards({ players, you, layout }: { players: readonly PublicPlayer[]; you: string | null; layout: RevealLayout }) {
+export function RevealCards({
+  players,
+  you,
+  layout,
+  acimaDaFumaca = false,
+}: {
+  players: readonly PublicPlayer[];
+  you: string | null;
+  layout: RevealLayout;
+  /** A mesa está no fumo (`Fumaca`): as cartas sobem para cima dele (quem canta precisa vê-las). */
+  acimaDaFumaca?: boolean;
+}) {
   return (
-    <div className="pointer-events-none absolute inset-0 z-[5]">
+    <div className={`pointer-events-none absolute inset-0 ${acimaDaFumaca ? 'z-[11]' : 'z-[5]'}`}>
       {players.map((p) => {
         const cards = p.id === you ? null : p.visibleCards;
         const at = layout.spots.get(p.id);

@@ -97,22 +97,12 @@ export function Lobby() {
     <ScreenFrame
       title="Sala"
       onBack={() => setConfirmLeave(true)}
+      // No alto, só o que se usa durante a espera: microfone, câmera e som. O convite mora junto do
+      // código: com os quatro no alto, o voltar amassava no celular (o Thomas, 01/10/2026).
       right={
-        <div className="flex items-center gap-2">
-        <Button
-          variant="vidro"
-          size="sm"
-          icon={<Share2 size={16} />}
-          onClick={async () => {
-            const r = await shareInvite(room.code);
-            setShareMsg(r === 'copied' ? 'Convite copiado.' : r === 'failed' ? 'Não deu pra compartilhar: dita o código pra gurizada.' : null);
-            window.setTimeout(() => setShareMsg(null), 2500);
-          }}
-        >
-          Convidar
-        </Button>
-        <ControlesDeMidia />
-        <BotaoSom />
+        <div className="flex shrink-0 items-center gap-2">
+          <ControlesDeMidia />
+          <BotaoSom />
         </div>
       }
       footer={
@@ -154,7 +144,24 @@ export function Lobby() {
             </span>
           ))}
         </div>
-        {shareMsg && <span className="text-sm font-semibold text-luz">{shareMsg}</span>}
+        <Button
+          variant="vidro"
+          size="sm"
+          className="mt-2"
+          icon={<Share2 size={16} />}
+          onClick={async () => {
+            const r = await shareInvite(room.code);
+            setShareMsg(r === 'copied' ? 'Convite copiado.' : r === 'failed' ? 'Não deu pra compartilhar: dita o código pra gurizada.' : null);
+            window.setTimeout(() => setShareMsg(null), 2500);
+          }}
+        >
+          Convidar
+        </Button>
+        {shareMsg && (
+          <span role="status" className="text-sm font-semibold text-luz">
+            {shareMsg}
+          </span>
+        )}
       </div>
       <ConversaNaSala />
       <VideoAmpliado />

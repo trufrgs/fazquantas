@@ -43,7 +43,7 @@ export function MySeat({ player, avatar, phase, remaining, startingLives, status
     <div className="relative z-20 flex items-center gap-2.5 px-3">
       <div className="relative">
         {isTurn && !player.eliminated && <TurnRing key={deadline ?? 0} size={rosto} deadline={deadline} />}
-        <RostoNaMesa playerId={player.id} seed={avatar} size={40} tamanhoVideo={56} dim={player.eliminated} />
+        <RostoNaMesa playerId={player.id} seed={avatar} size={40} tamanhoVideo={56} dim={player.eliminated} fora={player.eliminated} />
         <AnimatePresence>{pitando && !player.eliminated && <Palheiro key="palheiro" size={rosto} atraso={1.7} />}</AnimatePresence>
         {phase === 'bidding' && <CantadaBubble bid={player.bid} round={round} placement="above" edge="left" />}
         <ReactionBubble reaction={reaction} placement="above" edge="left" />

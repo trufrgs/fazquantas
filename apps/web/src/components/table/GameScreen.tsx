@@ -14,7 +14,7 @@ import {
   type PlayerView,
   type Suit,
 } from '@fodinha/engine';
-import { AnimatePresence, motion } from 'motion/react';
+import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { GameConnection, SeatInfo, ViewUpdate } from '../../lib/connection';
 import { leaveTable, startLocalGame } from '../../lib/game-actions';
@@ -29,6 +29,7 @@ import { CARD_RATIO } from '../cards/Card';
 import { NaTesta } from './NaTesta';
 import { galoDeUmToque } from './frases';
 import { FrasesAMao } from './FrasesAMao';
+import { FumacaNaMesa, FumacaPorCima } from './Fumaca';
 import { useAlgumaCamera, VideoAmpliado } from '../ui/Midia';
 import { useApp } from '../../stores/app';
 import { useGame, type LiveReaction } from '../../stores/game';
@@ -450,7 +451,9 @@ function Table({
     const t = window.setTimeout(() => setDemorou(esperando), DEMORA_MS);
     return () => window.clearTimeout(t);
   }, [esperando]);
-  const pitando = (id: string) => demorou !== null && demorou === esperando && view.actor?.playerId !== id;
+  const demorando = demorou !== null && demorou === esperando;
+  const pitando = (id: string) => demorando && view.actor?.playerId !== id;
+  const reduzirMovimento = useReducedMotion();
   const mySeat = online ? room?.seats.find((x) => x.playerId === room.youId) : undefined;
   const meAway = mySeat?.kind === 'human' && mySeat.away && view.phase !== 'gameOver';
   const series = online ? (room?.series ?? null) : null;
@@ -532,6 +535,9 @@ function Table({
   };
   const asyncRoom = online && !!room && isAsyncTurn(room.turnTimeoutSec);
   const turnTotalMs = online && room?.turnTimeoutSec ? room.turnTimeoutSec * 1000 : null;
+  // A fumaça dos palheiros enche a mesa enquanto a demora segue (`Fumaca`). Na sala de vez longa
+  // ninguém espera ao vivo; em câmera rápida e com "reduzir movimento", também não tem.
+  const fumaca = demorando && !asyncRoom && !cameraRapida && !reduzirMovimento && view.phase !== 'gameOver';
   const turnLeft = useTimeLeft(view.turnDeadline);
   // Vez com tempo (tua ou de outra pessoa): o tempo vai no aviso da tua faixa, nada por cima das
   // cartas; vermelho quando aperta. Avisos passageiros (tempo esgotado, erro) usam o mesmo lugar.
@@ -637,8 +643,10 @@ function Table({
                   />
                 );
               })}
+          {/* A fumaça de quem espera: por cima dos assentos, por baixo das cartas que quem joga precisa ver. */}
+          <AnimatePresence>{fumaca && <FumacaNaMesa key="fumaca" />}</AnimatePresence>
           {/* As cartas na testa entram depois da faixa da rodada (as duas ocupam o centro da mesa). */}
-        {reveal && !banner && <RevealCards players={view.players} you={you} layout={reveal} />}
+        {reveal && !banner && <RevealCards players={view.players} you={you} layout={reveal} acimaDaFumaca={fumaca} />}
           {table.width > 0 && (
             <TrickArea
               plays={trickPlays}
@@ -654,6 +662,7 @@ function Table({
               ctx={contextoDaRodada(view.rules, view.vira)}
               rodada={view.roundNumber}
               ritmo={ritmo}
+              acimaDaFumaca={fumaca}
             />
           )}
           <RoundBanner view={view} shown={banner} />
@@ -670,7 +679,7 @@ function Table({
             />
           )}
           <CoachTip tip={bidding ? null : tip} />
-          <VideoAmpliado />
+          <VideoAmpliado fora={view.players.filter((x) => x.eliminated).map((x) => x.id)} />
           <BidPanel
             open={bidding}
             cards={view.cardsThisRound}
@@ -788,6 +797,9 @@ function Table({
           )}
         </div>
       </div>
+
+      {/* Passado o limite, a fumaça passa por cima de tudo, a tua mão inclusive: fica difícil de ver. */}
+      <AnimatePresence>{fumaca && <FumacaPorCima key="veu" />}</AnimatePresence>
 
       <RoundSummary
         open={resumoAberto}

@@ -30,8 +30,10 @@ drásticas, tá muito educadinho".
   nada de ícone genérico ou clichê de cassino. O que aparece na mesa tem cara de galpão.
 - **Som faz parte do jogo.** Efeito para o que acontece na mesa, música de fundo baixinha e humor
   (a tragada de quem espera), sempre com botão para desligar.
-- **Humor com a mesa, nunca contra quem joga.** Provocação de bar (o grito da manilha, a tragada
-  impaciente), sem humilhar ninguém nem atrapalhar a jogada.
+- **Zoar os amigos é o jogo.** "O jogo é focado em diversão entre amigos": animação exagerada, coisa
+  que surpreende, provocação de bar (o grito da manilha, a tragada impaciente, o carimbo em quem
+  saiu), pedido do Thomas em 01/10/2026. Quem demora pode até ficar com a tela difícil de ver. O que
+  não pode: mexer em regra, palito ou ponto, e mostrar carta escondida.
 - **Sem perguntar o óbvio.** Pedido nesse espírito é para fazer inteiro: implemente, teste com os
   cenários (`?cena=`), publique e conte o que ficou; volte só com decisão que é mesmo do dono.
 
@@ -105,6 +107,19 @@ pnpm exec playwright test                  # E2E locais (sobem os servidores soz
   desce um pouco para a esquerda. Na mesa baixa (celular deitado) as frases sobem para o alto. O
   quadro tem 12 frases (três fileiras); o "é galo" sugere as cartas da mão, a que está levando
   primeiro (é ela que passa), e o genérico; o 🐓 da pílula manda a que está levando.
+- **Fumaça da demora** (pedido do Thomas em 01/10/2026): aos 9 s de demora os outros acendem o
+  palheiro (`DEMORA_MS`), com baforadas grossas, e a fumaça enche a mesa na tela de todos
+  (`components/table/Fumaca.tsx`). Aos 40 s somem assentos, palitos e cantadas; ficam por cima da
+  fumaça só o que quem joga precisa (cartas da mão que está na mesa, cartas na testa, vira, painel de
+  cantar) e a mão dele, que fica fora da mesa. Dos 45 s em diante um véu passa por cima de tudo e fica
+  difícil de ver, sem fechar de todo. Jogou, some num sopro. Não tem na sala de vez longa, em câmera
+  rápida nem com "reduzir movimento". Roteiro: `e2e/exploratorio/10-fumaca.mjs`.
+- **Quem saiu leva o carimbo:** "LOSER" em tinta vermelha por cima do rosto na mesa (avatar ou
+  câmera, em preto e branco); no vídeo ampliado, o carimbo bate no canto, com pancada (`CarimboLoser`
+  em `components/ui/Midia.tsx`).
+- **O alto da sala de espera:** voltar, título, microfone e câmera, som. O convite fica junto do
+  código: com tudo no alto, o voltar amassava no celular depois da partida (com a conversa aberta).
+  O voltar das telas de menu nunca encolhe (`ScreenFrame`); quem encolhe é o título.
 - **Resumo da rodada:** o × esconde o desta rodada; "Não mostrar mais" desliga (volta nos ajustes e no
   menu ☰). No jogo local sem resumo, a rodada seguinte começa em 1,5 s.
 - **Som ao sair do app:** o iPhone só tira o ícone de som da tela de início quando o áudio para de

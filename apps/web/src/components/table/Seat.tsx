@@ -325,7 +325,7 @@ export const Seat = memo(function Seat(p: SeatProps) {
       >
       <div className="relative z-10">
         {p.isTurn && !out && <TurnRing size={avatarSize} deadline={p.deadline} />}
-        <RostoNaMesa playerId={player.id} seed={info?.avatar ?? player.id} size={p.avatar} tamanhoVideo={p.rosto} dim={out} />
+        <RostoNaMesa playerId={player.id} seed={info?.avatar ?? player.id} size={p.avatar} tamanhoVideo={p.rosto} dim={out} fora={out} />
         {/* Quem demorou jogou: o palheiro some (a vez andou). */}
         <AnimatePresence>{p.pitando && !out && <Palheiro key="palheiro" size={avatarSize} atraso={p.pitandoAtraso} />}</AnimatePresence>
         {!out && (player.isDealer || p.isMao) && (

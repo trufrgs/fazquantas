@@ -6,15 +6,16 @@ const CICLO = 3.6;
 /**
  * O palheiro no canto da boca de quem espera alguém que demora ("puxando fumo quando o cara demora",
  * o Igor, e o Thomas: "uma animação dos avatares", 29/09/2026). A brasa acende a cada tragada e a
- * fumaça sobe em baforadas; `atraso` desencontra os avatares (cada um traga na sua hora). Com
- * "reduzir movimento", o palheiro fica parado, sem fumaça.
+ * fumaça sobe em baforadas grossas, que crescem e se espalham ("mais exagerada", o Thomas,
+ * 01/10/2026; a que enche a tela é a `Fumaca`); `atraso` desencontra os avatares (cada um traga na
+ * sua hora). Com "reduzir movimento", o palheiro fica parado, sem fumaça.
  */
 export function Palheiro({ size, atraso = 0 }: { size: number; atraso?: number }) {
   const reduce = useReducedMotion();
   const comp = size * 0.46;
   const grossura = Math.max(3, size * 0.08);
   const brasa = grossura * 1.25;
-  const nuvem = size * 0.36;
+  const nuvem = size * 0.6;
   return (
     <motion.span
       className="pointer-events-none absolute z-20 block"
@@ -39,7 +40,7 @@ export function Palheiro({ size, atraso = 0 }: { size: number; atraso?: number }
       />
       {/* As baforadas: sobem da ponta, crescem e somem. */}
       {!reduce &&
-        [0, 1, 2].map((i) => (
+        [0, 1, 2, 3, 4].map((i) => (
           <motion.span
             key={i}
             className="absolute block rounded-full"
@@ -49,11 +50,16 @@ export function Palheiro({ size, atraso = 0 }: { size: number; atraso?: number }
               width: nuvem,
               height: nuvem,
               rotate: 16,
-              background: 'radial-gradient(circle, rgb(246 244 238 / 0.95), rgb(222 218 210 / 0.6) 50%, transparent 72%)',
+              background: 'radial-gradient(circle, rgb(246 244 238 / 0.97), rgb(226 221 212 / 0.75) 48%, transparent 72%)',
             }}
             initial={{ opacity: 0 }}
-            animate={{ opacity: [0, 1, 0], x: [0, size * (0.06 + i * 0.05), size * (0.16 + i * 0.09)], y: [0, -size * 0.4, -size * 0.9], scale: [0.4, 1.1, 2.1] }}
-            transition={{ duration: 2.6, delay: atraso + 0.45 + i * 0.3, repeat: Infinity, repeatDelay: CICLO - 2.6, ease: 'easeOut' }}
+            animate={{
+              opacity: [0, 1, 0.85, 0],
+              x: [0, size * (0.08 + i * 0.06), size * ((i % 2 ? -0.1 : 0.3) + i * 0.08), size * ((i % 2 ? -0.4 : 0.6) + i * 0.05)],
+              y: [0, -size * 0.5, -size * 1.1, -size * 1.9],
+              scale: [0.35, 1.2, 2.2, 3.4],
+            }}
+            transition={{ duration: 3.3, delay: atraso + 0.45 + i * 0.22, repeat: Infinity, repeatDelay: CICLO - 3.3, ease: 'easeOut' }}
           />
         ))}
     </motion.span>

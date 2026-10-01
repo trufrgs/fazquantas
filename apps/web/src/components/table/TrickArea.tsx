@@ -46,6 +46,8 @@ export interface TrickAreaProps {
   rodada?: number;
   /** Ritmo do jogo (1 = normal): os golpes acompanham o tempo que a mão fica na mesa. */
   ritmo?: number;
+  /** A mesa está no fumo (`Fumaca`): as cartas ficam por cima dele. */
+  acimaDaFumaca?: boolean;
 }
 
 /** Quanto a vencedora espera para subir depois que a última carta chega (segundos, no ritmo normal). */
@@ -134,7 +136,8 @@ export function TrickArea(p: TrickAreaProps) {
     animate(el, { x: t.x.map((v) => v * px), y: t.y.map((v) => v * px) }, { duration: t.duracao / ritmo, times: t.times, ease: 'linear' });
   }, [golpes, chave, reduce, ritmo, cw, ctx, p.geometry, p.plays]);
   return (
-    <div ref={camada} className="pointer-events-none absolute inset-0" aria-live="polite">
+    // Com a mesa no fumo (`Fumaca`), as cartas ficam por cima dele: é o que quem joga precisa ver.
+    <div ref={camada} className={`pointer-events-none absolute inset-0 ${p.acimaDaFumaca ? 'z-[11]' : ''}`} aria-live="polite">
       <AnimatePresence custom={p.collectTo}>
         {p.plays.map((play, i) => {
           const at = p.geometry.tricks.get(play.playerId) ?? p.geometry.center;

@@ -24,11 +24,12 @@ export function ScreenFrame({
         className="px-seguro flex items-center gap-3 pb-2"
         style={{ paddingTop: 'calc(0.75rem + var(--safe-top))' }}
       >
-        <IconButton label="Voltar" onClick={onBack ?? back}>
+        {/* O voltar nunca amassa: com o alto cheio, quem encolhe é o título (01/10/2026). */}
+        <IconButton label="Voltar" className="shrink-0" onClick={onBack ?? back}>
           <ArrowLeft size={22} />
         </IconButton>
         <h1
-          className="flex-1 font-display text-3xl font-bold texto-gravado"
+          className="min-w-0 flex-1 truncate font-display text-3xl font-bold texto-gravado"
           style={{ fontVariationSettings: '"SOFT" 100, "WONK" 1' }}
         >
           {title}
