@@ -114,9 +114,32 @@ pnpm exec playwright test                  # E2E locais (sobem os servidores soz
   cantar) e a mão dele, que fica fora da mesa. Dos 45 s em diante um véu passa por cima de tudo e fica
   difícil de ver, sem fechar de todo. Jogou, some num sopro. Não tem na sala de vez longa, em câmera
   rápida nem com "reduzir movimento". Roteiro: `e2e/exploratorio/10-fumaca.mjs`.
-- **Quem saiu leva o carimbo:** "LOSER" em tinta vermelha por cima do rosto na mesa (avatar ou
-  câmera, em preto e branco); no vídeo ampliado, o carimbo bate no canto, com pancada (`CarimboLoser`
-  em `components/ui/Midia.tsx`).
+- **Quem saiu vai para a lápide:** o assento vira túmulo, com o rosto de retrato (em preto e branco)
+  e, no lugar dos palitos, o que matou ("cantou 3, fez 0"). De câmera aberta, o rosto leva o carimbo
+  "Deu pra ti" (a palavra da mesa; "loser" ficou fora do clima, o Thomas, 02/10/2026), que no vídeo
+  ampliado bate no canto, com pancada (`components/ui/Carimbo.tsx`).
+- **Zoeira: uma coisa de cada vez em cada lugar.** O Thomas escolheu dezenas de ideias no caderno de
+  zoeira (02/10/2026) com uma condição: o excesso não pode sobrecarregar nem atrapalhar a jogada, e as
+  opções não podem se confundir entre si. As regras moram em `components/table/zoeira/diretor.ts` e
+  valem para tudo o que entrar depois:
+  - *enfeite* (estado do assento, cada um no seu ponto): coroa do líder em palitos e lanterna do
+    último, chama da mão quente (3+ acertos seguidos) ou véu azul do pé-frio (3+ erros), balanço do
+    borracho (cada palito perdido é um trago), lápide;
+  - *cena de assento* (um instante em cima de um rosto, no máximo duas na mesa, a mais pesada
+    entra): a chinelada em quem sai, a vaca em quem erra por dois ou mais, a traíra em quem mata a
+    carta que alguém cantou "é galo";
+  - *palco* (o meio da mesa, só em tempo morto): o cartão fidelidade do freguês (cinco cartas mortas
+    pelo mesmo dono);
+  - *faixa* (o único letreiro): o narrador de galpão, com ditado gaúcho, só em tempo morto e no
+    máximo duas falas por rodada, e o coro (três mandam a mesma frase em cinco segundos);
+  - o cinzeiro da espera junta as bitucas no canto e a conta sai no fim de jogo, com o freguês da
+    noite.
+  Nada pega toque nem cobre a mão ou o painel; em câmera rápida não acontece nada; com "reduzir
+  movimento" ficam os enfeites parados e a faixa. **Sem letrinha de gibi**: onomatopeia ("pá!",
+  "cocoricó") o Thomas achou brega; palavra só quando é a piada (carimbo, epitáfio, ditado). Desenho
+  novo sai na língua dos avatares (`zoeira/desenhos.tsx`), nunca emoji. "Patrão" é quem manda na mesa
+  (a sala); quem lidera em palitos é o "líder". Para olhar sem esperar o lance, no desenvolvimento:
+  `?cena=mao&zoeira=vaca|traira|chinelada|fala|coro|fregues|cinzeiro` e `&enfeites=1`.
 - **O alto da sala de espera:** voltar, título, microfone e câmera, som. O convite fica junto do
   código: com tudo no alto, o voltar amassava no celular depois da partida (com a conversa aberta).
   O voltar das telas de menu nunca encolhe (`ScreenFrame`); quem encolhe é o título.

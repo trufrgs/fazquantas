@@ -8,6 +8,7 @@ import { ApelidoGuardado } from '../components/setup/ApelidoGuardado';
 import { ProfileEditor } from '../components/setup/ProfileEditor';
 import { Avatar } from '../components/ui/Avatar';
 import { Logo } from '../components/ui/Logo';
+import { useSeteToques } from '../components/ui/GauderioDancando';
 import { Button, IconButton } from '../components/ui/Button';
 import { Sheet } from '../components/ui/Sheet';
 import { resumeLocalGame, startLocalGame } from '../lib/game-actions';
@@ -37,6 +38,7 @@ export function Home() {
   // No navegador, o botão dourado ao lado dos ajustes chama para instalar como app.
   const comoInstalar = useComoInstalar();
   const [instalando, setInstalando] = useState(false);
+  const seteToques = useSeteToques();
   const saved = hasSavedGame();
   const session = multiplayer ? savedSession() : null;
   const joining = useOnline((s) => s.status === 'connecting');
@@ -111,6 +113,7 @@ export function Home() {
         </div>
       </header>
       <InstalarAppSheet open={instalando} onClose={() => setInstalando(false)} />
+      {seteToques.danca}
 
       <main
         ref={mainRef}
@@ -122,6 +125,7 @@ export function Home() {
           <div className="flex flex-col items-center gap-5">
             <div ref={textoRef} className="flex flex-col items-center text-center">
               <motion.h1
+                onClick={seteToques.tocar}
                 className="logo-inicio m-0"
                 initial={{ opacity: 0, y: 14 }}
                 animate={{ opacity: 1, y: 0 }}

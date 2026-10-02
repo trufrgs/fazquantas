@@ -1,5 +1,5 @@
 import { Mic, MicOff, Video, VideoOff, X } from 'lucide-react';
-import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
+import { AnimatePresence, motion } from 'motion/react';
 import { useEffect, useRef, useState } from 'react';
 import { midia, useMidia } from '../../lib/midia';
 import { play } from '../../lib/sound';
@@ -7,6 +7,7 @@ import { rem } from '../../lib/ui-scale';
 import { useOnline } from '../../stores/online';
 import { useSettings } from '../../stores/settings';
 import { Avatar } from './Avatar';
+import { Carimbo } from './Carimbo';
 import { IconButton } from './Button';
 import { Toggle } from './Controls';
 
@@ -181,35 +182,6 @@ function VideoRedondo({ stream, size, espelho, dim }: { stream: MediaStream; siz
 }
 
 /**
- * O carimbo de quem saiu do jogo ("coloque um carimbo de loser no canto", o Thomas, 01/10/2026): tinta
- * vermelha, torto, por cima do rosto em preto e branco. `tamanho` é a altura da letra (px na escala 1).
- * Com `bate`, entra de pancada (no vídeo ampliado); no rosto pequeno da mesa, já está lá.
- */
-function CarimboLoser({ tamanho, bate = false, className = '' }: { tamanho: number; bate?: boolean; className?: string }) {
-  const reduce = useReducedMotion();
-  return (
-    <motion.span
-      aria-hidden="true"
-      className={`pointer-events-none absolute z-10 whitespace-nowrap border-copas bg-papel/85 font-display font-black uppercase leading-none text-copas ${className}`}
-      style={{
-        rotate: -14,
-        fontSize: rem(tamanho),
-        letterSpacing: '0.08em',
-        padding: `${rem(tamanho * 0.14)} ${rem(tamanho * 0.34)}`,
-        borderWidth: rem(Math.max(1.5, tamanho * 0.11)),
-        borderRadius: rem(tamanho * 0.2),
-        boxShadow: `0 0 0 ${rem(Math.max(1, tamanho * 0.05))} rgb(247 239 222 / 0.85), 0 0 0 ${rem(Math.max(2, tamanho * 0.1))} var(--color-copas)`,
-      }}
-      initial={bate ? (reduce ? { opacity: 0 } : { scale: 3, opacity: 0 }) : false}
-      animate={{ scale: 1, opacity: 1 }}
-      transition={{ delay: 0.3, duration: 0.2, ease: 'easeIn' }}
-    >
-      Loser
-    </motion.span>
-  );
-}
-
-/**
  * O rosto de quem está na mesa: com a câmera aberta, o vídeo no lugar do avatar (maior, `tamanhoVideo`);
  * senão, o avatar. Em volta, o microfone (vermelho quando fechado com a câmera aberta) e, enquanto a
  * pessoa fala, um anel verde. Tocar no rosto abre o vídeo grande.
@@ -227,7 +199,7 @@ export function RostoNaMesa({
   size: number;
   tamanhoVideo?: number;
   dim?: boolean;
-  /** Saiu do jogo: o carimbo vai por cima do rosto (avatar ou câmera). */
+  /** Saiu do jogo: de câmera aberta, o carimbo vai por cima do rosto. */
   fora?: boolean;
 }) {
   const eu = useOnline((s) => s.room?.youId === playerId);
@@ -260,7 +232,8 @@ export function RostoNaMesa({
       ) : (
         <Avatar seed={seed} size={size} dim={dim} />
       )}
-      {fora && <CarimboLoser tamanho={Math.max(8, d * 0.2)} className="left-1/2 top-[62%] -translate-x-1/2 -translate-y-1/2" />}
+      {/* Quem saiu de câmera aberta leva o carimbo no rosto (o avatar vira retrato de lápide, na mesa). */}
+      {fora && comVideo && <Carimbo texto="Deu pra ti" tamanho={Math.max(7, d * 0.13)} className="left-1/2 top-[64%] -translate-x-1/2 -translate-y-1/2" />}
       {falando && aberto.mic && (
         <span
           aria-hidden="true"
@@ -335,7 +308,7 @@ export function VideoAmpliado({ fora }: { fora?: readonly string[] }) {
             transition={{ type: 'spring', stiffness: 380, damping: 28 }}
           >
             <VideoGrande stream={stream} espelho={eu} pb={perdeu} />
-            {perdeu && <CarimboLoser bate tamanho={36} className="bottom-[13%] right-[5%]" />}
+            {perdeu && <Carimbo bate texto="Deu pra ti" tamanho={30} className="bottom-[14%] right-[4%]" />}
             <span className="absolute bottom-3 left-3 rounded-full bg-noite/70 px-3 py-1 text-sm font-bold text-papel">{eu ? 'Tu' : nome}</span>
             <span className="absolute right-3 top-3 flex h-9 w-9 items-center justify-center rounded-full bg-noite/70 text-papel" aria-hidden="true">
               <X size={18} />

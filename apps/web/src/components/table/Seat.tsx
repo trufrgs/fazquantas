@@ -7,6 +7,9 @@ import { RostoNaMesa } from '../ui/Midia';
 import { AVATAR_GRANDE } from './layout';
 import { Matches } from '../ui/Matches';
 import { Palheiro } from './Palheiro';
+import { Lanterna } from './zoeira/desenhos';
+import type { Enfeites } from './zoeira/diretor';
+import { RostoZoado } from './zoeira/RostoZoado';
 import { rem } from '../../lib/ui-scale';
 
 export type BidTone = 'none' | 'pending' | 'exact' | 'over' | 'doomed';
@@ -285,6 +288,8 @@ export interface SeatProps {
   /** Alguém está demorando: este avatar puxa um palheiro enquanto espera (`pitandoAtraso` desencontra). */
   pitando?: boolean;
   pitandoAtraso?: number;
+  /** A zoeira deste assento (borracho, mão quente, patrão, lanterna, lápide): ver `zoeira/diretor.ts`. */
+  enfeites?: Enfeites;
 }
 
 /** Oponente ao redor da mesa. */
@@ -325,7 +330,9 @@ export const Seat = memo(function Seat(p: SeatProps) {
       >
       <div className="relative z-10">
         {p.isTurn && !out && <TurnRing size={avatarSize} deadline={p.deadline} />}
-        <RostoNaMesa playerId={player.id} seed={info?.avatar ?? player.id} size={p.avatar} tamanhoVideo={p.rosto} dim={out} fora={out} />
+        <RostoZoado id={player.id} size={avatarSize} enfeites={p.enfeites}>
+          <RostoNaMesa playerId={player.id} seed={info?.avatar ?? player.id} size={p.avatar} tamanhoVideo={p.rosto} dim={out} fora={out} />
+        </RostoZoado>
         {/* Quem demorou jogou: o palheiro some (a vez andou). */}
         <AnimatePresence>{p.pitando && !out && <Palheiro key="palheiro" size={avatarSize} atraso={p.pitandoAtraso} />}</AnimatePresence>
         {!out && (player.isDealer || p.isMao) && (
@@ -355,16 +362,19 @@ export const Seat = memo(function Seat(p: SeatProps) {
           </span>
         )}
       </div>
+      {/* Quem saiu fica na lápide: o nome embaixo dela e, no lugar dos palitos, o que matou. Quem está
+          sozinho em último carrega a lanterna, ao lado do nome. */}
       <span
-        className={`relative z-10 mt-1 max-w-full truncate px-1 text-center font-bold texto-gravado transition-colors ${grande ? 'text-sm' : 'text-xs'} ${
-          out ? 'text-papel/50 line-through' : p.isTurn ? 'text-ouros' : 'text-papel'
+        className={`relative z-10 flex max-w-full items-center justify-center gap-1 px-1 font-bold texto-gravado transition-colors ${out ? 'mt-2' : 'mt-1'} ${grande ? 'text-sm' : 'text-xs'} ${
+          out ? 'text-papel/70' : p.isTurn ? 'text-ouros' : 'text-papel'
         }`}
       >
-        {player.name}
+        {!out && p.enfeites?.lanterna && <Lanterna w={rem(grande ? 13 : 11)} className="shrink-0" />}
+        <span className="truncate">{player.name}</span>
       </span>
       <div className="relative z-10 flex justify-center">
         {out ? (
-          <span className="rounded-full bg-copas/85 px-2 text-[0.6875rem] font-bold text-papel">fora</span>
+          <span className="whitespace-nowrap font-hand text-sm font-bold leading-none text-papel/85 texto-gravado">{p.enfeites?.epitafio ?? 'fora'}</span>
         ) : (
           <Matches lives={player.lives} starting={p.startingLives} size={p.compact ? 11 : grande ? 15 : 13} />
         )}

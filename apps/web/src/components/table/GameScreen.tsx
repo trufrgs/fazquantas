@@ -30,6 +30,10 @@ import { NaTesta } from './NaTesta';
 import { galoDeUmToque } from './frases';
 import { FrasesAMao } from './FrasesAMao';
 import { FumacaNaMesa, FumacaPorCima } from './Fumaca';
+import { enfeitesDe } from './zoeira/diretor';
+import { CartaoDoFregues, CinzeiroDaMesa, FaixaDaMesa } from './zoeira/Palco';
+import { enfeitesDeTeste, useZoeiraDeTeste } from './zoeira/teste';
+import { useDiretor } from './zoeira/useDiretor';
 import { useAlgumaCamera, VideoAmpliado } from '../ui/Midia';
 import { useApp } from '../../stores/app';
 import { useGame, type LiveReaction } from '../../stores/game';
@@ -538,6 +542,22 @@ function Table({
   // A fumaça dos palheiros enche a mesa enquanto a demora segue (`Fumaca`). Na sala de vez longa
   // ninguém espera ao vivo; em câmera rápida e com "reduzir movimento", também não tem.
   const fumaca = demorando && !asyncRoom && !cameraRapida && !reduzirMovimento && view.phase !== 'gameOver';
+  // A zoeira: o que a mesa faz sozinha para debochar de quem joga, uma coisa de cada vez em cada
+  // lugar (as regras estão em `zoeira/diretor.ts`).
+  const avatarDe = useCallback((id: string) => seatOf(id)?.avatar, [seatOf]);
+  useDiretor({ view, reactions, demorando, avatarDe, ativa: !cameraRapida, calma: !!reduzirMovimento, aoVivo: !asyncRoom });
+  useZoeiraDeTeste(view);
+  const enfeites = useMemo(() => (import.meta.env.DEV ? enfeitesDeTeste(view) : null) ?? enfeitesDe(view), [view]);
+  // O cinzeiro fica no canto de baixo, à esquerda, quando o canto está livre (sem a vira e sem assento).
+  const cinzeiro = useMemo(() => {
+    if (table.width === 0 || comVira) return null;
+    const r = { l: 8 * s, r: 66 * s, t: table.height - 46 * s };
+    const coberto = [...geometry.seats.entries()].some(([id, p]) => id !== you && p.x - geometry.seatBox.w / 2 < r.r && p.y + geometry.seatBox.h / 2 > r.t);
+    return coberto ? null : { left: 8 * s, bottom: 8 * s, largura: 58 * s };
+  }, [table.width, table.height, comVira, s, geometry, you]);
+  // "As cantadas" e o narrador usam o mesmo lugar livre da mesa: com elas na mesa, ele espera calado.
+  const cantadasNaMesa = view.phase === 'playing' && (view.trick?.plays.length ?? 0) === 0 && view.players.every((p) => !p.inRound || (p.bid !== null && p.tricks === 0));
+  const lugarDaFaixa = cantadasTop(geometry, reveal, view.players.filter((p) => p.inRound).length, s);
   const turnLeft = useTimeLeft(view.turnDeadline);
   // Vez com tempo (tua ou de outra pessoa): o tempo vai no aviso da tua faixa, nada por cima das
   // cartas; vermelho quando aperta. Avisos passageiros (tempo esgotado, erro) usam o mesmo lugar.
@@ -640,9 +660,11 @@ function Table({
                     lastToBid={lastBidder === p.id}
                     pitando={pitando(p.id)}
                     pitandoAtraso={(view.order.indexOf(p.id) * 1.3) % 3.6}
+                    enfeites={enfeites.get(p.id)}
                   />
                 );
               })}
+          {cinzeiro && <CinzeiroDaMesa {...cinzeiro} />}
           {/* A fumaça de quem espera: por cima dos assentos, por baixo das cartas que quem joga precisa ver. */}
           <AnimatePresence>{fumaca && <FumacaNaMesa key="fumaca" />}</AnimatePresence>
           {/* As cartas na testa entram depois da faixa da rodada (as duas ocupam o centro da mesa). */}
@@ -666,7 +688,9 @@ function Table({
             />
           )}
           <RoundBanner view={view} shown={banner} />
-          <CantadasBanner view={view} seatOf={seatOf} top={cantadasTop(geometry, reveal, view.players.filter((p) => p.inRound).length, s)} />
+          <CantadasBanner view={view} seatOf={seatOf} top={lugarDaFaixa} />
+          {!banner && !cantadasNaMesa && <FaixaDaMesa top={lugarDaFaixa} />}
+          <CartaoDoFregues nameOf={nameOf} />
           {naTesta && (
             <NaTesta
               key={`testa-${view.roundNumber}`}
@@ -756,6 +780,7 @@ function Table({
                 isMao={!!you && view.order[0] === you}
                 round={view.roundNumber}
                 pitando={pitando(me.id)}
+                enfeites={enfeites.get(me.id)}
               />
             </div>
           )}
@@ -906,11 +931,17 @@ function CantadasBanner({
   const shown = allBid && beforeFirstCard;
   const sum = inRound.reduce((n, p) => n + (p.bid ?? 0), 0);
   const cards = view.cardsThisRound;
+  // "A conta não fecha" (02/10/2026): a mesa diz quantos vão ficar na mão ou quantas mãos vão sobrar.
+  const dif = Math.abs(sum - cards);
   const tone =
     sum > cards
-      ? 'Mesa pesada: alguém vai ficar sem.'
+      ? dif === 1
+        ? 'A conta não fecha: um fica na mão.'
+        : `A conta não fecha: ${dif} ficam na mão.`
       : sum < cards
-        ? 'Mesa leve: vai sobrar mão.'
+        ? dif === 1
+          ? 'A conta não fecha: vai sobrar uma no colo de alguém.'
+          : `A conta não fecha: vão sobrar ${dif} no colo de alguém.`
         : 'Certinho: quem errar, perde.';
   return (
     <AnimatePresence>

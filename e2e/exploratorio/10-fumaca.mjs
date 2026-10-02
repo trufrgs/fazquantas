@@ -120,7 +120,7 @@ while (Date.now() - inicio < MAX_MIN * 60000) {
       if (!(await fora.isVisible().catch(() => false))) continue;
       visto = true;
       const nome = (await fora.getAttribute('aria-label')).replace(', fora do jogo', '');
-      const carimbo = await fora.getByText('Loser').first().isVisible().catch(() => false);
+      const carimbo = await fora.getByText('Deu pra ti').first().isVisible().catch(() => false);
       if (!carimbo) flag('f2', `${d.label}: o rosto de ${nome} na mesa não levou o carimbo`);
       else log('f2', `${d.label} vê ${nome} fora, com o carimbo no rosto`);
       await d.shot(`loser-mesa-${d.label}`);
@@ -131,7 +131,7 @@ while (Date.now() - inicio < MAX_MIN * 60000) {
         await grande.waitFor({ timeout: 5000 }).catch(() => {});
         await sleep(900);
         const m = await grande
-          .evaluate((el) => ({ filtro: getComputedStyle(el.querySelector('video')).filter, carimbo: [...el.querySelectorAll('span')].some((s) => s.textContent.trim() === 'Loser') }))
+          .evaluate((el) => ({ filtro: getComputedStyle(el.querySelector('video')).filter, carimbo: [...el.querySelectorAll('span')].some((s) => s.textContent.trim() === 'Deu pra ti') }))
           .catch(() => null);
         if (!m || !m.filtro.includes('grayscale') || !m.carimbo) flag('f2', `${d.label}: o vídeo ampliado de ${nome} não está em preto e branco com o carimbo`, m);
         else log('f2', `vídeo ampliado de ${nome}: ${m.filtro}, com o carimbo`);

@@ -4,6 +4,7 @@ import { useEffect } from 'react';
 import type { SeatInfo } from '../../lib/connection';
 import { Avatar } from '../ui/Avatar';
 import { Button } from '../ui/Button';
+import { useZoeira } from './zoeira/agenda';
 
 export interface GameOverProps {
   view: PlayerView;
@@ -81,8 +82,12 @@ export function GameOver({
     if (youWon || youChampion) void celebrate();
   }, [youWon, youChampion]);
 
+  const cinzeiro = useZoeira((s) => s.cinzeiro);
+  const fregues = useZoeira((s) => s.fregues);
   if (!result) return null;
   const name = (id: string) => view.players.find((p) => p.id === id)?.name ?? series?.names[id] ?? id;
+  // A conta da zoeira: quem mais fez a mesa esperar e quem mais teve a carta morta pelo mesmo dono.
+  const fumante = Object.entries(cinzeiro.por).sort((a, b) => b[1] - a[1])[0];
   const gameTitle = draw
     ? `Empate entre ${result.winners.map(name).join(' e ')}`
     : youWon
@@ -196,6 +201,20 @@ export function GameOver({
               Tu acertou <strong className="text-tinta">{exact}</strong> de {mine.length}{' '}
               {mine.length === 1 ? 'palpite' : 'palpites'}.
             </p>
+          )}
+          {(cinzeiro.total > 0 || (fregues && fregues.vezes >= 3)) && (
+            <div className="mt-3 flex flex-col gap-0.5 text-center font-hand text-xl leading-tight text-tinta-2">
+              {cinzeiro.total > 0 && fumante && (
+                <p className="m-0">
+                  Cinzeiro da espera: {cinzeiro.total} {cinzeiro.total === 1 ? 'bituca' : 'bitucas'}, {fumante[1]} por conta de {name(fumante[0])}.
+                </p>
+              )}
+              {fregues && fregues.vezes >= 3 && (
+                <p className="m-0">
+                  Freguês da noite: {name(fregues.fregues)}, {fregues.vezes} cartas mortas por {name(fregues.dono)}.
+                </p>
+              )}
+            </div>
           )}
           <div className="mt-4 flex flex-col gap-2">
             {onAgain && (

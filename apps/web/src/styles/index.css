@@ -286,3 +286,108 @@ html.app-ios body {
   animation: fumaca-vaga var(--vai, 9s) ease-in-out infinite alternate;
   will-change: transform;
 }
+
+/*
+ * A zoeira nos assentos (`components/table/zoeira`): o balanço do borracho (cada palito perdido é um
+ * trago), o tremor e o azul do pé-frio, a chama da mão quente. Quem pediu menos movimento vê os
+ * enfeites parados.
+ */
+@keyframes zoeira-balanco {
+  0%,
+  100% {
+    transform: rotate(calc(var(--torto) * -1)) translateX(calc(var(--torto-x) * -1));
+  }
+  50% {
+    transform: rotate(var(--torto)) translateX(var(--torto-x));
+  }
+}
+.zoeira-borracho {
+  transform-origin: 50% 90%;
+}
+.zoeira-borracho-1 {
+  --torto: 3deg;
+  --torto-x: 2%;
+  --passo: 3.4s;
+}
+.zoeira-borracho-2 {
+  --torto: 7deg;
+  --torto-x: 6%;
+  --passo: 2.6s;
+}
+.zoeira-borracho-3 {
+  --torto: 12deg;
+  --torto-x: 11%;
+  --passo: 1.9s;
+}
+@keyframes zoeira-bolha {
+  0% {
+    transform: translate(0, 0) scale(0.4);
+    opacity: 0;
+  }
+  20% {
+    opacity: 0.9;
+  }
+  100% {
+    transform: translate(250%, -420%) scale(1.1);
+    opacity: 0;
+  }
+}
+.zoeira-bolha {
+  border: 0.1em solid rgb(247 239 222 / 0.9);
+  background: rgb(247 239 222 / 0.25);
+  opacity: 0;
+}
+@keyframes zoeira-tremor {
+  0%,
+  100% {
+    transform: translateX(-1.5%);
+  }
+  50% {
+    transform: translateX(1.5%);
+  }
+}
+@keyframes zoeira-neve {
+  0% {
+    transform: translateY(0);
+    opacity: 0;
+  }
+  20% {
+    opacity: 0.95;
+  }
+  100% {
+    transform: translateY(1500%);
+    opacity: 0;
+  }
+}
+.zoeira-neve {
+  opacity: 0;
+}
+@keyframes zoeira-chama {
+  0%,
+  100% {
+    transform: scale(1, 1) skewX(-3deg);
+  }
+  50% {
+    transform: scale(0.94, 1.1) skewX(3deg);
+  }
+}
+.zoeira-chama {
+  transform-origin: 50% 100%;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .zoeira-borracho {
+    animation: zoeira-balanco var(--passo, 3s) ease-in-out infinite;
+  }
+  .zoeira-bolha {
+    animation: zoeira-bolha 2.6s ease-out infinite;
+  }
+  .zoeira-frio {
+    animation: zoeira-tremor 0.14s linear infinite;
+  }
+  .zoeira-neve {
+    animation: zoeira-neve 1.6s linear infinite;
+  }
+  .zoeira-chama {
+    animation: zoeira-chama 0.55s ease-in-out infinite;
+  }
+}
