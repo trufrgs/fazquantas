@@ -13,7 +13,7 @@ import { Toggle } from './Controls';
 
 /** A sala tem gente de verdade para conversar (pelo menos duas pessoas). */
 export function useTemConversa(): boolean {
-  return useOnline((s) => (s.room?.seats.filter((x) => x.kind === 'human').length ?? 0) >= 2);
+  return useOnline((s) => (s.room?.seats.filter((x) => x.kind === 'human').length ?? 0) + (s.room?.plateia?.length ?? 0) >= 2);
 }
 
 /** Alguém da sala está de câmera aberta (os assentos crescem para o rosto caber). */
@@ -154,7 +154,7 @@ function MidiaCompacta({ falando }: { falando: boolean }) {
 }
 
 /** Um vídeo redondo (o rosto no lugar do avatar); a tua prévia vem espelhada. */
-function VideoRedondo({ stream, size, espelho, dim }: { stream: MediaStream; size: number; espelho: boolean; dim?: boolean }) {
+function VideoRedondo({ stream, size, espelho, dim, pb }: { stream: MediaStream; size: number; espelho: boolean; dim?: boolean; pb?: boolean }) {
   const ref = useRef<HTMLVideoElement>(null);
   const versao = useMidia((s) => s.versao);
   useEffect(() => {
@@ -175,7 +175,7 @@ function VideoRedondo({ stream, size, espelho, dim }: { stream: MediaStream; siz
         height: rem(size),
         transform: espelho ? 'scaleX(-1)' : undefined,
         boxShadow: '0 2px 6px rgb(0 0 0 / 0.35)',
-        filter: dim ? 'grayscale(1) brightness(0.7)' : undefined,
+        filter: dim ? 'grayscale(1) brightness(0.7)' : pb ? 'grayscale(1) contrast(1.05)' : undefined,
       }}
     />
   );
@@ -193,6 +193,7 @@ export function RostoNaMesa({
   tamanhoVideo = size,
   dim,
   fora = false,
+  pb = false,
 }: {
   playerId: string;
   seed: string;
@@ -201,6 +202,8 @@ export function RostoNaMesa({
   dim?: boolean;
   /** Saiu do jogo: de câmera aberta, o carimbo vai por cima do rosto. */
   fora?: boolean;
+  /** Na plateia: o rosto (câmera ou avatar) em preto e branco. */
+  pb?: boolean;
 }) {
   const eu = useOnline((s) => s.room?.youId === playerId);
   const aberto = useAberto(playerId);
@@ -227,10 +230,10 @@ export function RostoNaMesa({
             useMidia.setState({ ampliado: playerId });
           }}
         >
-          <VideoRedondo stream={stream} size={d} espelho={eu} dim={dim} />
+          <VideoRedondo stream={stream} size={d} espelho={eu} dim={dim} pb={pb} />
         </button>
       ) : (
-        <Avatar seed={seed} size={size} dim={dim} />
+        <Avatar seed={seed} size={size} dim={dim} className={pb && !dim ? 'grayscale' : undefined} />
       )}
       {/* Quem saiu de câmera aberta leva o carimbo no rosto (o avatar vira retrato de lápide, na mesa). */}
       {fora && comVideo && <Carimbo texto="Deu pra ti" tamanho={Math.max(7, d * 0.13)} className="left-1/2 top-[64%] -translate-x-1/2 -translate-y-1/2" />}
@@ -269,16 +272,17 @@ export function RostoNaMesa({
 }
 
 /** O vídeo de alguém em tamanho grande, por cima da mesa (toque em qualquer lugar fecha). */
-export function VideoAmpliado({ fora }: { fora?: readonly string[] }) {
+export function VideoAmpliado({ fora, pb }: { fora?: readonly string[]; pb?: readonly string[] }) {
   const id = useMidia((s) => s.ampliado);
   const room = useOnline((s) => s.room);
   const eu = room?.youId === id;
   const stream = useMidia((s) => (id ? (eu ? s.local : (s.remotos[id] ?? null)) : null));
   const aberto = room?.midias?.find((m) => m.playerId === id);
-  const nome = room?.seats.find((x) => x.playerId === id)?.name ?? '';
+  const nome = room?.seats.find((x) => x.playerId === id)?.name ?? room?.plateia?.find((x) => x.playerId === id)?.name ?? '';
   const mostrar = !!id && !!stream && !!aberto?.camera;
   // Quem saiu do jogo aparece em preto e branco, com o carimbo no canto.
   const perdeu = !!id && !!fora?.includes(id);
+  const plateia = !!id && !!pb?.includes(id);
   // A pessoa fechou a câmera: o grande fecha também.
   useEffect(() => {
     if (id && !mostrar) useMidia.setState({ ampliado: null });
@@ -298,7 +302,7 @@ export function VideoAmpliado({ fora }: { fora?: readonly string[] }) {
           exit={{ opacity: 0 }}
           onClick={() => useMidia.setState({ ampliado: null })}
           role="dialog"
-          aria-label={`Vídeo de ${nome}${perdeu ? ', fora do jogo' : ''}`}
+          aria-label={`Vídeo de ${nome}${perdeu ? ', fora do jogo' : plateia ? ', na plateia' : ''}`}
         >
           <motion.div
             className="relative w-full max-w-[26rem]"
@@ -307,7 +311,7 @@ export function VideoAmpliado({ fora }: { fora?: readonly string[] }) {
             exit={{ scale: 0.8 }}
             transition={{ type: 'spring', stiffness: 380, damping: 28 }}
           >
-            <VideoGrande stream={stream} espelho={eu} pb={perdeu} />
+            <VideoGrande stream={stream} espelho={eu} pb={perdeu || plateia} />
             {perdeu && <Carimbo bate texto="Deu pra ti" tamanho={30} className="bottom-[14%] right-[4%]" />}
             <span className="absolute bottom-3 left-3 rounded-full bg-noite/70 px-3 py-1 text-sm font-bold text-papel">{eu ? 'Tu' : nome}</span>
             <span className="absolute right-3 top-3 flex h-9 w-9 items-center justify-center rounded-full bg-noite/70 text-papel" aria-hidden="true">
@@ -349,7 +353,7 @@ export function ConversaNaSala() {
   const room = useOnline((s) => s.room);
   const abertos = room?.midias ?? [];
   if (!tem || abertos.length === 0) return null;
-  const nome = (id: string) => (id === room?.youId ? 'tu' : (room?.seats.find((x) => x.playerId === id)?.name ?? ''));
+  const nome = (id: string) => (id === room?.youId ? 'tu' : (room?.seats.find((x) => x.playerId === id)?.name ?? room?.plateia?.find((x) => x.playerId === id)?.name ?? ''));
   const comMic = abertos.filter((m) => m.mic).map((m) => nome(m.playerId));
   const comCamera = abertos.filter((m) => m.camera).map((m) => nome(m.playerId));
   return (

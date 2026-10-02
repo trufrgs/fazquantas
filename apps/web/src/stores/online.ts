@@ -235,6 +235,12 @@ interface OnlineState {
   backToLobby: () => void;
   /** "Voltei": para de jogar por mim. */
   present: () => void;
+  /** Da plateia: pede (ou desiste de) jogar a próxima. */
+  querJogar: (quer: boolean) => void;
+  /** Patrão: aceita (ou recusa) quem pediu para jogar. */
+  aceitar: (playerId: string, aceito: boolean) => void;
+  /** Patrão: faz alguém patrão, ou tira. */
+  setPatrao: (playerId: string, patrao: boolean) => Promise<string | null>;
   clearError: () => void;
 }
 
@@ -331,7 +337,7 @@ if (typeof window !== 'undefined' && typeof window.addEventListener === 'functio
 
 const REASONS: Partial<Record<DisconnectReason, string>> = {
   replaced: 'Tu abriu essa sala em outro aparelho ou aba. Segue por lá, ou toca em "Voltar pra sala" pra jogar aqui.',
-  kicked: 'O anfitrião te tirou da sala.',
+  kicked: 'O patrão da mesa te tirou da sala.',
   gone: 'A sala acabou.',
   closedByAdmin: 'A sala foi encerrada pela administração do jogo.',
   tooManyAttempts: 'Muitas senhas erradas seguidas. Confere a senha com quem te convidou e tenta de novo.',
@@ -369,6 +375,9 @@ function openSocket(code: string): SalaSocket {
       const known = new Set(before.seats.map((x) => x.playerId));
       const arrived = room.seats.filter((x) => x.kind === 'human' && !known.has(x.playerId));
       if (arrived.length > 0) warnRoom(`${arrived.map((x) => x.name).join(' e ')} entrou na sala.`, 'entrou');
+      const naPlateiaAntes = new Set((before.plateia ?? []).map((x) => x.playerId));
+      const plateiaNova = (room.plateia ?? []).filter((x) => !naPlateiaAntes.has(x.playerId) && !known.has(x.playerId));
+      if (plateiaNova.length > 0) warnRoom(`${plateiaNova.map((x) => x.name).join(' e ')} chegou na plateia.`, 'entrou');
     }
     useOnline.setState({ room, status: 'online' });
     midia.sincronizar(room);
@@ -665,10 +674,25 @@ export const useOnline = create<OnlineState>((set) => ({
   backToLobby: () => pedir('room:lobby'),
 
   present: () => pedir('room:present'),
+  querJogar: (quer) => pedir('room:querJogar', { quer }),
+  aceitar: (playerId, aceito) => pedir('room:aceitar', { playerId, aceito }),
+  setPatrao: async (playerId, patrao) => {
+    const r = await request('room:patrao', { playerId, patrao });
+    return r.ok ? null : r.error.message;
+  },
   clearError: () => set({ error: null, kicked: false, passwordFor: null }),
 }));
 
+/** És patrão da mesa: o anfitrião ou alguém que um patrão fez patrão. */
 export function isHost(): boolean {
-  const room = useOnline.getState().room;
-  return !!room && room.hostId === room.youId;
+  return ehPatrao(useOnline.getState().room);
+}
+
+export function ehPatrao(room: RoomState | null, id = room?.youId): boolean {
+  return !!room && !!id && (room.hostId === id || (room.patroes ?? []).includes(id));
+}
+
+/** Estás na plateia (assiste sem jogar). */
+export function naPlateia(room: RoomState | null): boolean {
+  return !!room && (room.plateia ?? []).some((p) => p.playerId === room.youId);
 }

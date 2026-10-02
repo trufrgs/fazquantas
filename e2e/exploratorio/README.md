@@ -43,6 +43,7 @@ sala (`routeWebSocket`) e simula as falhas de verdade de celular:
 | `8-midia.mjs` | Microfone e câmera com os de mentira do Chromium (`device(nome, { microfone: true })`): só câmera, só microfone, os dois, fechar a câmera (a trilha para), rostos nos assentos e vídeo grande na mesa, queda da sala e volta, tudo fechado sem ligações |
 | `9-oito.mjs` | A sala cheia: 8 pessoas em celulares diferentes (o máximo da sala), todas de microfone e 4 de câmera (malha de 28 ligações), a nona recusada ("A sala está cheia"), partida inteira no automático (`MAX_MIN`, padrão 10) medindo a mesa de 8 no iPhone 15 e no SE |
 | `10-fumaca.mjs` | A fumaça da demora enchendo a mesa (e a carta da vez ainda tocável), o carimbo de quem saiu no rosto e no vídeo ampliado, e o alto da sala depois da partida (o voltar redondo, o convite junto do código) |
+| `11-plateia.mjs` | Quem chega no meio da partida vai para a plateia (sem mão, câmera em preto e branco), pede a próxima, a patroa aceita pelo aviso na mesa, senha posta no meio da partida barra quem chega, o aceito senta na volta à sala e um convidado vira patrão |
 
 Referências de tempo (29/09/2026, local): modo avião volta em ~0,2 s; conexão morta é percebida em
 ~16 s e volta em ~0,2 s; jogada com a conexão morta avisa em ~6 s; celular que dormiu volta em ~0,3 s.

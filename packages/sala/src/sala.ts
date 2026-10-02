@@ -7,6 +7,7 @@ import {
   randomGauchoAvatar,
   GameHost,
   NAME_MAX_LENGTH,
+  PLATEIA_CAPACITY,
   RANKED_MIN_HUMANS,
   ROOM_CAPACITY,
   WS_CLOSE,
@@ -29,6 +30,7 @@ import {
   type HostSnapshot,
   type HostTiming,
   type JoinResult,
+  type PlateiaPublic,
   type Pace,
   type ReactionId,
   type RoomState,
@@ -173,6 +175,13 @@ interface HumanSeat {
   visivel: boolean;
   /** A aba que sentou por último (a volta automática dela sempre assume o lugar). */
   aba?: string | null;
+  /**
+   * Na plateia: assiste, conversa e abre a câmera, mas não joga (chegou com a partida rolando ou a
+   * mesa cheia). `quer`: pediu para jogar a próxima; `aceito`: um patrão aceitou.
+   */
+  plateia?: boolean;
+  quer?: boolean;
+  aceito?: boolean;
 }
 
 interface BotSeat {
@@ -220,6 +229,8 @@ export interface SalaSalva {
   criadorId?: string;
   /** Quem pediu a revanche depois do fim da partida. */
   revanche?: string[];
+  /** Os patrões além do anfitrião (salas salvas antes de 02/10/2026 não têm). */
+  patroes?: string[];
 }
 
 /**
@@ -238,6 +249,12 @@ export class Sala {
   private coroaPrazo: number | null = null;
   /** Depois do fim da partida: quem já pediu a revanche. */
   private revanche = new Set<string>();
+  /**
+   * Os patrões além do anfitrião (quem manda na mesa junto com ele: aceita a plateia, troca a senha,
+   * começa a partida…). O anfitrião (`hostPlayerId`) é sempre patrão; é dele a coroa que anda quando
+   * ele some da mesa.
+   */
+  private patroes = new Set<string>();
   private currentStatus: RoomStatus = 'lobby';
   private rules: Rules = normalizeRules(DEFAULT_RULES);
   private turnTimeoutSec: number | null = DEFAULT_TURN_TIMEOUT_SEC;
@@ -297,8 +314,14 @@ export class Sala {
     return this.disposed;
   }
 
+  /** Quantos jogam (sem contar a plateia). */
   get seatCount(): number {
-    return this.seats.length;
+    return this.jogadores().length;
+  }
+
+  /** É patrão da mesa (o anfitrião ou alguém que ele fez patrão). */
+  isPatrao(playerId: string): boolean {
+    return playerId === this.hostPlayerId || this.patroes.has(playerId);
   }
 
   /** De quem é a vez agora (id e nome), com o prazo, para a lista de salas de quem está fora. */
@@ -329,7 +352,7 @@ export class Sala {
 
   publicSeats(): SeatPublic[] {
     const game = this.currentStatus === 'playing' ? this.gameHost : null;
-    return this.seats.map((seat) =>
+    return this.jogadores().map((seat) =>
       seat.kind === 'human'
         ? {
             kind: 'human',
@@ -349,6 +372,17 @@ export class Sala {
     );
   }
 
+  publicPlateia(): PlateiaPublic[] {
+    return this.plateia().map((seat) => ({
+      playerId: seat.playerId,
+      name: seat.name,
+      avatar: seat.avatar,
+      connected: seat.conexao !== null,
+      quer: seat.quer ?? false,
+      aceito: seat.aceito ?? false,
+    }));
+  }
+
   stateFor(youId: string): RoomState {
     return {
       code: this.code,
@@ -364,10 +398,13 @@ export class Sala {
       bestOf: this.bestOf,
       ranked: this.ranked,
       hasPassword: this.password !== null,
-      password: youId === this.hostPlayerId ? this.password : null,
+      password: this.isPatrao(youId) ? this.password : null,
       capacity: ROOM_CAPACITY,
       series: this.series,
       revanche: [...this.revanche],
+      patroes: [this.hostPlayerId, ...this.patroes].filter(Boolean),
+      plateia: this.publicPlateia(),
+      plateiaCapacity: PLATEIA_CAPACITY,
     };
   }
 
@@ -423,10 +460,14 @@ export class Sala {
   // ---------------------------------------------------------------------------
   // Entrar, reconectar, sair
 
-  /** Lança se não dá para entrar num assento novo agora. */
+  /** Quem chega agora senta para jogar: lobby com lugar na mesa. Senão, vai para a plateia. */
+  private podeSentar(): boolean {
+    return this.currentStatus === 'lobby' && this.jogadores().length < ROOM_CAPACITY;
+  }
+
+  /** Lança se não dá para entrar agora, nem na plateia. */
   assertCanJoin(): void {
-    if (this.currentStatus !== 'lobby') throw fail('GAME_IN_PROGRESS', MESSAGES.joinInProgress);
-    if (this.seats.length >= ROOM_CAPACITY) throw fail('ROOM_FULL', MESSAGES.roomFull);
+    if (!this.podeSentar() && this.plateia().length >= PLATEIA_CAPACITY) throw fail('ROOM_FULL', MESSAGES.roomFull);
   }
 
   /**
@@ -470,6 +511,7 @@ export class Sala {
       desconectadoEm: null,
       visivel: true,
       aba: perfil.aba ?? null,
+      ...(this.podeSentar() ? {} : { plateia: true, quer: false, aceito: false }),
     };
     this.seats.push(seat);
     this.bind(seat, conexao, perfil.visivel ?? true);
@@ -479,6 +521,8 @@ export class Sala {
     }
     this.conferirCoroa();
     this.touch();
+    // Na plateia com a partida rolando (ou acabada): a mesa já aparece para ela.
+    if (seat.plateia) this.queueView(seat.playerId);
     return { code: this.code, playerId: seat.playerId, token: seat.token };
   }
 
@@ -501,7 +545,7 @@ export class Sala {
     if (perfil.profileId) seat.profileId = perfil.profileId;
     if (perfil.aba) seat.aba = perfil.aba;
     this.bind(seat, conexao, perfil.visivel ?? true);
-    if (this.currentStatus === 'playing') this.gameHost?.setAway(playerId, false);
+    if (this.currentStatus === 'playing' && !seat.plateia) this.gameHost?.setAway(playerId, false);
     this.conferirCoroa();
     this.touch();
     this.queueView(playerId);
@@ -526,7 +570,7 @@ export class Sala {
     seat.desconectadoEm = this.deps.relogio.now();
     seat.foraDesde ??= seat.desconectadoEm;
     // Na partida ao vivo, a mesa joga por quem caiu; na assíncrona, a vez espera por ele.
-    if (this.currentStatus === 'playing') {
+    if (this.currentStatus === 'playing' && !seat.plateia) {
       if (!this.isAsync) this.gameHost?.setAway(seat.playerId, true);
       else this.warnIfTurnOf(seat);
     }
@@ -540,7 +584,7 @@ export class Sala {
     const index = this.indexOf(playerId);
     const seat = this.seats[index];
     if (!seat || seat.kind !== 'human') return;
-    if (this.currentStatus === 'playing') this.replaceWithBot(index, seat);
+    if (this.currentStatus === 'playing' && !seat.plateia) this.replaceWithBot(index, seat);
     else this.removeAt(index);
   }
 
@@ -573,6 +617,68 @@ export class Sala {
   // ---------------------------------------------------------------------------
   // Ações do anfitrião
 
+  // ---------------------------------------------------------------------------
+  // Plateia e patrões
+
+  /** Quem está na plateia pede (ou desiste de) jogar a próxima; os patrões veem o pedido. */
+  querJogar(playerId: string, quer: boolean): void {
+    const seat = this.human(playerId);
+    if (!seat?.plateia) throw fail('INVALID_PAYLOAD', MESSAGES.naoPlateia);
+    if ((seat.quer ?? false) === quer && !(!quer && seat.aceito)) return;
+    seat.quer = quer;
+    if (!quer) seat.aceito = false;
+    this.touch();
+  }
+
+  /** Patrão aceita (ou recusa) quem pediu: aceito senta na próxima partida, ou já, se está no lobby. */
+  aceitar(requesterId: string, playerId: string, aceito: boolean): void {
+    this.assertHost(requesterId);
+    const seat = this.human(playerId);
+    if (!seat?.plateia) throw fail('INVALID_PAYLOAD', MESSAGES.seatGone);
+    seat.aceito = aceito;
+    if (!aceito) seat.quer = false;
+    if (aceito && this.currentStatus === 'lobby') this.sentarAceitos();
+    this.touch();
+  }
+
+  /**
+   * Patrão faz outra pessoa patrão, ou tira. Tirar o anfitrião (a si mesmo, para passar o chapéu) põe
+   * outro patrão no lugar dele; a mesa nunca fica sem patrão.
+   */
+  setPatrao(requesterId: string, playerId: string, patrao: boolean): void {
+    this.assertHost(requesterId);
+    const seat = this.human(playerId);
+    if (!seat) throw fail('INVALID_PAYLOAD', this.seats.some((s) => s.playerId === playerId) ? MESSAGES.patraoHumano : MESSAGES.seatGone);
+    if (patrao) {
+      if (playerId !== this.hostPlayerId) this.patroes.add(playerId);
+    } else if (playerId === this.hostPlayerId) {
+      const proximo = [...this.patroes].find((id) => this.human(id)?.conexao) ?? [...this.patroes][0];
+      if (!proximo) throw fail('INVALID_PAYLOAD', MESSAGES.semPatrao);
+      this.patroes.delete(proximo);
+      this.hostPlayerId = proximo;
+      // Passou o chapéu de propósito: ele não volta sozinho para quem criou a sala.
+      this.criadorId = proximo;
+    } else this.patroes.delete(playerId);
+    this.conferirCoroa();
+    this.touch();
+  }
+
+  /**
+   * Quem foi aceito da plateia senta para jogar, enquanto houver lugar (na ordem em que chegaram).
+   * Antes de cada partida e quando a sala volta para o lobby.
+   */
+  private sentarAceitos(): void {
+    for (const seat of this.plateia()) {
+      if (!seat.aceito || this.jogadores().length >= ROOM_CAPACITY) continue;
+      // Sai da plateia e senta no fim da mesa.
+      this.seats.splice(this.indexOf(seat.playerId), 1);
+      delete seat.plateia;
+      delete seat.quer;
+      delete seat.aceito;
+      this.seats.push(seat);
+    }
+  }
+
   update(requesterId: string, patch: AjustesSala): void {
     this.assertHost(requesterId);
     this.applySettings(patch, false);
@@ -602,6 +708,8 @@ export class Sala {
     if (patch.bestOf !== undefined) this.bestOf = patch.bestOf;
     if (patch.ranked !== undefined) this.ranked = patch.ranked;
     if (patch.password !== undefined) this.password = patch.password;
+    // Abriu a mesa (lobby) com lugar: quem já tinha sido aceito senta.
+    if (this.currentStatus === 'lobby') this.sentarAceitos();
     if (patch.pace !== undefined) {
       this.pace = patch.pace;
       if (inGame) this.gameHost?.setSpeed(this.ritmoDaPartida());
@@ -634,7 +742,7 @@ export class Sala {
   addBot(requesterId: string, difficulty: BotDifficulty): void {
     this.assertHost(requesterId);
     this.assertEditable();
-    if (this.seats.length >= ROOM_CAPACITY) throw fail('ROOM_FULL', MESSAGES.roomFull);
+    if (this.jogadores().length >= ROOM_CAPACITY) throw fail('ROOM_FULL', MESSAGES.roomFull);
     const rng = createRng(randomSeed(this.deps.aleatorio));
     const [name] = pickBotNames(
       1,
@@ -676,7 +784,7 @@ export class Sala {
     const conexao = seat.conexao;
     // Quem estava sem conexão fica sabendo na volta ("te tiraram"), em vez de sentar como gente nova.
     this.expulsos = [seat.token, ...this.expulsos].slice(0, EXPULSOS_GUARDADOS);
-    if (this.currentStatus === 'playing') this.replaceWithBot(index, seat);
+    if (this.currentStatus === 'playing' && !seat.plateia) this.replaceWithBot(index, seat);
     else this.removeAt(index);
     conexao?.enviar('room:kicked');
     conexao?.fechar(WS_CLOSE.kicked, 'expulso pelo anfitrião');
@@ -689,7 +797,9 @@ export class Sala {
 
   private comecar(): void {
     if (this.currentStatus === 'playing') throw fail('GAME_IN_PROGRESS', MESSAGES.alreadyPlaying);
-    if (this.seats.length < 2) throw fail('NOT_ENOUGH_PLAYERS', MESSAGES.notEnoughPlayers);
+    // Quem a mesa aceitou da plateia entra nesta partida (com lugar).
+    this.sentarAceitos();
+    if (this.jogadores().length < 2) throw fail('NOT_ENOUGH_PLAYERS', MESSAGES.notEnoughPlayers);
     // Do lobby sempre começa série nova; depois do fim, segue a série se ela não acabou.
     const continuing = this.currentStatus === 'finished' && this.series !== null && this.series.champion === null;
     if (!continuing && this.ranked) this.assertRankable();
@@ -703,11 +813,17 @@ export class Sala {
    * com o jogo escondido não pode entrar numa partida que conta pontos sem saber.
    */
   rematch(requesterId: string): void {
-    if (requesterId === this.hostPlayerId || this.currentStatus !== 'finished') {
+    if (this.isPatrao(requesterId) || this.currentStatus !== 'finished') {
       this.start(requesterId);
       return;
     }
-    if (!this.human(requesterId)) throw fail('NOT_IN_ROOM', MESSAGES.notInRoom);
+    const quem = this.human(requesterId);
+    if (!quem) throw fail('NOT_IN_ROOM', MESSAGES.notInRoom);
+    // Da plateia, "mais uma" é pedir para jogar a próxima.
+    if (quem.plateia) {
+      this.querJogar(requesterId, true);
+      return;
+    }
     this.revanche.add(requesterId);
     this.markDirty();
     if (!this.todosPediramRevanche()) return;
@@ -724,7 +840,7 @@ export class Sala {
   /** Todo mundo que está olhando a mesa pediu a revanche (e ela pode começar sem o anfitrião). */
   private todosPediramRevanche(): boolean {
     if (this.currentStatus !== 'finished' || this.revanche.size === 0 || this.ranked) return false;
-    const naMesa = this.humans().filter((seat) => seat.conexao !== null && seat.visivel);
+    const naMesa = this.humanosJogando().filter((seat) => seat.conexao !== null && seat.visivel);
     return naMesa.length > 0 && naMesa.every((seat) => this.revanche.has(seat.playerId));
   }
 
@@ -751,6 +867,7 @@ export class Sala {
     this.acelerando = false;
     this.revanche.clear();
     this.currentStatus = 'lobby';
+    this.sentarAceitos();
     this.touch();
   }
 
@@ -866,6 +983,7 @@ export class Sala {
       expulsos: this.expulsos,
       criadorId: this.criadorId,
       revanche: [...this.revanche],
+      patroes: [...this.patroes],
     };
   }
 
@@ -891,6 +1009,7 @@ export class Sala {
     sala.series = saved.series;
     sala.expulsos = saved.expulsos ?? [];
     sala.revanche = new Set(saved.status === 'finished' ? (saved.revanche ?? []) : []);
+    sala.patroes = new Set(saved.patroes ?? []);
     sala.seats = saved.seats.map((seat) => (seat.kind === 'bot' ? { ...seat } : { ...seat, conexao: null }));
     const now = deps.relogio.now();
     for (const conexao of conexoes) {
@@ -919,7 +1038,7 @@ export class Sala {
       sala.partida = meta;
       sala.attachGame(game);
       if (saved.status === 'playing') {
-        if (!sala.isAsync) for (const seat of sala.humans()) if (!seat.conexao) game.setAway(seat.playerId, true);
+        if (!sala.isAsync) for (const seat of sala.humanosJogando()) if (!seat.conexao) game.setAway(seat.playerId, true);
         game.start();
         // A vez atual já foi avisada antes de hibernar: não repete o push ao acordar.
         const actor = currentActor(game.state);
@@ -940,8 +1059,22 @@ export class Sala {
   // ---------------------------------------------------------------------------
   // Internos
 
+  /** Todas as pessoas da sala, jogando ou na plateia (conexão, conversa, estado da sala). */
   private humans(): HumanSeat[] {
     return this.seats.filter((seat): seat is HumanSeat => seat.kind === 'human');
+  }
+
+  /** Quem joga: os assentos da mesa, humanos e bots, sem a plateia. */
+  private jogadores(): Seat[] {
+    return this.seats.filter((seat) => seat.kind === 'bot' || !seat.plateia);
+  }
+
+  private humanosJogando(): HumanSeat[] {
+    return this.humans().filter((seat) => !seat.plateia);
+  }
+
+  private plateia(): HumanSeat[] {
+    return this.humans().filter((seat) => seat.plateia);
   }
 
   private human(playerId: string): HumanSeat | undefined {
@@ -954,7 +1087,7 @@ export class Sala {
   }
 
   private assertHost(playerId: string): void {
-    if (playerId !== this.hostPlayerId) throw fail('NOT_HOST', MESSAGES.notHost);
+    if (!this.isPatrao(playerId)) throw fail('NOT_HOST', MESSAGES.notHost);
   }
 
   private assertEditable(): void {
@@ -962,7 +1095,7 @@ export class Sala {
   }
 
   private assertRankable(): void {
-    const ranked = this.humans().filter((seat) => seat.profileId !== null);
+    const ranked = this.humanosJogando().filter((seat) => seat.profileId !== null);
     if (ranked.length < RANKED_MIN_HUMANS) throw fail('NOT_RANKABLE', MESSAGES.notRankable);
   }
 
@@ -1011,12 +1144,19 @@ export class Sala {
     const naMesa = (seat: HumanSeat) => seat.conexao !== null && seat.visivel;
     const criador = this.criadorId ? this.human(this.criadorId) : undefined;
     if (criador && naMesa(criador) && this.hostPlayerId !== criador.playerId) {
+      // Se quem criou também era patrão, quem estava com a coroa segue patrão.
+      if (this.patroes.delete(criador.playerId) && this.human(this.hostPlayerId)) this.patroes.add(this.hostPlayerId);
       this.hostPlayerId = criador.playerId;
       this.markDirty();
     }
     const host = this.human(this.hostPlayerId);
     const now = Math.max(this.deps.relogio.now(), vencido);
-    if (!host || naMesa(host) || this.isAsync) {
+    // Com outro patrão olhando a mesa, a coroa não precisa andar: ele já manda.
+    const outroPatrao = [...this.patroes].some((id) => {
+      const seat = this.human(id);
+      return seat !== undefined && naMesa(seat);
+    });
+    if (!host || naMesa(host) || this.isAsync || outroPatrao) {
       this.clearCoroaTimer();
       return;
     }
@@ -1036,7 +1176,7 @@ export class Sala {
     const from = this.indexOf(host.playerId);
     for (let k = 1; k < this.seats.length; k++) {
       const seat = this.seats[(from + k) % this.seats.length];
-      if (seat?.kind !== 'human' || !naMesa(seat)) continue;
+      if (seat?.kind !== 'human' || seat.plateia || !naMesa(seat)) continue;
       this.deps.logger.info(`[${this.code}] ${host.name} está fora da mesa; a coroa passou para ${seat.name}.`);
       this.hostPlayerId = seat.playerId;
       this.markDirty();
@@ -1057,6 +1197,7 @@ export class Sala {
     this.lastReactionAt.delete(seat.playerId);
     this.revanche.delete(seat.playerId);
     if (seat.kind === 'human') this.unbind(seat);
+    this.patroes.delete(seat.playerId);
     if (seat.playerId === this.criadorId) this.criadorId = '';
     if (seat.playerId === this.hostPlayerId) this.passCrown(index);
     this.afterSeatChange();
@@ -1065,6 +1206,7 @@ export class Sala {
   private replaceWithBot(index: number, seat: HumanSeat): void {
     this.unbind(seat);
     this.revanche.delete(seat.playerId);
+    this.patroes.delete(seat.playerId);
     if (seat.playerId === this.criadorId) this.criadorId = '';
     if (this.partida?.ranqueada && seat.profileId) {
       this.partida.abandonos.push({ profileId: seat.profileId, name: seat.name, avatar: seat.avatar });
@@ -1081,13 +1223,26 @@ export class Sala {
     this.afterSeatChange();
   }
 
-  /** Coroa para o próximo humano na ordem dos assentos, de preferência conectado. */
+  /**
+   * Coroa para outro patrão, se tem (de preferência conectado); senão, para o próximo humano na ordem
+   * dos assentos, de preferência conectado e jogando (a plateia só fica com ela se não sobrou ninguém).
+   */
   private passCrown(fromIndex: number): void {
+    const patrao = [...this.patroes].find((id) => this.human(id)?.conexao) ?? [...this.patroes].find((id) => this.human(id));
+    if (patrao) {
+      this.patroes.delete(patrao);
+      this.hostPlayerId = patrao;
+      return;
+    }
     const n = this.seats.length;
     let fallback: HumanSeat | undefined;
     for (let k = 0; k < n; k++) {
       const seat = this.seats[(fromIndex + k) % n];
       if (seat?.kind !== 'human') continue;
+      if (seat.plateia) {
+        fallback ??= seat;
+        continue;
+      }
       if (seat.conexao) {
         this.hostPlayerId = seat.playerId;
         return;
@@ -1164,7 +1319,7 @@ export class Sala {
   }
 
   private startGame(series: SeriesState): void {
-    const seats: SeatConfig[] = this.seats.map((seat) =>
+    const seats: SeatConfig[] = this.jogadores().map((seat) =>
       seat.kind === 'human'
         ? { id: seat.playerId, name: seat.name, kind: 'human', avatar: seat.avatar }
         : {
@@ -1193,7 +1348,7 @@ export class Sala {
     game.setSpeed(this.ritmoDaPartida());
     this.disposeGame();
     // Quem está fora da tela entra na partida com a mesa jogando por ele, até voltar.
-    for (const seat of this.humans()) if (!seat.conexao && !this.isAsync) game.setAway(seat.playerId, true);
+    for (const seat of this.humanosJogando()) if (!seat.conexao && !this.isAsync) game.setAway(seat.playerId, true);
     this.series = series;
     this.revanche.clear();
     this.partida = {
@@ -1206,7 +1361,7 @@ export class Sala {
     this.attachGame(game);
     game.start();
     this.touch();
-    for (const seat of this.humans()) {
+    for (const seat of this.humanosJogando()) {
       const away = seat.conexao ? !seat.visivel : this.isAsync;
       if (away) this.deps.aoAvisar?.({ playerId: seat.playerId, profileId: seat.profileId, kind: 'start' });
     }
@@ -1335,9 +1490,10 @@ export class Sala {
 
   /** Pontos só entre os humanos com perfil; quem abandonou fica atrás de todos que ficaram. */
   private rankedResult(game: GameHost, meta: PartidaMeta, now: number): PartidaRanqueada {
+    const naPartida = new Set(game.state.players.map((p) => p.id));
     const byPlayer = new Map(
-      this.humans()
-        .filter((seat) => seat.profileId !== null)
+      this.humanosJogando()
+        .filter((seat) => seat.profileId !== null && naPartida.has(seat.playerId))
         .map((seat) => [seat.playerId, seat] as const),
     );
     const groups = standingsOf(game.state.players)
@@ -1390,7 +1546,9 @@ export class Sala {
     }
     if (!game) return;
     // Na assíncrona, quem fechou o jogo segue na mesa: só pausa se todo mundo ficou ausente.
-    const counted = this.isAsync ? this.humans() : connected;
+    // A plateia só segura a partida andando quando não sobrou ninguém jogando (ela assiste aos bots).
+    const jogando = (this.isAsync ? this.humans() : connected).filter((seat) => !seat.plateia);
+    const counted = this.humanosJogando().length > 0 ? jogando : connected;
     const present = counted.some((seat) => !game.isAway(seat.playerId));
     if (present && game.isPaused) game.resume();
     else if (!present && !game.isPaused) game.pause();

@@ -328,7 +328,7 @@ describe('online store', () => {
     socket().fire('disconnect', 'kicked');
     expect(useOnline.getState().room).toBeNull();
     expect(useOnline.getState().kicked).toBe(true);
-    expect(useOnline.getState().error).toMatch(/anfitrião te tirou/);
+    expect(useOnline.getState().error).toMatch(/te tirou da sala/);
     expect(savedSession()).toBeNull();
   });
 

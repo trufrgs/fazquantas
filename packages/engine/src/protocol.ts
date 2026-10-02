@@ -11,6 +11,11 @@ import type { PlayerView } from './view';
 
 export const PROTOCOL_VERSION = 2;
 export const ROOM_CAPACITY = 8;
+/**
+ * Quem entra com a mesa cheia ou com a partida rolando senta na plateia: assiste, conversa e abre a
+ * câmera (que aparece em preto e branco), e pede para jogar a próxima (pedido do Thomas em 02/10/2026).
+ */
+export const PLATEIA_CAPACITY = 6;
 export const ROOM_CODE_LENGTH = 4;
 /** Sem I, O, 0 e 1 para não confundir ao ditar o código. */
 export const ROOM_CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -144,6 +149,18 @@ export type SeatPublic =
       difficulty: BotDifficulty;
     };
 
+/** Quem está na plateia: assiste sem jogar e pode pedir para entrar na próxima partida. */
+export interface PlateiaPublic {
+  playerId: string;
+  name: string;
+  avatar: string;
+  connected: boolean;
+  /** Pediu para jogar a próxima. */
+  quer: boolean;
+  /** Um patrão aceitou: senta na próxima partida (se tiver lugar). */
+  aceito: boolean;
+}
+
 export type RoomStatus = 'lobby' | 'playing' | 'finished';
 
 /** Um servidor ICE (STUN/TURN) para ligar o áudio da conversa por voz, no formato do `RTCIceServer`. */
@@ -175,7 +192,7 @@ export interface RoomState {
   /** As partidas desta sala contam para o ranking. */
   ranked: boolean;
   hasPassword: boolean;
-  /** A senha, só para o anfitrião (para ele poder passar adiante); `null` para os outros. */
+  /** A senha, só para os patrões (para eles poderem passar adiante); `null` para os outros. */
   password: string | null;
   capacity: number;
   /** Série em andamento (ou a última, depois do fim); `null` no lobby antes da primeira partida. */
@@ -189,6 +206,14 @@ export interface RoomState {
    * de 29/09/2026 não mandam.
    */
   revanche?: string[];
+  /**
+   * Os patrões da mesa (quem manda nela): o anfitrião primeiro, depois quem ele fez patrão.
+   * Servidores de antes de 02/10/2026 não mandam (o patrão é só o `hostId`).
+   */
+  patroes?: string[];
+  /** Quem assiste sem jogar (servidores de antes de 02/10/2026 não mandam). */
+  plateia?: PlateiaPublic[];
+  plateiaCapacity?: number;
 }
 
 export interface JoinResult {
@@ -315,6 +340,12 @@ export interface ClientToServerEvents {
   'midia:sinal': (p: { para: string; dados: unknown }) => void;
   /** "Voltei": para de jogar por mim. */
   'room:present': (ack?: (r: Ack) => void) => void;
+  /** Quem está na plateia pede (ou desiste de) jogar a próxima. */
+  'room:querJogar': (p: { quer: boolean }, ack?: (r: Ack) => void) => void;
+  /** Patrão: aceita (ou recusa) o pedido de quem está na plateia. */
+  'room:aceitar': (p: { playerId: string; aceito: boolean }, ack?: (r: Ack) => void) => void;
+  /** Patrão: faz alguém patrão, ou tira (a si mesmo também, se ficar outro patrão). */
+  'room:patrao': (p: { playerId: string; patrao: boolean }, ack?: (r: Ack) => void) => void;
   /** A página ficou visível ou escondida (decide quando mandar notificação). */
   presence: (p: { visible: boolean }) => void;
 }

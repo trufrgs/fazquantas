@@ -132,7 +132,10 @@ class MidiaDaMesa {
   /** A sala mudou: liga com quem precisa, desliga de quem não precisa mais. */
   sincronizar(room: RoomState): void {
     this.eu = room.youId;
-    this.outros = room.seats.filter((s) => s.kind === 'human' && s.playerId !== room.youId && s.connected).map((s) => s.playerId);
+    // A plateia também conversa e abre a câmera.
+    this.outros = [...room.seats.filter((s) => s.kind === 'human' && s.connected), ...(room.plateia ?? []).filter((s) => s.connected)]
+      .map((s) => s.playerId)
+      .filter((id) => id !== room.youId);
     this.abertos = new Map((room.midias ?? []).map((m) => [m.playerId, { mic: m.mic, camera: m.camera }]));
     const { mic, camera } = useMidia.getState();
     // A sala esqueceu o que tu abriu (a conexão caiu e voltou): avisa de novo.

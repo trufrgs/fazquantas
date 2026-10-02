@@ -175,7 +175,7 @@ export function tableGeometry(
   const me = rotated[0];
   // A tua carta vem da tua mão, embaixo. Com o canto de baixo da direita reservado (as frases), ela
   // desce um pouco para a esquerda: no meio da mão (t = 0,56) ainda passa longe do canto.
-  const noPe = reservas.filter((r) => r.b >= height - 16 * scale && r.l < center.x + trickCard);
+  const noPe = reservas.filter((r) => r.b >= height - 16 * scale && r.r > center.x && r.l < center.x + trickCard);
   const meuX = noPe.length
     ? Math.min(center.x, center.x + (Math.min(...noPe.map((r) => r.l)) - 4 * scale - trickCard / 2 - center.x) / 0.56)
     : center.x;

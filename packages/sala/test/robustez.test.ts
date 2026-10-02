@@ -152,10 +152,8 @@ describe('limites', () => {
     expect(mundo.rooms.get(code)!.seatCount).toBe(8);
     // Outra conexão tem o próprio balde.
     const beto = connect(mundo);
-    expect(await beto.call('room:join', { code, name: 'Beto', avatar: 'b' })).toMatchObject({
-      ok: false,
-      error: { code: 'ROOM_FULL' },
-    });
+    // (com a mesa cheia, ele entra na plateia)
+    expect(await beto.call('room:join', { code, name: 'Beto', avatar: 'b' })).toMatchObject({ ok: true });
   });
 
   it('reações vão para todos da sala, no máximo uma a cada 1,5 s por jogador', async () => {

@@ -1,4 +1,4 @@
-import { BOT_NAMES, DEFAULT_RULES, DEFAULT_TURN_TIMEOUT_SEC, GAUCHO_AVATARS, ROOM_CAPACITY, normalizeRules, type JoinResult } from '@fodinha/engine';
+import { BOT_NAMES, DEFAULT_RULES, DEFAULT_TURN_TIMEOUT_SEC, GAUCHO_AVATARS, PLATEIA_CAPACITY, ROOM_CAPACITY, normalizeRules, type JoinResult } from '@fodinha/engine';
 import { describe, expect, it } from 'vitest';
 import { MESSAGES } from '../src/erros';
 import { connect, createRoom, joinRoom, ok, startWorld, waitUntil } from './helpers';
@@ -36,6 +36,9 @@ describe('criar e entrar', () => {
       capacity: ROOM_CAPACITY,
       series: null,
       revanche: [],
+      patroes: [res.playerId],
+      plateia: [],
+      plateiaCapacity: PLATEIA_CAPACITY,
     });
     expect(ana.events.slice(0, 2)).toEqual(['ack:room:create', 'room:state']);
     expect(JSON.stringify(ana.states)).not.toContain(res.token);
@@ -90,7 +93,7 @@ describe('criar e entrar', () => {
     expect(mundo.rooms.get(code)?.seatCount).toBe(1);
   });
 
-  it('sala cheia → ROOM_FULL (entrar e adicionar bot)', async () => {
+  it('mesa cheia: quem chega vai para a plateia; bot não entra (ROOM_FULL)', async () => {
     const mundo = startWorld();
     const ana = connect(mundo);
     const beto = connect(mundo);
@@ -98,8 +101,8 @@ describe('criar e entrar', () => {
     for (let i = 1; i < ROOM_CAPACITY; i++) ok(await ana.call('room:addBot', { difficulty: 'facil' }));
     await ana.waitForState((s) => s.seats.length === ROOM_CAPACITY);
 
-    const join = await beto.call('room:join', { code, name: 'Beto', avatar: 'b' });
-    expect(join).toEqual({ ok: false, error: { code: 'ROOM_FULL', message: MESSAGES.roomFull } });
+    ok(await beto.call('room:join', { code, name: 'Beto', avatar: 'b' }));
+    await ana.waitForState((s) => (s.plateia ?? []).length === 1 && s.seats.length === ROOM_CAPACITY);
     const bot = await ana.call('room:addBot', { difficulty: 'facil' });
     expect(bot).toMatchObject({ ok: false, error: { code: 'ROOM_FULL' } });
 
@@ -107,7 +110,7 @@ describe('criar e entrar', () => {
     expect(new Set(names).size).toBe(names.length); // bots sem nome repetido
   });
 
-  it('entrar sem token numa partida em andamento → GAME_IN_PROGRESS', async () => {
+  it('entrar sem token numa partida em andamento → plateia', async () => {
     const mundo = startWorld();
     const ana = connect(mundo);
     const caio = connect(mundo);
@@ -115,8 +118,9 @@ describe('criar e entrar', () => {
     ok(await ana.call('room:addBot', { difficulty: 'facil' }));
     ok(await ana.call('room:update', { turnTimeoutSec: null }));
     ok(await ana.call('room:start'));
-    const res = await caio.call('room:join', { code, name: 'Caio', avatar: 'c' });
-    expect(res).toMatchObject({ ok: false, error: { code: 'GAME_IN_PROGRESS' } });
+    ok(await caio.call('room:join', { code, name: 'Caio', avatar: 'c' }));
+    const s = await caio.waitForState((x) => (x.plateia ?? []).length === 1);
+    expect(s.seats).toHaveLength(2);
   });
 
   it('entrar em outra sala sai da atual (como o app faz)', async () => {
@@ -180,7 +184,7 @@ describe('anfitrião', () => {
     ];
     for (const [event, payload] of attempts) {
       const res = await beto.call(event, payload);
-      expect(res, event).toEqual({ ok: false, error: { code: 'NOT_HOST', message: 'Só o anfitrião pode fazer isso.' } });
+      expect(res, event).toEqual({ ok: false, error: { code: 'NOT_HOST', message: MESSAGES.notHost } });
     }
     expect(beto_.playerId).not.toBe(ana.state!.hostId);
     expect(mundo.rooms.get(code)!.status).toBe('lobby');

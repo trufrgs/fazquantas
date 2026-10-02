@@ -1,6 +1,6 @@
 // Exploratório 9: a sala cheia (30/09/2026). Oito pessoas, o máximo de uma sala (`ROOM_CAPACITY` =
 // `MAX_PLAYERS` = 8), cada uma num celular diferente: todas abrem o microfone e quatro a câmera (a malha
-// de WebRTC com 8 aparelhos, 28 ligações). Uma nona pessoa tenta entrar e a sala recusa. Depois, uma
+// de WebRTC com 8 aparelhos, 28 ligações). Uma nona pessoa entra e vai para a plateia. Depois, uma
 // partida inteira no automático, medindo a mesa de 8 em dois celulares (cartas encavaladas, número
 // sempre à mostra, alto da mesa cabendo na tela).
 import { actOnce, closeAll, createRoom, device, flag, joinByLink, log, report, sleep, startGame, OUT } from './lib.mjs';
@@ -52,9 +52,10 @@ else log('o1', `oito na sala em ${Date.now() - t0} ms`);
 // o2: a nona pessoa não entra.
 const nona = await device('Ivo', { dev: 'Pixel 7' });
 await joinByLink(nona.page, code);
-const recusa = await ate(() => nona.page.getByText(/A sala está cheia/).first().isVisible().catch(() => false), 15000);
-if (recusa === null) flag('o2', 'a nona pessoa não recebeu "A sala está cheia"', { tela: await nona.page.locator('body').innerText().catch(() => '') });
-else log('o2', `a nona pessoa ouviu "A sala está cheia" em ${recusa} ms`);
+// Desde 02/10/2026, com a mesa cheia, quem chega senta na plateia (assiste e pede a próxima).
+const recusa = await ate(() => nona.page.getByText(/Tu tá na plateia/).first().isVisible().catch(() => false), 15000);
+if (recusa === null) flag('o2', 'a nona pessoa não foi para a plateia', { tela: await nona.page.locator('body').innerText().catch(() => '') });
+else log('o2', `a nona pessoa sentou na plateia em ${recusa} ms`);
 const naSala = await ana.page.getByText(/Na mesa \(8\/8\)/).isVisible().catch(() => false);
 if (!naSala) flag('o2', 'a sala mudou depois da nona tentar entrar');
 

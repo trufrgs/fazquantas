@@ -12,6 +12,7 @@ import {
   type CardId,
   type ClientAction,
   type PlayerView,
+  type RoomState,
   type Suit,
 } from '@fodinha/engine';
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
@@ -37,7 +38,9 @@ import { useDiretor } from './zoeira/useDiretor';
 import { useAlgumaCamera, VideoAmpliado } from '../ui/Midia';
 import { useApp } from '../../stores/app';
 import { useGame, type LiveReaction } from '../../stores/game';
-import { isHost, useOnline } from '../../stores/online';
+import { ehPatrao, isHost, naPlateia, useOnline } from '../../stores/online';
+import { BotaoQueroJogar, cantoDaPlateia, PedidoDaPlateia, PlateiaNaMesa } from '../sala/Plateia';
+import { SenhaDaSala } from '../setup/RoomSettings';
 import { SPEED_MULTIPLIER, useSettings } from '../../stores/settings';
 import { AdminNotice } from '../ui/AdminNotice';
 import { Avatar } from '../ui/Avatar';
@@ -75,6 +78,8 @@ import { rem, useUiScale } from '../../lib/ui-scale';
 import { DEMORA_MS, useTableEffects } from './useTableEffects';
 
 const SUIT_ORDER: Suit[] = ['O', 'C', 'E', 'P'];
+/** O rosto de quem está na plateia, no canto da mesa (px na escala 1). */
+const ROSTO_DA_PLATEIA = 34;
 
 function statusLine(
   view: PlayerView,
@@ -109,6 +114,26 @@ function statusLine(
   if (need > 0) return { text: `Tua vez: falta${need > 1 ? 'm' : ''} ${need}`, tone: 'turn' };
   if (need === 0) return { text: 'Tua vez: não faz mais', tone: 'turn' };
   return { text: `Tua vez: fez ${-need} a mais`, tone: 'turn' };
+}
+
+/** A senha da sala no menu da mesa, para os patrões. */
+function SenhaNoMenu({ room }: { room: RoomState }) {
+  const [erro, setErro] = useState<string | null>(null);
+  return (
+    <div>
+      <SenhaDaSala
+        room={room}
+        onChange={(patch) => useOnline.getState().update(patch)}
+        onError={setErro}
+        descricao="Entrando muita gente de fora? Com senha, só entra quem tiver o código e a senha."
+      />
+      {erro && (
+        <p role="alert" className="pb-2 text-sm font-semibold text-copas">
+          {erro}
+        </p>
+      )}
+    </div>
+  );
 }
 
 /** A mesa está jogando por mim: um toque em qualquer lugar (ou no botão) me traz de volta. */
@@ -268,10 +293,17 @@ function Table({
   // O canto de baixo, à direita, é das frases favoritas: assento e carta não vão ali. Na mesa baixa
   // (celular deitado) não sobra canto: as frases sobem para o alto, que ali é largo.
   const frasesNoAlto = table.height > 0 && table.height < 330 * s;
-  const reservas = useMemo(
-    () => (table.width > 0 && !frasesNoAlto ? [pilulaDeFrases(table.width, table.height, s)] : []),
-    [table.width, table.height, s, frasesNoAlto],
-  );
+  // O canto de baixo, à esquerda, é da plateia (quem assiste sem jogar), quando tem.
+  const naPlateiaN = useOnline((st) => st.room?.plateia?.length ?? 0);
+  const reservas = useMemo(() => {
+    if (table.width === 0) return [];
+    const r = frasesNoAlto ? [] : [pilulaDeFrases(table.width, table.height, s)];
+    if (naPlateiaN > 0) {
+      const c = cantoDaPlateia(naPlateiaN, ROSTO_DA_PLATEIA);
+      r.push({ l: 0, t: table.height - c.h * s, r: c.w * s, b: table.height });
+    }
+    return r;
+  }, [table.width, table.height, s, frasesNoAlto, naPlateiaN]);
   const mesa = useMemo(
     () =>
       mesaDimensionada({
@@ -482,9 +514,16 @@ function Table({
   const quemPediu = nomes(revanche.filter((id) => id !== room?.youId));
   // Série terminada: o que vem é uma série nova (não "revanche").
   const oQue = proximaDaSerie ? 'a próxima' : seriesOn ? 'nova série' : 'revanche';
+  const euNaPlateia = online ? room?.plateia?.find((x) => x.playerId === room.youId) : undefined;
   const againLabel = !online
     ? 'Mais uma?'
-    : isHost()
+    : euNaPlateia
+      ? euNaPlateia.aceito
+        ? 'Tu joga a próxima'
+        : euNaPlateia.quer
+          ? 'Pedido feito: espera o patrão'
+          : 'Quero jogar a próxima'
+      : isHost()
       ? proximaDaSerie
         ? `Próxima partida (${series!.games.length + 1}ª)`
         : seriesOn
@@ -505,7 +544,9 @@ function Table({
       ? comoComeca
       : `${querem(quemPediu)} ${pediRevanche ? 'também' : oQue}. ${comoComeca}`;
   const reactionFor = (id: string) => [...reactions].reverse().find((r) => r.playerId === id);
-  const spectating = !!me?.eliminated && view.phase !== 'gameOver';
+  // Assiste: saiu do jogo, ou está na plateia (chegou com a partida rolando).
+  const plateia = online && naPlateia(room);
+  const spectating = (!!me?.eliminated || plateia) && view.phase !== 'gameOver';
   // Só sobraram bots jogando: dá para passar o resto em câmera rápida ("acelerar até o fim").
   const vivos = view.players.filter((p) => !p.eliminated);
   const soBots = spectating && vivos.length > 1 && vivos.every((p) => seats.find((s) => s.id === p.id)?.kind === 'bot');
@@ -550,11 +591,11 @@ function Table({
   const enfeites = useMemo(() => (import.meta.env.DEV ? enfeitesDeTeste(view) : null) ?? enfeitesDe(view), [view]);
   // O cinzeiro fica no canto de baixo, à esquerda, quando o canto está livre (sem a vira e sem assento).
   const cinzeiro = useMemo(() => {
-    if (table.width === 0 || comVira) return null;
+    if (table.width === 0 || comVira || naPlateiaN > 0) return null;
     const r = { l: 8 * s, r: 66 * s, t: table.height - 46 * s };
     const coberto = [...geometry.seats.entries()].some(([id, p]) => id !== you && p.x - geometry.seatBox.w / 2 < r.r && p.y + geometry.seatBox.h / 2 > r.t);
     return coberto ? null : { left: 8 * s, bottom: 8 * s, largura: 58 * s };
-  }, [table.width, table.height, comVira, s, geometry, you]);
+  }, [table.width, table.height, comVira, s, geometry, you, naPlateiaN]);
   // "As cantadas" e o narrador usam o mesmo lugar livre da mesa: com elas na mesa, ele espera calado.
   const cantadasNaMesa = view.phase === 'playing' && (view.trick?.plays.length ?? 0) === 0 && view.players.every((p) => !p.inRound || (p.bid !== null && p.tricks === 0));
   const lugarDaFaixa = cantadasTop(geometry, reveal, view.players.filter((p) => p.inRound).length, s);
@@ -661,6 +702,7 @@ function Table({
                     pitando={pitando(p.id)}
                     pitandoAtraso={(view.order.indexOf(p.id) * 1.3) % 3.6}
                     enfeites={enfeites.get(p.id)}
+                    patrao={online && ehPatrao(room, p.id)}
                   />
                 );
               })}
@@ -703,7 +745,9 @@ function Table({
             />
           )}
           <CoachTip tip={bidding ? null : tip} />
-          <VideoAmpliado fora={view.players.filter((x) => x.eliminated).map((x) => x.id)} />
+          <VideoAmpliado fora={view.players.filter((x) => x.eliminated).map((x) => x.id)} pb={(room?.plateia ?? []).map((x) => x.playerId)} />
+          {online && <PlateiaNaMesa room={room} reactions={reactions} tamanho={ROSTO_DA_PLATEIA} />}
+          {online && <PedidoDaPlateia room={room} />}
           <BidPanel
             open={bidding}
             cards={view.cardsThisRound}
@@ -781,11 +825,13 @@ function Table({
                 round={view.roundNumber}
                 pitando={pitando(me.id)}
                 enfeites={enfeites.get(me.id)}
+                patrao={online && ehPatrao(room, me.id)}
               />
             </div>
           )}
           {spectating ? (
-            <div className="flex items-center justify-center gap-2 px-4 py-5">
+            <div className="flex flex-wrap items-center justify-center gap-2 px-4 py-5">
+              {plateia && room && <BotaoQueroJogar room={room} />}
               {soBots && !cameraRapida && (
                 <Button variant="ouro" size="sm" onClick={() => conn.acelerar?.()}>
                   ⏩ Acelerar até o fim
@@ -843,7 +889,7 @@ function Table({
           series={seriesOn ? series : null}
           onAgain={online ? () => void pedirRevanche() : startLocalGame}
           againLabel={againLabel}
-          againDisabled={online && !isHost() && pediRevanche}
+          againDisabled={online && !isHost() && (plateia ? !!room?.plateia?.find((x) => x.playerId === room.youId)?.quer : pediRevanche)}
           note={online ? (revancheErro ?? revancheNota) : null}
           onLobby={online && isHost() ? () => useOnline.getState().backToLobby() : undefined}
           exitLabel={online ? 'Sair da sala' : 'Voltar ao início'}
@@ -889,6 +935,7 @@ function Table({
         onSpeed={(m) => conn.setSpeed?.(m)}
         pace={online && isHost() ? room?.pace : undefined}
         onPace={online && isHost() ? (pace) => void useOnline.getState().update({ pace }) : undefined}
+        senha={online && isHost() && room ? <SenhaNoMenu room={room} /> : undefined}
       />
       {meAway && <AwayBanner />}
       {online && <AdminNotice />}

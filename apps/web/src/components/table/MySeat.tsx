@@ -9,6 +9,7 @@ import { BidBadge, CantadaBubble, DealerChip, MaoChip, ReactionBubble, TurnRing 
 import { Lanterna } from './zoeira/desenhos';
 import type { Enfeites } from './zoeira/diretor';
 import { RostoZoado } from './zoeira/RostoZoado';
+import { ChapeuDePatrao } from '../sala/ChapeuDePatrao';
 import { rem } from '../../lib/ui-scale';
 
 export type StatusTone = 'turn' | 'info' | 'good' | 'bad';
@@ -32,6 +33,8 @@ export interface MySeatProps {
   round: number;
   /** A zoeira do teu assento (ver `zoeira/diretor.ts`). */
   enfeites?: Enfeites;
+  /** És patrão da mesa: o chapéu ao lado do nome. */
+  patrao?: boolean;
 }
 
 const TONE: Record<StatusTone, string> = {
@@ -42,7 +45,7 @@ const TONE: Record<StatusTone, string> = {
 };
 
 /** Sua faixa acima da mão: avatar, vidas, palpite e o que está acontecendo. */
-export function MySeat({ player, avatar, phase, remaining, startingLives, status, reaction, isTurn, deadline, isMao, round, pitando = false, enfeites }: MySeatProps) {
+export function MySeat({ player, avatar, phase, remaining, startingLives, status, reaction, isTurn, deadline, isMao, round, pitando = false, enfeites, patrao = false }: MySeatProps) {
   // A tua câmera aberta: a prévia fica maior que o avatar.
   const rosto = useMidia((s) => (s.local ? 56 : 40));
   return (
@@ -59,6 +62,7 @@ export function MySeat({ player, avatar, phase, remaining, startingLives, status
       <div className="flex min-w-0 flex-col">
         {/* "mão"/"pé" ao lado do nome: em cima do avatar pequeno, cobria o rosto (relato de 29/09/2026). */}
         <span className="flex min-w-0 items-center gap-1.5">
+          {patrao && <ChapeuDePatrao w={16} />}
           {!player.eliminated && enfeites?.lanterna && <Lanterna w={rem(12)} className="shrink-0" />}
           <span className={`truncate text-sm font-bold texto-gravado transition-colors ${isTurn && !player.eliminated ? 'text-ouros' : ''}`}>{player.name}</span>
           {!player.eliminated && (player.isDealer || isMao) && (player.isDealer ? <DealerChip size="sm" /> : <MaoChip size="sm" />)}

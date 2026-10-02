@@ -106,25 +106,11 @@ export interface RoomSettingsProps {
 /** Ajustes da sala, para o anfitrião: série, palitos, ritmo, tempo, ranking e senha. */
 export function RoomSettings({ room, onChange }: RoomSettingsProps) {
   const [error, setError] = useState<string | null>(null);
-  const [editingPassword, setEditingPassword] = useState(false);
-  const [password, setPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
   const humans = room.seats.filter((s) => s.kind === 'human').length;
 
   const change = async (patch: RoomUpdatePayload) => {
     setError(await onChange(patch));
   };
-  const savePassword = async () => {
-    const clean = password.trim();
-    if (!clean) return;
-    const err = await onChange({ password: clean });
-    setError(err);
-    if (!err) {
-      setEditingPassword(false);
-      setPassword('');
-    }
-  };
-
   return (
     <div className="divide-y divide-tinta/10">
       <Field
@@ -168,6 +154,41 @@ export function RoomSettings({ room, onChange }: RoomSettingsProps) {
             : 'Conta no ranking da semana, do mês e do ano. Quem sair no meio fica em último.'
         }
       />
+      <SenhaDaSala room={room} onChange={onChange} onError={setError} />
+      {error && (
+        <p role="alert" className="py-2 text-sm font-semibold text-copas">
+          {error}
+        </p>
+      )}
+    </div>
+  );
+}
+
+/**
+ * A senha da sala: liga, mostra, troca e tira. Vale também no meio da partida (no menu ☰), para o
+ * caso de começar a entrar muita gente de fora (pedido do Thomas em 02/10/2026).
+ */
+export function SenhaDaSala({
+  room,
+  onChange,
+  onError,
+  descricao = 'Quem tiver o código ainda precisa da senha pra entrar.',
+}: RoomSettingsProps & { onError: (erro: string | null) => void; descricao?: string }) {
+  const [editingPassword, setEditingPassword] = useState(false);
+  const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const change = async (patch: RoomUpdatePayload) => onError(await onChange(patch));
+  const savePassword = async () => {
+    const clean = password.trim();
+    if (!clean) return;
+    const err = await onChange({ password: clean });
+    onError(err);
+    if (!err) {
+      setEditingPassword(false);
+      setPassword('');
+    }
+  };
+  return (
       <div className="py-3">
         <Toggle
           checked={room.hasPassword}
@@ -179,7 +200,7 @@ export function RoomSettings({ room, onChange }: RoomSettingsProps) {
             }
           }}
           label="Sala com senha"
-          description="Quem tiver o código ainda precisa da senha pra entrar."
+          description={descricao}
         />
         {room.hasPassword && room.password && !editingPassword && (
           <div className="flex items-center gap-2 rounded-2xl bg-tinta/5 px-3 py-2">
@@ -232,11 +253,5 @@ export function RoomSettings({ room, onChange }: RoomSettingsProps) {
           </form>
         )}
       </div>
-      {error && (
-        <p role="alert" className="py-2 text-sm font-semibold text-copas">
-          {error}
-        </p>
-      )}
-    </div>
   );
 }

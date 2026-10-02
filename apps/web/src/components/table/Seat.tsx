@@ -8,6 +8,7 @@ import { AVATAR_GRANDE } from './layout';
 import { Matches } from '../ui/Matches';
 import { Palheiro } from './Palheiro';
 import { Lanterna } from './zoeira/desenhos';
+import { ChapeuDePatrao } from '../sala/ChapeuDePatrao';
 import type { Enfeites } from './zoeira/diretor';
 import { RostoZoado } from './zoeira/RostoZoado';
 import { rem } from '../../lib/ui-scale';
@@ -288,8 +289,10 @@ export interface SeatProps {
   /** Alguém está demorando: este avatar puxa um palheiro enquanto espera (`pitandoAtraso` desencontra). */
   pitando?: boolean;
   pitandoAtraso?: number;
-  /** A zoeira deste assento (borracho, mão quente, patrão, lanterna, lápide): ver `zoeira/diretor.ts`. */
+  /** A zoeira deste assento (borracho, mão quente, líder, lanterna, lápide): ver `zoeira/diretor.ts`. */
   enfeites?: Enfeites;
+  /** É patrão da mesa (manda na sala): o chapéu ao lado do nome. */
+  patrao?: boolean;
 }
 
 /** Oponente ao redor da mesa. */
@@ -369,6 +372,7 @@ export const Seat = memo(function Seat(p: SeatProps) {
           out ? 'text-papel/70' : p.isTurn ? 'text-ouros' : 'text-papel'
         }`}
       >
+        {p.patrao && <ChapeuDePatrao w={grande ? 18 : 15} />}
         {!out && p.enfeites?.lanterna && <Lanterna w={rem(grande ? 13 : 11)} className="shrink-0" />}
         <span className="truncate">{player.name}</span>
       </span>

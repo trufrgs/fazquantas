@@ -1,5 +1,5 @@
 import { BOT_DIFFICULTIES, isAsyncTurn, type BotDifficulty } from '@fodinha/engine';
-import { Bell, Crown, KeyRound, Share2, Trophy, UserPlus, X } from 'lucide-react';
+import { Bell, KeyRound, Share2, Trophy, UserPlus, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { RoomSettings, roomSummary } from '../components/setup/RoomSettings';
 import { RulesEditor, rulesSummary } from '../components/setup/RulesEditor';
@@ -13,7 +13,10 @@ import { Sheet } from '../components/ui/Sheet';
 import { enableNotify, isIos, notifyState } from '../lib/avisos';
 import { shareInvite } from '../lib/platform';
 import { useApp } from '../stores/app';
-import { useOnline } from '../stores/online';
+import { ehPatrao, naPlateia, useOnline } from '../stores/online';
+import { ChapeuDePatrao } from '../components/sala/ChapeuDePatrao';
+import { BotaoQueroJogar, PainelDaPlateia } from '../components/sala/Plateia';
+import { Chapeu } from '../components/table/zoeira/desenhos';
 import { useSettings } from '../stores/settings';
 
 const DIFF_NAME: Record<BotDifficulty, string> = { facil: 'fácil', medio: 'médio', dificil: 'difícil' };
@@ -41,6 +44,12 @@ export function Lobby() {
   const [shareMsg, setShareMsg] = useState<string | null>(null);
   const [startError, setStartError] = useState<string | null>(null);
   const [notify, setNotify] = useState(notifyState());
+  const [patraoErro, setPatraoErro] = useState<string | null>(null);
+  useEffect(() => {
+    if (!patraoErro) return undefined;
+    const t = window.setTimeout(() => setPatraoErro(null), 4000);
+    return () => window.clearTimeout(t);
+  }, [patraoErro]);
   const room = online.room;
 
   if (!room) {
@@ -80,9 +89,12 @@ export function Lobby() {
     );
   }
 
-  const host = room.hostId === room.youId;
-  const hostName = room.seats.find((s) => s.playerId === room.hostId)?.name ?? 'o anfitrião';
+  // Patrão: quem manda na mesa (o anfitrião e quem ele fez patrão).
+  const host = ehPatrao(room);
+  const hostName = room.seats.find((s) => s.playerId === room.hostId)?.name ?? 'o patrão';
   const full = room.seats.length >= room.capacity;
+  const assisto = naPlateia(room);
+  const patroes = room.patroes ?? [room.hostId];
   const leave = () => {
     online.leave();
     reset('home');
@@ -106,7 +118,12 @@ export function Lobby() {
         </div>
       }
       footer={
-        host ? (
+        assisto ? (
+          <div className="flex flex-col items-center gap-2 rounded-2xl bg-noite/45 px-4 py-3 text-center ring-1 ring-papel/10">
+            <p className="font-semibold">Tu tá na plateia: assiste e conversa. Pra jogar, pede a próxima.</p>
+            <BotaoQueroJogar room={room} size="md" />
+          </div>
+        ) : host ? (
           <div className="flex flex-col gap-2">
             {startError && <p className="text-center text-sm font-semibold text-luz">{startError}</p>}
             <Button
@@ -174,7 +191,7 @@ export function Lobby() {
               <span className="min-w-0 flex-1">
                 <span className="flex items-center gap-1.5 font-semibold">
                   <span className="truncate">{s.name}</span>
-                  {s.playerId === room.hostId && <Crown size="1rem" className="shrink-0 text-ouros-escuro" aria-label="anfitrião" />}
+                  {patroes.includes(s.playerId) && <ChapeuDePatrao w={18} />}
                 </span>
                 <span className="text-sm text-tinta-2">
                   {s.playerId === room.youId
@@ -199,6 +216,9 @@ export function Lobby() {
                     </option>
                   ))}
                 </select>
+              )}
+              {host && s.kind === 'human' && (s.playerId !== room.youId || patroes.length > 1) && (
+                <BotaoPatrao room={room} playerId={s.playerId} name={s.name} patrao={patroes.includes(s.playerId)} onErro={setPatraoErro} />
               )}
               {host && s.playerId !== room.youId && (
                 <button
@@ -232,6 +252,13 @@ export function Lobby() {
           </div>
         )}
       </Panel>
+
+      <PainelDaPlateia room={room} />
+      {patraoErro && (
+        <p role="alert" className="rounded-2xl bg-copas px-4 py-2 text-center text-sm font-semibold text-papel">
+          {patraoErro}
+        </p>
+      )}
 
       <Panel title="Partida">
         {host ? (
@@ -336,5 +363,26 @@ export function Lobby() {
         )}
       </Sheet>
     </ScreenFrame>
+  );
+}
+
+/**
+ * O chapéu de patrão de cada um, para os patrões: tocar faz a pessoa patrão (manda na mesa junto) ou
+ * tira. No próprio chapéu, com outro patrão na mesa, é passar o chapéu adiante.
+ */
+function BotaoPatrao({ room, playerId, name, patrao, onErro }: { room: { youId: string }; playerId: string; name: string; patrao: boolean; onErro: (erro: string | null) => void }) {
+  const eu = playerId === room.youId;
+  const rotulo = patrao ? (eu ? 'Deixar de ser patrão' : `Tirar ${name} de patrão`) : `Fazer ${name} patrão`;
+  return (
+    <button
+      type="button"
+      aria-pressed={patrao}
+      aria-label={rotulo}
+      title={rotulo}
+      onClick={async () => onErro(await useOnline.getState().setPatrao(playerId, !patrao))}
+      className={`flex h-9 w-9 items-center justify-center rounded-full ${patrao ? 'bg-ouros/40 ring-1 ring-ouros-escuro/50' : 'bg-tinta/8 opacity-55'}`}
+    >
+      <Chapeu w="1.45rem" />
+    </button>
   );
 }

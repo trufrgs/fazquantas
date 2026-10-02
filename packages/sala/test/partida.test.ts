@@ -260,9 +260,11 @@ describe('partida online', () => {
       avatar: 'ana',
       difficulty: 'medio',
     });
-    // O token de quem saiu não devolve o assento.
-    const again = await ana.call('room:join', { code, name: 'Ana', avatar: 'ana', token: a.token });
-    expect(again).toMatchObject({ ok: false, error: { code: 'GAME_IN_PROGRESS' } });
+    // O token de quem saiu não devolve o assento: ela volta para a plateia (02/10/2026).
+    const again = ok(await ana.call<{ playerId: string }>('room:join', { code, name: 'Ana', avatar: 'ana', token: a.token }));
+    expect(again.playerId).not.toBe(a.playerId);
+    const depois = await beto.waitForState((s) => (s.plateia ?? []).length === 1);
+    expect(depois.seats[0]?.kind).toBe('bot');
   });
 
   it('sem nenhum humano conectado a partida pausa; volta quando alguém reconecta', async () => {

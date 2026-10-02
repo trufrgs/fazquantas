@@ -183,6 +183,12 @@ export const setBotSchema = z.object({ playerId: playerIdSchema, difficulty: dif
 
 export const removeSeatSchema = z.object({ playerId: playerIdSchema });
 
+export const querJogarSchema = z.object({ quer: z.boolean() });
+
+export const aceitarSchema = z.object({ playerId: playerIdSchema, aceito: z.boolean() });
+
+export const patraoSchema = z.object({ playerId: playerIdSchema, patrao: z.boolean() });
+
 export const gameActionSchema = z.object({
   action: z.discriminatedUnion('type', [
     z.object({ type: z.literal('bid'), value: z.int().min(0).max(MAX_BID) }),

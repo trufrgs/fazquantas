@@ -118,6 +118,16 @@ pnpm exec playwright test                  # E2E locais (sobem os servidores soz
   e, no lugar dos palitos, o que matou ("cantou 3, fez 0"). De câmera aberta, o rosto leva o carimbo
   "Deu pra ti" (a palavra da mesa; "loser" ficou fora do clima, o Thomas, 02/10/2026), que no vídeo
   ampliado bate no canto, com pancada (`components/ui/Carimbo.tsx`).
+- **Plateia e patrões** (pedido do Thomas em 02/10/2026): quem chega com a partida rolando ou com a
+  mesa cheia senta na plateia (`PLATEIA_CAPACITY`, 6): vê a mesa sem mão, conversa, abre a câmera (em
+  preto e branco, no canto de baixo à esquerda, que a mesa reserva) e pede para jogar a próxima. Os
+  patrões veem o pedido no alto da mesa (ou na sala) e aceitam; quem foi aceito senta na próxima
+  partida, ou na hora se a sala está no lobby, enquanto houver lugar. Patrão é quem manda na mesa
+  (chapéu ao lado do nome): o anfitrião e quem um patrão fez patrão (o chapéu na lista da sala);
+  passar o chapéu é fazer outro patrão e sair de patrão, e aí a coroa não volta sozinha para quem
+  criou. A senha da sala também vale no meio da partida (menu ☰ dos patrões). Servidor em
+  `packages/sala/src/sala.ts` (`plateia` no assento humano, `patroes`), testes em
+  `packages/sala/test/plateia.test.ts`, roteiro `e2e/exploratorio/11-plateia.mjs`.
 - **Zoeira: uma coisa de cada vez em cada lugar.** O Thomas escolheu dezenas de ideias no caderno de
   zoeira (02/10/2026) com uma condição: o excesso não pode sobrecarregar nem atrapalhar a jogada, e as
   opções não podem se confundir entre si. As regras moram em `components/table/zoeira/diretor.ts` e

@@ -1,5 +1,5 @@
 import { BookOpen, Clock, DoorOpen, Play, RotateCcw } from 'lucide-react';
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { PACES, type HierarchyMode, type Pace } from '@fodinha/engine';
 import { SPEED_MULTIPLIER, useSettings, type Speed } from '../../stores/settings';
 import { Button } from '../ui/Button';
@@ -25,6 +25,8 @@ export interface PauseMenuProps {
   /** Online, anfitrião: ritmo da mesa (vale para todos). */
   pace?: Pace;
   onPace?: (pace: Pace) => void;
+  /** Online, patrão: a senha da sala (dá para pôr no meio da partida). */
+  senha?: ReactNode;
 }
 
 export function PauseMenu(p: PauseMenuProps) {
@@ -133,6 +135,7 @@ export function PauseMenu(p: PauseMenuProps) {
                 />
               </div>
             )}
+            {p.senha}
           </div>
           <div className={`mt-2 grid gap-2 ${p.onRestart || p.onPark ? 'grid-cols-2' : 'grid-cols-1'}`}>
             {p.onRestart && (

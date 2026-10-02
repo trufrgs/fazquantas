@@ -23,6 +23,9 @@ import {
   updateRoomSchema,
   midiaEstadoSchema,
   midiaSinalSchema,
+  aceitarSchema,
+  patraoSchema,
+  querJogarSchema,
 } from './validacao';
 
 /** Os STUN públicos (Cloudflare e Google): bastam para a voz ligar direto na maioria das redes. */
@@ -91,6 +94,9 @@ const EVENTS: ReadonlySet<string> = new Set<EventName>([
   'room:rematch',
   'room:lobby',
   'room:present',
+  'room:querJogar',
+  'room:aceitar',
+  'room:patrao',
   'game:action',
   'game:react',
   'game:acelerar',
@@ -427,6 +433,24 @@ export class SalaServidor {
       case 'room:present': {
         const { sala, playerId } = this.membership(conexao);
         sala.present(playerId);
+        return;
+      }
+      case 'room:querJogar': {
+        const { quer } = parsePayload(querJogarSchema, payload);
+        const { sala, playerId } = this.membership(conexao);
+        sala.querJogar(playerId, quer);
+        return;
+      }
+      case 'room:aceitar': {
+        const target = parsePayload(aceitarSchema, payload);
+        const { sala, playerId } = this.membership(conexao);
+        sala.aceitar(playerId, target.playerId, target.aceito);
+        return;
+      }
+      case 'room:patrao': {
+        const target = parsePayload(patraoSchema, payload);
+        const { sala, playerId } = this.membership(conexao);
+        sala.setPatrao(playerId, target.playerId, target.patrao);
         return;
       }
       case 'game:action': {
