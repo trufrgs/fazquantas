@@ -216,8 +216,8 @@ function CorteDeNovela({ quem, infoDe, largura, altura, escala }: { quem: string
                   </motion.span>
                 )}
               </span>
-              <span className="mt-2 flex flex-col items-start border-l-4 border-ouros bg-black/85 px-3 py-1 text-left">
-                <span className="font-display text-lg font-bold leading-tight text-papel">{i.nome}</span>
+              <span className="mt-2 flex flex-col items-start border-l-4 border-ouros bg-black/85 px-3 py-1 text-left" style={{ maxWidth: Math.max(lado * 1.2, 120) }}>
+                <span className="max-w-full truncate font-display text-lg font-bold leading-tight text-papel">{i.nome}</span>
                 <span className="text-xs font-semibold leading-tight text-papel/75">
                   {i.palitos === 1 ? 'No último palito' : `${i.palitos} palitos`}
                   {i.cantou !== null ? `, cantou ${i.cantou}` : ''}
