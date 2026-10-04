@@ -40,4 +40,12 @@ describe('a frase na tua voz (só na memória da sala)', () => {
     expect(await ana.call('voz:frase', { reaction: 'cagao', audio: 'não é base64' })).toMatchObject({ ok: false });
     expect(await ana.call('voz:frase', { reaction: 'inventada', audio: AUDIO })).toMatchObject({ ok: false });
   });
+
+  it('quem manda gravação sem parar é segurado (cada uma vai para a sala inteira)', async () => {
+    const mundo = startWorld();
+    const ana = connect(mundo);
+    await createRoom(ana);
+    for (let i = 0; i < VOZ_NA_SALA.porMinuto; i++) ok(await ana.call('voz:frase', { reaction: 'cagao', audio: AUDIO }));
+    expect(await ana.call('voz:frase', { reaction: 'cagao', audio: AUDIO })).toMatchObject({ ok: false, error: { code: 'RATE_LIMITED' } });
+  });
 });

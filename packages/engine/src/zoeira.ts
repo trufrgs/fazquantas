@@ -39,9 +39,10 @@ export type Zoeira =
 /**
  * A frase na tua voz: cada um grava até dois segundos de cada frase favorita (IMA ADPCM a 9,6 kHz, em
  * base64; ver `apps/web/src/lib/voz.ts`). Na sala, fica só na memória do servidor enquanto a pessoa
- * estiver lá. `maxB64` cabe numa mensagem (`MAX_MESSAGE_BYTES`, 16 kB).
+ * estiver lá. `maxB64` cabe numa mensagem (`MAX_MESSAGE_BYTES`, 16 kB); `porMinuto` segura quem
+ * mandasse gravação sem parar (cada uma é repassada para a sala inteira).
  */
-export const VOZ_NA_SALA = { maxB64: 12808, maxFrases: 3 } as const;
+export const VOZ_NA_SALA = { maxB64: 12808, maxFrases: 3, porMinuto: 8 } as const;
 
 /** A zoeira como chega na mesa: quem mandou e quando. */
 export type ZoeiraNaMesa = Zoeira & { de: string; at: number };

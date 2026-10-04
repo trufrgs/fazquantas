@@ -15,8 +15,11 @@ import { midia } from '../../../lib/midia';
 
 /** Volume (RMS de 0 a 1) do sopro: bem acima da fala, e `salto` vezes acima do fundo. */
 export const SOPRO = { volume: 0.16, salto: 3, medidas: 3, descansoMs: 2500 } as const;
-/** Risada: volume e salto sobre o fundo, quantas medidas de cada um, e quantos rindo juntos. */
-export const GARGALHADA = { volume: 0.09, salto: 2.5, medidas: 4, gente: 2, janelaMs: 2600 } as const;
+/**
+ * Risada: volume e salto sobre o fundo, quantas medidas SEGUIDAS de cada um (risada dura; um apito, uma
+ * porta batendo ou uma tosse, não) e quantos rindo juntos.
+ */
+export const GARGALHADA = { volume: 0.09, salto: 2.5, medidas: 3, gente: 2, janelaMs: 2600 } as const;
 /** Um arrasto deste tamanho (px da tela) em tão pouco tempo é abano. */
 export const ABANO = { px: 110, ms: 160, descansoMs: 1200 } as const;
 
@@ -54,12 +57,12 @@ export class DetectorDeGargalhada {
   private medidas = new Map<string, number>();
   /** Quem já tem fundo conhecido (passou do aquecimento). */
   private aquecidos = new Set<string>();
-  private janela: { desde: number; base: Map<string, number>; altos: Map<string, number>; riu: boolean } | null = null;
+  private janela: { desde: number; base: Map<string, number>; seguidas: Map<string, number>; rindo: Set<string>; riu: boolean } | null = null;
 
   /** A mão fechou (`null`: saiu do fim de mão). */
   abrir(agora: number | null): void {
     const base = new Map([...this.fundo].filter(([id]) => this.aquecidos.has(id)));
-    this.janela = agora === null ? null : { desde: agora, base, altos: new Map(), riu: false };
+    this.janela = agora === null ? null : { desde: agora, base, seguidas: new Map(), rindo: new Set(), riu: false };
   }
 
   /** Uma medida de alguém; `true` na hora em que a mesa caiu na gargalhada (uma vez por mão). */
@@ -71,8 +74,11 @@ export class DetectorDeGargalhada {
       // Quem não tinha fundo conhecido antes da mão (microfone recém-aberto) não conta.
       const base = j.base.get(id);
       if (base === undefined) return false;
-      if (aberto && volume > Math.max(GARGALHADA.volume, base * GARGALHADA.salto)) j.altos.set(id, (j.altos.get(id) ?? 0) + 1);
-      if ([...j.altos.values()].filter((n) => n >= GARGALHADA.medidas).length < GARGALHADA.gente) return false;
+      const alto = aberto && volume > Math.max(GARGALHADA.volume, base * GARGALHADA.salto);
+      const seguidas = alto ? (j.seguidas.get(id) ?? 0) + 1 : 0;
+      j.seguidas.set(id, seguidas);
+      if (seguidas >= GARGALHADA.medidas) j.rindo.add(id);
+      if (j.rindo.size < GARGALHADA.gente) return false;
       j.riu = true;
       return true;
     }

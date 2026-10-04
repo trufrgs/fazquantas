@@ -73,7 +73,7 @@ function Abanada({ abano, children }: { abano: number; children: ReactNode }) {
     if (abano > 0 && el.current) void animar(el.current, { opacity: [1, 0.12, 0.12, 1], scale: [1, 1.08, 1.08, 1] }, { duration: 2, times: [0, 0.12, 0.55, 1], ease: 'easeInOut' });
   }, [abano, animar, el]);
   return (
-    <div ref={el} className="absolute inset-0">
+    <div ref={el} className="absolute inset-0" data-abano={abano}>
       {children}
     </div>
   );

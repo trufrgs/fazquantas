@@ -57,6 +57,17 @@ describe('o microfone na mesa (só volume)', () => {
     expect(comNovos).toBe(false);
   });
 
+  it('gargalhada: apito curto e repetido (ou tosse, porta batendo) não é risada', () => {
+    const d = new DetectorDeGargalhada();
+    let t = 0;
+    for (let i = 0; i < 30; i++) for (const id of ['a', 'b']) d.medir(id, 0.02, true, (t += 60));
+    d.abrir(t);
+    let riu = false;
+    // Dois microfones apitando: duas medidas altas, uma baixa, de novo (nunca três seguidas).
+    for (let i = 0; i < 20; i++) for (const id of ['a', 'b']) riu = d.medir(id, i % 3 === 2 ? 0.02 : 0.4, true, (t += 60)) || riu;
+    expect(riu).toBe(false);
+  });
+
   it('gargalhada: fundo alto (bar de verdade) não dispara; fora da janela também não', () => {
     const d = new DetectorDeGargalhada();
     let t = 0;

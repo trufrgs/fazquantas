@@ -1,13 +1,13 @@
 import type { PlayerView } from '@fodinha/engine';
 import { useEffect } from 'react';
-import { DURACAO_PALCO, useZoeira } from './agenda';
+import { DURACAO_PALCO, marcarLance, useZoeira } from './agenda';
 import { DURACAO, type CenaDeAssento, type Enfeites, type Mascara } from './diretor';
 
 /**
  * Só no desenvolvimento, junto com as cenas (`?cena=`): força a zoeira para olhar sem esperar o lance.
  * `?enfeites=1` veste os assentos (líder de mão quente, pé-frio, borracho com lanterna, galinha…);
  * `?mascaras=1` põe focinho e nariz nos rostos;
- * `?zoeira=vaca|traira|chinelada|cumadre|fala|coro|fregues|duelo|cuia|tropeco|corte|galo|gato|espeto|cinzeiro` põe a cena no primeiro adversário (ou no
+ * `?zoeira=vaca|traira|chinelada|cumadre|fala|coro|fregues|duelo|cuia|tropeco|corte|lance|galo|gato|espeto|cinzeiro` põe a cena no primeiro adversário (ou no
  * meio da mesa) um segundo depois de abrir, e de novo a cada cinco.
  */
 const param = (nome: string) => new URLSearchParams(window.location.search).get(nome);
@@ -34,6 +34,13 @@ export function mascarasDeTeste(view: PlayerView): Map<string, Mascara> | null {
 }
 
 export function useZoeiraDeTeste(view: PlayerView): void {
+  // O lance da noite: a mão que fechar vira lance (como se a mesa tivesse caído na gargalhada).
+  const fechou = view.phase === 'trickEnd' ? view.seq : null;
+  useEffect(() => {
+    if (import.meta.env.DEV && fechou !== null && param('zoeira') === 'lance') marcarLance(view);
+    // Só quando a mão fecha.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fechou]);
   const outros = view.players.filter((p) => p.id !== view.you).map((p) => p.id);
   const alvo = outros[0];
   const outro = outros[1] ?? alvo;

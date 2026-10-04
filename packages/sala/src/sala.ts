@@ -300,6 +300,8 @@ export class Sala {
    * junto com a pessoa. No máximo `VOZ_NA_SALA.maxFrases` por pessoa (a nova tira a mais antiga).
    */
   private readonly vozes = new Map<string, Map<ReactionId, string>>();
+  /** Quando cada um mandou as últimas gravações (no máximo `VOZ_NA_SALA.porMinuto`). */
+  private readonly vozesEnviadas = new Map<string, number[]>();
   /** O mural da vergonha da partida em curso: carta morta, bitucas e mesas viradas de cada um. */
   private vergonha = new Map<string, Omit<Vergonha, 'lanterna'>>();
   /** De quem é a vez e desde quando (a demora vira bituca no mural). */
@@ -961,6 +963,10 @@ export class Sala {
   /** Guarda (ou apaga, com `null`) a frase na voz de alguém e repassa para o resto da sala. */
   vozDaFrase(playerId: string, reaction: ReactionId, audio: string | null): void {
     if (!this.naSala(playerId)) throw fail('NOT_IN_ROOM', MESSAGES.notInRoom);
+    const agora = this.deps.relogio.now();
+    const recentes = (this.vozesEnviadas.get(playerId) ?? []).filter((t) => agora - t < 60_000);
+    if (recentes.length >= VOZ_NA_SALA.porMinuto) throw fail('RATE_LIMITED', MESSAGES.rateLimited);
+    this.vozesEnviadas.set(playerId, [...recentes, agora]);
     const dele = this.vozes.get(playerId) ?? new Map<ReactionId, string>();
     dele.delete(reaction);
     if (audio !== null) dele.set(reaction, audio);
@@ -1265,6 +1271,7 @@ export class Sala {
     this.lastReactionAt.delete(seat.playerId);
     this.revanche.delete(seat.playerId);
     this.vozes.delete(seat.playerId);
+    this.vozesEnviadas.delete(seat.playerId);
     if (seat.kind === 'human') this.unbind(seat);
     this.patroes.delete(seat.playerId);
     if (seat.playerId === this.criadorId) this.criadorId = '';

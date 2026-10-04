@@ -427,7 +427,7 @@ export const Seat = memo(function Seat(p: SeatProps) {
 });
 
 /** O que diz a plaquinha do cusco (cada um tem a sua desculpa, sempre a mesma na partida). */
-const DESCULPAS = ['Foi buscar cerveja', 'Foi ver o churrasco', 'Tá no banheiro', 'Foi buscar erva', 'Foi atender a patroa'];
+const DESCULPAS = ['Foi buscar cerveja', 'Foi ver o churrasco', 'Tá no banheiro', 'Foi buscar erva', 'Foi buscar gelo'];
 
 /**
  * O cusco caramelo senta na cadeira de quem caiu ou sumiu e joga por ele (a mesa já joga sozinha:
