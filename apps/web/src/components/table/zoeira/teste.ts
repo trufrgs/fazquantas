@@ -1,12 +1,12 @@
 import type { PlayerView } from '@fodinha/engine';
 import { useEffect } from 'react';
-import { useZoeira } from './agenda';
+import { DURACAO_PALCO, useZoeira } from './agenda';
 import { DURACAO, type CenaDeAssento, type Enfeites } from './diretor';
 
 /**
  * Só no desenvolvimento, junto com as cenas (`?cena=`): força a zoeira para olhar sem esperar o lance.
  * `?enfeites=1` veste os assentos (líder de mão quente, pé-frio, borracho com lanterna…);
- * `?zoeira=vaca|traira|chinelada|fala|coro|fregues|cinzeiro` põe a cena no primeiro adversário (ou no
+ * `?zoeira=vaca|traira|chinelada|fala|coro|fregues|duelo|cuia|tropeco|galo|gato|espeto|cinzeiro` põe a cena no primeiro adversário (ou no
  * meio da mesa) um segundo depois de abrir, e de novo a cada cinco.
  */
 const param = (nome: string) => new URLSearchParams(window.location.search).get(nome);
@@ -48,8 +48,17 @@ export function useZoeiraDeTeste(view: PlayerView): void {
         useZoeira.setState({ faixa: { chave, texto: 'Cagão!', coro: true } });
         window.setTimeout(() => useZoeira.setState({ faixa: null }), DURACAO.coro);
       } else if (qual === 'fregues') {
-        useZoeira.setState({ palco: { chave, fregues: alvo, dono: outro } });
+        useZoeira.setState({ palco: { chave, tipo: 'fregues', fregues: alvo, dono: outro } });
         window.setTimeout(() => useZoeira.setState({ palco: null }), DURACAO.fregues);
+      } else if (qual === 'duelo') {
+        useZoeira.setState({ palco: { chave, tipo: 'duelo', a: alvo, b: outro } });
+        window.setTimeout(() => useZoeira.setState({ palco: null }), DURACAO_PALCO.duelo);
+      } else if (qual === 'cuia' || qual === 'tropeco') {
+        useZoeira.setState({ palco: qual === 'cuia' ? { chave, tipo: 'cuia', pe: alvo } : { chave, tipo: 'tropeco', de: alvo } });
+        window.setTimeout(() => useZoeira.setState({ palco: null }), DURACAO_PALCO[qual]);
+      } else if (qual === 'galo' || qual === 'gato' || qual === 'espeto') {
+        useZoeira.setState({ passante: { chave, tipo: qual } });
+        window.setTimeout(() => useZoeira.setState({ passante: null }), DURACAO_PALCO.passante);
       } else if (qual === 'cinzeiro') {
         const c = useZoeira.getState().cinzeiro;
         useZoeira.setState({ cinzeiro: { total: c.total + 3, por: { ...c.por, [alvo]: (c.por[alvo] ?? 0) + 3 } } });

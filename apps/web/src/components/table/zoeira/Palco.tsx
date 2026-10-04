@@ -2,8 +2,11 @@ import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 import { useEffect } from 'react';
 import { play } from '../../../lib/sound';
 import { rem } from '../../../lib/ui-scale';
-import { useZoeira } from './agenda';
-import { Cinzeiro } from './desenhos';
+import { DURACAO_PALCO, useZoeira } from './agenda';
+import { Capim, Cinzeiro, CuiaDeCima, Espeto, Galo, GatoPreto } from './desenhos';
+import { Avatar } from '../../ui/Avatar';
+import { Card, CARD_RATIO } from '../../cards/Card';
+import type { Point } from '../layout';
 import { DURACAO, FREGUES_EM } from './diretor';
 
 /**
@@ -74,7 +77,8 @@ export function FaixaDaMesa({ top }: { top: number | null }) {
  * carta morta cinco vezes pelo mesmo dono leva os cinco carimbos, um por um.
  */
 export function CartaoDoFregues({ nameOf }: { nameOf: (id: string) => string }) {
-  const palco = useZoeira((s) => s.palco);
+  const todo = useZoeira((s) => s.palco);
+  const palco = todo?.tipo === 'fregues' ? todo : null;
   useEffect(() => {
     if (!palco) return;
     for (let i = 0; i < FREGUES_EM; i++) play('bid', { delayMs: 520 + i * 230, rate: 1.5 + i * 0.08 });
@@ -150,5 +154,153 @@ export function CinzeiroDaMesa({ left, bottom, largura }: { left: number; bottom
         {total}
       </span>
     </motion.div>
+  );
+}
+
+/**
+ * O resto do palco (o meio da mesa, só em tempo morto): o duelo de galpão quando sobram dois, a cuia
+ * que gira e aponta quem dá as cartas no começo, e o baralho que escapa da mão de quem dá.
+ */
+export function PalcoDaMesa({
+  nameOf,
+  avatarDe,
+  pontoDe,
+  centro,
+}: {
+  nameOf: (id: string) => string;
+  avatarDe: (id: string) => string | undefined;
+  pontoDe: (id: string) => Point | null;
+  centro: Point;
+}) {
+  const palco = useZoeira((s) => s.palco);
+  const reduce = useReducedMotion();
+  useEffect(() => {
+    if (!palco) return;
+    if (palco.tipo === 'duelo') play('sweep', { rate: 0.5 });
+    if (palco.tipo === 'cuia') play('shuffle', { rate: 1.4 });
+    if (palco.tipo === 'tropeco') play('deal', { rate: 0.7 });
+  }, [palco]);
+  return (
+    <AnimatePresence>
+      {palco?.tipo === 'duelo' && (
+        <motion.div key={palco.chave} role="status" aria-label={`Duelo: ${nameOf(palco.a)} contra ${nameOf(palco.b)}`} className="pointer-events-none absolute inset-0 z-[44] overflow-hidden" exit={{ opacity: 0 }}>
+          <motion.div className="absolute inset-x-0 top-0 h-[12%] bg-black" initial={{ y: '-100%' }} animate={{ y: 0 }} exit={{ y: '-100%' }} transition={{ duration: 0.3 }} />
+          <motion.div className="absolute inset-x-0 bottom-0 h-[12%] bg-black" initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }} transition={{ duration: 0.3 }} />
+          <div className="absolute inset-x-0 top-[34%] flex items-center justify-center gap-[12%]">
+            {[palco.a, palco.b].map((id, i) => (
+              <motion.div
+                key={id}
+                className="flex flex-col items-center gap-1"
+                initial={{ x: i === 0 ? -160 : 160, opacity: 0 }}
+                animate={{ x: 0, opacity: 1 }}
+                transition={{ type: 'spring', stiffness: 220, damping: 20, delay: 0.25 }}
+              >
+                <Avatar seed={avatarDe(id) ?? id} size={84} className="ring-4 ring-papel/80" />
+                <span className="font-display text-lg font-bold texto-gravado">{nameOf(id)}</span>
+              </motion.div>
+            ))}
+          </div>
+          {!reduce && (
+            <motion.span
+              className="absolute block"
+              style={{ bottom: '15%', width: 54 }}
+              initial={{ left: '-14%', rotate: 0 }}
+              animate={{ left: '110%', rotate: 900, y: [0, -14, 0, -10, 0, -8, 0] }}
+              transition={{ duration: DURACAO_PALCO.duelo / 1000, ease: 'linear' }}
+            >
+              <Capim w="100%" />
+            </motion.span>
+          )}
+        </motion.div>
+      )}
+      {palco?.tipo === 'cuia' && (
+        <motion.div
+          key={palco.chave}
+          role="status"
+          aria-label={`A cuia escolheu: ${nameOf(palco.pe)} dá as cartas`}
+          className="pointer-events-none absolute z-[44] block"
+          style={{ left: centro.x - 60, top: centro.y - 60, width: 120 }}
+          initial={{ scale: 0.4, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          exit={{ scale: 0.6, opacity: 0 }}
+          transition={{ type: 'spring', stiffness: 300, damping: 22 }}
+        >
+          <CuiaGirando alvo={pontoDe(palco.pe)} centro={centro} parado={!!reduce} />
+        </motion.div>
+      )}
+      {palco?.tipo === 'tropeco' && !reduce && (
+        <Tropeco key={palco.chave} de={pontoDe(palco.de) ?? centro} centro={centro} />
+      )}
+    </AnimatePresence>
+  );
+}
+
+function CuiaGirando({ alvo, centro, parado }: { alvo: Point | null; centro: Point; parado: boolean }) {
+  // A bomba para apontando quem dá as cartas, depois de umas voltas.
+  const fim = alvo ? (Math.atan2(alvo.x - centro.x, -(alvo.y - centro.y)) * 180) / Math.PI : 0;
+  return (
+    <motion.span className="block" initial={{ rotate: parado ? fim : 0 }} animate={{ rotate: parado ? fim : 1080 + fim }} transition={{ duration: 1.8, ease: [0.15, 0.7, 0.25, 1] }}>
+      <CuiaDeCima w="120px" />
+    </motion.span>
+  );
+}
+
+/** O baralho escapa da mão de quem dá: as cartas se espalham viradas e voltam para o monte. */
+function Tropeco({ de, centro }: { de: Point; centro: Point }) {
+  const w = 34;
+  return (
+    <motion.div className="pointer-events-none absolute inset-0 z-[44]" exit={{ opacity: 0 }} aria-hidden="true">
+      {Array.from({ length: 10 }, (_, i) => {
+        const ang = (i * 137) % 360;
+        const r = 50 + ((i * 29) % 70);
+        const x = centro.x + Math.cos((ang * Math.PI) / 180) * r;
+        const y = centro.y + Math.sin((ang * Math.PI) / 180) * r * 0.7;
+        return (
+          <motion.span
+            key={i}
+            className="absolute block"
+            style={{ left: 0, top: 0, width: w, marginLeft: -w / 2, marginTop: (-w * CARD_RATIO) / 2 }}
+            initial={{ x: de.x, y: de.y, rotate: 0 }}
+            animate={{ x: [de.x, x, x, centro.x], y: [de.y, y, y, centro.y], rotate: [0, ang, ang, 0], opacity: [1, 1, 1, 0] }}
+            transition={{ duration: DURACAO_PALCO.tropeco / 1000, times: [0, 0.3, 0.65, 1], ease: 'easeOut', delay: i * 0.02 }}
+          >
+            <Card width={w} faceDown />
+          </motion.span>
+        );
+      })}
+    </motion.div>
+  );
+}
+
+const PASSANTES = { galo: { Desenho: Galo, w: 64, pula: true }, gato: { Desenho: GatoPreto, w: 70, pula: false }, espeto: { Desenho: Espeto, w: 150, pula: false } } as const;
+
+/**
+ * Quem atravessa a mesa por baixo das cartas e dos assentos (o galo do "é galo", o gato preto da
+ * sexta-feira 13, o espeto do Dia do Churrasco). Um de cada vez, e nunca pega toque.
+ */
+export function PassanteNaMesa({ altura }: { altura: number }) {
+  const passante = useZoeira((s) => s.passante);
+  const reduce = useReducedMotion();
+  if (reduce) return null;
+  return (
+    <AnimatePresence>
+      {passante && (
+        <motion.span
+          key={passante.chave}
+          aria-hidden="true"
+          className="pointer-events-none absolute z-[2] block"
+          style={{ top: altura * 0.62, width: PASSANTES[passante.tipo].w }}
+          initial={{ left: '-25%' }}
+          animate={{ left: '112%', y: PASSANTES[passante.tipo].pula ? [0, -6, 0, -6, 0, -6, 0, -6, 0] : 0 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: DURACAO_PALCO.passante / 1000, ease: 'linear' }}
+        >
+          {(() => {
+            const D = PASSANTES[passante.tipo].Desenho;
+            return <D w="100%" />;
+          })()}
+        </motion.span>
+      )}
+    </AnimatePresence>
   );
 }

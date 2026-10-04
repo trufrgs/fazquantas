@@ -1,10 +1,12 @@
 import { seriesTable, type PlayerView, type SeriesState } from '@fodinha/engine';
 import { AnimatePresence, motion } from 'motion/react';
-import { useEffect } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { SeatInfo } from '../../lib/connection';
 import { Avatar } from '../ui/Avatar';
 import { Button } from '../ui/Button';
 import { useZoeira } from './zoeira/agenda';
+import { JornalDoBolicho } from './zoeira/JornalDoBolicho';
+import { jornalDaNoite, trofeusDaNoite } from './zoeira/noite';
 
 export interface GameOverProps {
   view: PlayerView;
@@ -83,11 +85,13 @@ export function GameOver({
   }, [youWon, youChampion]);
 
   const cinzeiro = useZoeira((s) => s.cinzeiro);
-  const fregues = useZoeira((s) => s.fregues);
+  const contas = useZoeira((s) => s.contas);
+  const trofeus = useMemo(() => trofeusDaNoite(view, contas), [view, contas]);
+  const jornal = useMemo(() => jornalDaNoite(view, contas), [view, contas]);
+  const [lendo, setLendo] = useState(false);
   if (!result) return null;
   const name = (id: string) => view.players.find((p) => p.id === id)?.name ?? series?.names[id] ?? id;
-  // A conta da zoeira: quem mais fez a mesa esperar e quem mais teve a carta morta pelo mesmo dono.
-  const fumante = Object.entries(cinzeiro.por).sort((a, b) => b[1] - a[1])[0];
+
   const gameTitle = draw
     ? `Empate entre ${result.winners.map(name).join(' e ')}`
     : youWon
@@ -202,19 +206,37 @@ export function GameOver({
               {mine.length === 1 ? 'palpite' : 'palpites'}.
             </p>
           )}
-          {(cinzeiro.total > 0 || (fregues && fregues.vezes >= 3)) && (
-            <div className="mt-3 flex flex-col gap-0.5 text-center font-hand text-xl leading-tight text-tinta-2">
-              {cinzeiro.total > 0 && fumante && (
-                <p className="m-0">
-                  Cinzeiro da espera: {cinzeiro.total} {cinzeiro.total === 1 ? 'bituca' : 'bitucas'}, {fumante[1]} por conta de {name(fumante[0])}.
-                </p>
-              )}
-              {fregues && fregues.vezes >= 3 && (
-                <p className="m-0">
-                  Freguês da noite: {name(fregues.fregues)}, {fregues.vezes} cartas mortas por {name(fregues.dono)}.
-                </p>
-              )}
+          {/* Os troféus da noite (os que ninguém quer ganhar) e o jornal para mandar no grupo. */}
+          {trofeus.length > 0 && (
+            <div className="mt-3 rounded-2xl bg-tinta/5 p-3" aria-label="Troféus da noite">
+              <p className="m-0 mb-1 font-display text-base font-bold" style={{ fontVariationSettings: '"SOFT" 100' }}>
+                Troféus da noite
+              </p>
+              <div className="flex flex-col gap-1">
+                {trofeus.map((t) => (
+                  <p key={t.id} className="m-0 flex flex-col text-sm leading-tight">
+                    <span className="font-semibold">
+                      {t.titulo}: <span className="font-bold">{name(t.quem)}</span>
+                    </span>
+                    <span className="text-xs text-tinta-2">{t.detalhe}</span>
+                  </p>
+                ))}
+              </div>
+              {cinzeiro.total > 0 && <p className="m-0 mt-1 font-hand text-lg leading-tight text-tinta-2">Cinzeiro da espera: {cinzeiro.total} {cinzeiro.total === 1 ? 'bituca' : 'bitucas'}.</p>}
             </div>
+          )}
+          {jornal && (
+            <>
+              <button
+                type="button"
+                onClick={() => setLendo(true)}
+                className="mt-3 w-full rounded-2xl border-2 border-dashed border-tinta/30 py-2 font-display text-lg font-black"
+                style={{ fontVariationSettings: '"WONK" 1' }}
+              >
+                Jornal do Bolicho: ler e mandar no grupo
+              </button>
+              <JornalDoBolicho jornal={jornal} aberto={lendo} onFechar={() => setLendo(false)} />
+            </>
           )}
           <div className="mt-4 flex flex-col gap-2">
             {onAgain && (

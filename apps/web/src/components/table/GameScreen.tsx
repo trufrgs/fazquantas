@@ -32,7 +32,7 @@ import { galoDeUmToque } from './frases';
 import { FrasesAMao } from './FrasesAMao';
 import { FumacaNaMesa, FumacaPorCima } from './Fumaca';
 import { enfeitesDe } from './zoeira/diretor';
-import { CartaoDoFregues, CinzeiroDaMesa, FaixaDaMesa } from './zoeira/Palco';
+import { CartaoDoFregues, CinzeiroDaMesa, FaixaDaMesa, PalcoDaMesa, PassanteNaMesa } from './zoeira/Palco';
 import { enfeitesDeTeste, useZoeiraDeTeste } from './zoeira/teste';
 import { useDiretor } from './zoeira/useDiretor';
 import { MenuDoAmigo, type AlvoDoMenu } from './zoeira/MenuDoAmigo';
@@ -758,6 +758,7 @@ function Table({
                 );
               })}
           {cinzeiro && <CinzeiroDaMesa {...cinzeiro} />}
+          <PassanteNaMesa altura={table.height} />
           {/* A fumaça de quem espera: por cima dos assentos, por baixo das cartas que quem joga precisa ver. */}
           <AnimatePresence>{fumaca && <FumacaNaMesa key="fumaca" />}</AnimatePresence>
           {/* As cartas na testa entram depois da faixa da rodada (as duas ocupam o centro da mesa). */}
@@ -784,6 +785,7 @@ function Table({
           <CantadasBanner view={view} seatOf={seatOf} top={lugarDaFaixa} />
           {!banner && !cantadasNaMesa && <FaixaDaMesa top={lugarDaFaixa} />}
           <CartaoDoFregues nameOf={nameOf} />
+          <PalcoDaMesa nameOf={nameOf} avatarDe={avatarDe} pontoDe={pontoDe} centro={geometry.center} />
           {naTesta && (
             <NaTesta
               key={`testa-${view.roundNumber}`}

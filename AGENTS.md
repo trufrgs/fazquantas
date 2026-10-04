@@ -137,6 +137,16 @@ pnpm exec playwright test                  # E2E locais (sobem os servidores soz
   por partida. Tudo por um canal só (`game:zoar` → `game:zoeira`), com os limites em
   `packages/engine/src/zoeira.ts` (`ControleDaZoeira`, igual no servidor e contra os bots), e no
   máximo três coisas voando ao mesmo tempo. Roteiro: `e2e/exploratorio/12-zoar.mjs`.
+- **A noite e as escondidas** (3ª leva, 04/10/2026): no fim de jogo, os troféus da noite (cagão,
+  guloso, açougueiro, tartaruga, cumadre, matraca, vidente e a fênix, que ganhou depois de três
+  rodadas no último palito; no máximo quatro, cada um com uma pessoa) e o Jornal do Bolicho, que vira
+  imagem para mandar no grupo (`zoeira/noite.ts`, `JornalDoBolicho.tsx`). No palco, só em tempo morto:
+  a cuia gira e aponta quem dá as cartas no começo, o duelo de galpão quando sobram dois, e o baralho
+  que escapa da mão de quem dá (uma vez a cada umas 18 rodadas). Atravessam a mesa por baixo das
+  cartas: o galo quando alguém canta "é galo", o gato preto na sexta-feira 13, o espeto no 24 de abril
+  e o galo da madrugada (3h–6h). Na Semana Farroupilha todo mundo usa lenço. Lances raros viram fala do
+  narrador: as quatro manilhas na mesma mão, três empates seguidos. Para olhar no desenvolvimento:
+  `?zoeira=duelo|cuia|tropeco|galo|gato|espeto`.
 - **Zoeira: uma coisa de cada vez em cada lugar.** O Thomas escolheu dezenas de ideias no caderno de
   zoeira (02/10/2026) com uma condição: o excesso não pode sobrecarregar nem atrapalhar a jogada, e as
   opções não podem se confundir entre si. As regras moram em `components/table/zoeira/diretor.ts` e

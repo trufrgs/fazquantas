@@ -329,3 +329,59 @@ describe('a agenda: uma coisa de cada vez em cada lugar', () => {
     expect(useZoeira.getState().cinzeiro).toEqual({ total: 8, por: { p1: 6, p2: 2 } });
   });
 });
+
+describe('palco e passantes (3ª leva)', () => {
+  const contexto: Contexto = { avatarDe: () => undefined, ativa: true, calma: false, aoVivo: true };
+  beforeEach(() => vi.useFakeTimers());
+  afterEach(() => vi.useRealTimers());
+
+  it('começo da partida: a cuia escolhe o pé, depois da faixa da rodada', () => {
+    const a = new Agenda();
+    a.comecar();
+    a.ver(visao({ players: [jogador(0, 3), jogador(1, 3)], phase: 'bidding', roundNumber: 1, dealerId: 'p1' }), contexto, 0);
+    expect(useZoeira.getState().palco).toBeNull();
+    vi.advanceTimersByTime(1800);
+    expect(useZoeira.getState().palco).toMatchObject({ tipo: 'cuia', pe: 'p1' });
+  });
+
+  it('sobraram dois: duelo na rodada nova', () => {
+    const a = new Agenda();
+    a.comecar();
+    a.configurar({ sorte: () => 0.99, data: null });
+    a.ver(visao({ players: [jogador(0, 3), jogador(1, 3), jogador(2, 1)], phase: 'roundEnd', roundNumber: 3, seq: 5 }), contexto, 0);
+    a.ver(visao({ players: [jogador(0, 3), jogador(1, 3), jogador(2, 0)], phase: 'bidding', roundNumber: 4, seq: 6 }), contexto, 100);
+    vi.advanceTimersByTime(1800);
+    expect(useZoeira.getState().palco).toMatchObject({ tipo: 'duelo', a: 'p0', b: 'p1' });
+  });
+
+  it('tropeço por sorteio; "é galo" faz o galo atravessar, um de cada vez', () => {
+    const a = new Agenda();
+    a.comecar();
+    a.configurar({ sorte: () => 0, data: null });
+    a.ver(visao({ players: [jogador(0, 3), jogador(1, 3)], phase: 'roundEnd', roundNumber: 2, seq: 5 }), contexto, 0);
+    a.ver(visao({ players: [jogador(0, 3), jogador(1, 3)], phase: 'bidding', roundNumber: 3, seq: 6, dealerId: 'p0' }), contexto, 100);
+    vi.advanceTimersByTime(500);
+    expect(useZoeira.getState().palco).toMatchObject({ tipo: 'tropeco', de: 'p0' });
+    a.ouvir('p1', 'galo', 1000);
+    const primeiro = useZoeira.getState().passante;
+    expect(primeiro?.tipo).toBe('galo');
+    a.ouvir('p0', 'galo-3', 1100);
+    expect(useZoeira.getState().passante?.chave).toBe(primeiro?.chave);
+  });
+
+  it('conta mortes, empates e frases para os troféus', () => {
+    const a = new Agenda();
+    a.comecar();
+    a.configurar({ sorte: () => 0.99, data: null });
+    const ps = [jogador(0, 3, { bid: 1 }), jogador(1, 3, { bid: 1 })];
+    a.ver(visao({ players: ps, trick: { leaderId: 'p0', plays: [{ playerId: 'p0', cardId: 'O4' }] }, seq: 2 }), contexto, 0);
+    a.ver(visao({ players: ps, trick: { leaderId: 'p0', plays: [{ playerId: 'p0', cardId: 'O4' }, { playerId: 'p1', cardId: 'E3' }] }, seq: 3 }), contexto, 10);
+    a.ver(
+      visao({ players: ps, phase: 'trickEnd', seq: 4, lastTrick: { leaderId: 'p0', plays: [{ playerId: 'p0', cardId: 'O3' }, { playerId: 'p1', cardId: 'E3' }], winnerId: null, cancelled: ['p0', 'p1'] } }),
+      contexto,
+      20,
+    );
+    a.ouvir('p0', 'cagao', 30);
+    expect(useZoeira.getState().contas).toMatchObject({ mortes: { p1: 1 }, empates: { p0: 1, p1: 1 }, frases: { p0: 1 } });
+  });
+});

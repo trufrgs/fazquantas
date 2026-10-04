@@ -4,7 +4,12 @@ import { play } from '../../../lib/sound';
 import { rem } from '../../../lib/ui-scale';
 import { Carimbo } from '../../ui/Carimbo';
 import { useZoeira } from './agenda';
-import { Chama, Chinelo, Coroa, Lapide, Traira, Vaca } from './desenhos';
+import { Chama, Chinelo, Coroa, Lapide, Lenco, Traira, Vaca } from './desenhos';
+import { dataEspecial } from './noite';
+
+/** Semana Farroupilha: todo mundo de lenço, vermelho de maragato ou branco de chimango. */
+const FARROUPILHA = dataEspecial() === 'farroupilha';
+const corDoLenco = (id: string) => ([...id].reduce((n, c) => n + c.charCodeAt(0), 0) % 2 ? '#C4372D' : '#F7EFDE');
 import { DURACAO, type Enfeites } from './diretor';
 
 /**
@@ -95,6 +100,11 @@ export function RostoZoado({
           {[18, 50, 80].map((x, i) => (
             <span key={x} className="zoeira-neve absolute block rounded-full bg-white" style={{ left: `${x}%`, top: '-8%', width: u(0.08), height: u(0.08), animationDelay: `${i * 0.5}s` }} />
           ))}
+        </span>
+      )}
+      {FARROUPILHA && !fora && (
+        <span className="pointer-events-none absolute left-1/2 z-[6]" style={{ bottom: u(-0.12), width: u(0.62), marginLeft: u(-0.31) }} aria-hidden="true">
+          <Lenco w="100%" cor={corDoLenco(id)} />
         </span>
       )}
       {e?.lider && (

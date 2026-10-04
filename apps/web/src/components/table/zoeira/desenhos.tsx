@@ -261,3 +261,89 @@ export function Rachadura(p: Desenho) {
     </svg>
   );
 }
+
+/** A cuia vista de cima, com a erva e a bomba (que aponta quem dá as cartas). */
+export function CuiaDeCima({ giro = 0, ...p }: Desenho & { giro?: number }) {
+  return (
+    <svg {...svg(p, '0 0 120 120')}>
+      <circle cx="60" cy="60" r="52" fill="#8A5733" {...s()} />
+      <circle cx="60" cy="60" r="40" fill="#C9A24A" {...s(5)} />
+      <circle cx="60" cy="60" r="32" fill="#5C7F2A" {...s(4)} />
+      <path d="M44 52 C50 46 58 48 60 54 M66 66 C72 62 78 66 76 72" fill="none" stroke="#3F5A1C" strokeWidth={3} strokeLinecap="round" />
+      <g transform={`rotate(${giro} 60 60)`}>
+        <path d="M60 60 L60 6" fill="none" stroke={T} strokeWidth={11} strokeLinecap="round" />
+        <path d="M60 60 L60 6" fill="none" stroke="#D9D6CC" strokeWidth={6} strokeLinecap="round" />
+        <circle cx="60" cy="60" r="7" fill="#D9D6CC" {...s(4)} />
+      </g>
+    </svg>
+  );
+}
+
+/** O galo de perfil, de peito estufado (atravessa a mesa quando alguém canta "é galo"). */
+export function Galo(p: Desenho) {
+  return (
+    <svg {...svg(p, '0 0 120 120')}>
+      <path d="M30 104 L34 88 M50 104 L48 88" fill="none" stroke="#E3A82B" strokeWidth={6} strokeLinecap="round" />
+      <path d="M20 46 C6 30 10 14 24 18 C22 30 30 36 34 44 Z" fill="#2E5C9C" {...s(5)} />
+      <path d="M14 56 C2 44 8 30 20 34 C20 44 26 50 30 56 Z" fill="#3D7A3A" {...s(5)} />
+      <path d="M26 54 C26 40 44 34 62 40 L84 34 C92 50 90 70 78 82 C66 94 40 94 30 84 C24 76 24 64 26 54 Z" fill="#C4372D" {...s()} />
+      <path d="M40 66 C48 76 62 78 72 70" fill="none" stroke="#8E231C" strokeWidth={5} strokeLinecap="round" />
+      <path d="M78 40 C76 26 84 14 96 16 C106 18 108 30 104 40 C100 48 88 48 78 40 Z" fill="#E0892F" {...s()} />
+      <path d="M84 16 C82 6 90 4 92 12 C94 4 102 4 100 14 C106 8 112 14 104 20 Z" fill="#C4372D" {...s(4)} />
+      <path d="M104 28 L116 32 L104 36 Z" fill="#F6D77A" {...s(4)} />
+      <path d="M100 40 C104 48 98 54 94 48 Z" fill="#C4372D" {...s(4)} />
+      <circle cx="96" cy="27" r="3.5" fill={T} />
+    </svg>
+  );
+}
+
+/** O gato preto da sexta-feira 13, de perfil. */
+export function GatoPreto(p: Desenho) {
+  return (
+    <svg {...svg(p, '0 0 130 100')}>
+      <path d="M14 40 C2 30 8 12 18 16 C12 24 18 34 24 40" fill="none" stroke="#1d1d22" strokeWidth={9} strokeLinecap="round" />
+      <path d="M22 50 C22 36 40 32 70 34 C90 36 98 44 98 56 C98 70 86 76 64 76 C40 76 22 66 22 50 Z" fill="#1d1d22" {...s(4)} />
+      {[34, 48, 74, 88].map((x) => (
+        <path key={x} d={`M${x} 70 L${x - 2} 94`} fill="none" stroke="#1d1d22" strokeWidth={8} strokeLinecap="round" />
+      ))}
+      <path d="M90 40 C88 24 100 16 112 20 C124 24 124 40 116 48 C108 54 94 52 90 40 Z" fill="#1d1d22" {...s(4)} />
+      <path d="M96 24 L98 8 L106 20 M110 20 L118 8 L118 26" fill="#1d1d22" {...s(4)} />
+      <ellipse cx="112" cy="33" rx="3.5" ry="5" fill="#F6D77A" />
+      <ellipse cx="102" cy="33" rx="3.5" ry="5" fill="#F6D77A" />
+    </svg>
+  );
+}
+
+/** O espeto de churrasco do 24 de abril. */
+export function Espeto(p: Desenho) {
+  return (
+    <svg {...svg(p, '0 0 180 40')}>
+      <path d="M6 20 H170" fill="none" stroke={T} strokeWidth={7} strokeLinecap="round" />
+      <path d="M6 20 H170" fill="none" stroke="#D9D6CC" strokeWidth={3} strokeLinecap="round" />
+      <path d="M150 12 L174 20 L150 28 Z" fill="#D9D6CC" {...s(3)} />
+      {[[28, '#8E3B26'], [62, '#A9542F'], [96, '#8E3B26'], [128, '#C66B3D']].map(([x, cor]) => (
+        <path key={x as number} d={`M${(x as number) - 14} 8 C${(x as number) - 4} 2 ${(x as number) + 12} 4 ${(x as number) + 14} 14 C${(x as number) + 16} 28 ${(x as number) + 4} 36 ${(x as number) - 8} 34 C${(x as number) - 18} 30 ${(x as number) - 20} 14 ${(x as number) - 14} 8 Z`} fill={cor as string} {...s(4)} />
+      ))}
+    </svg>
+  );
+}
+
+/** A bola de capim seco que rola no duelo. */
+export function Capim(p: Desenho) {
+  return (
+    <svg {...svg(p, '0 0 100 100')}>
+      <circle cx="50" cy="50" r="40" fill="none" stroke="#B48A4E" strokeWidth={5} />
+      <path d="M18 40 C40 20 70 30 82 58 M22 66 C40 46 64 52 78 34 M36 84 C40 60 58 40 66 16 M50 10 C46 40 60 66 54 90" fill="none" stroke="#9C7340" strokeWidth={4} strokeLinecap="round" />
+    </svg>
+  );
+}
+
+/** O lenço do 20 de setembro, amarrado no pescoço (vermelho de maragato ou branco de chimango). */
+export function Lenco({ cor, ...p }: Desenho & { cor: string }) {
+  return (
+    <svg {...svg(p, '0 0 100 50')}>
+      <path d="M6 6 C30 16 70 16 94 6 L60 26 L50 46 L40 26 Z" fill={cor} {...s(5)} />
+      <path d="M42 20 C46 16 54 16 58 20 L56 28 C52 30 48 30 44 28 Z" fill={cor} {...s(4)} />
+    </svg>
+  );
+}

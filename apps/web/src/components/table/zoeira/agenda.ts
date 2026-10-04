@@ -20,6 +20,7 @@ import {
   type CenaDeAssento,
   type Fala,
 } from './diretor';
+import { CONTAS_VAZIAS, dataEspecial, quatroManilhas, type Contas, type DataEspecial } from './noite';
 
 /** O que está em cena agora, cada coisa no seu lugar (as regras estão em `diretor.ts`). */
 export interface Quadro {
@@ -27,15 +28,37 @@ export interface Quadro {
   cenas: Record<string, { tipo: CenaDeAssento; chave: number }>;
   /** A voz do narrador ou o coro da turma. */
   faixa: { chave: number; texto: string; coro: boolean } | null;
-  /** O meio da mesa: o cartão fidelidade do freguês. */
-  palco: { chave: number; fregues: string; dono: string } | null;
+  /**
+   * O meio da mesa, uma coisa por vez e só em tempo morto: o cartão fidelidade do freguês, o duelo
+   * quando sobram dois, a cuia que escolhe o pé no começo e o baralho que escapa da mão de quem dá.
+   */
+  palco: Palco | null;
+  /** Quem atravessa a mesa por baixo das cartas (o galo, o gato preto, o espeto): um de cada vez. */
+  passante: { chave: number; tipo: Passante } | null;
+  /** O que a partida juntou de cada um (troféus e jornal do fim). */
+  contas: Contas;
   /** As bitucas da espera: quantas, e por conta de quem. */
   cinzeiro: { total: number; por: Record<string, number> };
   /** Quem mais teve a carta morta pelo mesmo dono na partida. */
   fregues: { fregues: string; dono: string; vezes: number } | null;
 }
 
-const VAZIO: Quadro = { cenas: {}, faixa: null, palco: null, cinzeiro: { total: 0, por: {} }, fregues: null };
+export type Palco =
+  | { chave: number; tipo: 'fregues'; fregues: string; dono: string }
+  | { chave: number; tipo: 'duelo'; a: string; b: string }
+  | { chave: number; tipo: 'cuia'; pe: string }
+  | { chave: number; tipo: 'tropeco'; de: string };
+export type Passante = 'galo' | 'gato' | 'espeto';
+type SemChave<T> = T extends unknown ? Omit<T, 'chave'> : never;
+
+/** Quanto cada coisa do palco e de passagem fica (ms). */
+export const DURACAO_PALCO = { duelo: 2800, cuia: 2600, tropeco: 2200, passante: 3200 } as const;
+/** Espera a faixa da rodada sair antes de usar o meio da mesa (ms). */
+const DEPOIS_DA_FAIXA_MS = 1700;
+/** Uma vez a cada tantas rodadas, o baralho escapa da mão de quem dá. */
+const TROPECO_A_CADA = 18;
+
+const VAZIO: Quadro = { cenas: {}, faixa: null, palco: null, passante: null, contas: CONTAS_VAZIAS, cinzeiro: { total: 0, por: {} }, fregues: null };
 
 export const useZoeira = create<Quadro>(() => VAZIO);
 
@@ -75,6 +98,16 @@ export class Agenda {
   /** Fala que espera o tempo morto (com carta na mesa, o narrador não fala por cima dela). */
   private guardada: Fala | null = null;
   private vezDesde = 0;
+  private empatesSeguidos = 0;
+  private data: DataEspecial = dataEspecial();
+  private visitou = false;
+  private sorte: () => number = Math.random;
+
+  /** Nos testes: o sorteio dos tropeços e a data. */
+  configurar(o: { sorte?: () => number; data?: DataEspecial }): void {
+    if (o.sorte) this.sorte = o.sorte;
+    if (o.data !== undefined) this.data = o.data;
+  }
 
   /** Entra em cena com a mesa limpa (chamar num efeito: limpar a loja no render atualiza outros componentes). */
   comecar(): void {
@@ -85,7 +118,7 @@ export class Agenda {
   parar(): void {
     for (const t of this.timers) clearTimeout(t);
     this.timers.clear();
-    useZoeira.setState({ cenas: {}, faixa: null, palco: null });
+    useZoeira.setState({ cenas: {}, faixa: null, palco: null, passante: null });
   }
 
   private depois(ms: number, fn: () => void): void {
@@ -105,10 +138,14 @@ export class Agenda {
     const plays = (fechada ? view.lastTrick?.plays : view.trick?.plays) ?? [];
     const chave = plays.length > 0 ? chaveDaMao(view.roundNumber, plays) : '';
     if (!p) {
-      // Primeira visão (chegou agora, ou recarregou): o que já está na mesa não vira cena.
+      // Primeira visão (chegou agora, ou recarregou): o que já está na mesa não vira cena. Só o
+      // começo da partida tem cena: a cuia gira no meio da mesa e aponta quem dá as cartas.
       this.mao = { chave, n: plays.length };
       this.falas = { rodada: view.roundNumber, n: 0 };
       this.vezDesde = agora;
+      if (view.roundNumber === 1 && view.phase === 'bidding' && view.players.every((x) => x.bid === null)) {
+        this.depois(DEPOIS_DA_FAIXA_MS, () => this.mostraPalco({ tipo: 'cuia', pe: view.dealerId }, DURACAO_PALCO.cuia));
+      }
       return;
     }
     if (view.seq === p.seq) return;
@@ -142,6 +179,7 @@ export class Agenda {
       const k = quemMatou(plays.slice(0, i + 1), sctx, view.rules.tieRule);
       if (!k) continue;
       const par = `${k.matador}>${k.vitima}`;
+      this.contar('mortes', k.matador);
       const vezes = (this.mortes.get(par) ?? 0) + 1;
       this.mortes.set(par, vezes);
       const maior = useZoeira.getState().fregues;
@@ -167,12 +205,33 @@ export class Agenda {
 
     // Mão fechada: tempo morto, o meio da mesa está livre.
     if (fechada && p.phase !== 'trickEnd') {
-      if (this.pendente?.chave === chave) this.mostraPalco(this.pendente);
+      const fim = view.lastTrick;
+      for (const id of fim?.cancelled ?? []) this.contar('empates', id);
+      this.empatesSeguidos = fim && fim.winnerId === null ? this.empatesSeguidos + 1 : 0;
+      // Lance raro primeiro: as quatro manilhas na mesma mão, três empates seguidos.
+      if (quatroManilhas(plays, sctx)) this.fala({ id: `cavaleiros:${chave}`, texto: 'Os quatro cavaleiros na mesma mão.' }, agora, true);
+      else if (this.empatesSeguidos === 3) this.fala({ id: `cumadrera:${chave}`, texto: 'Mesa cumadrera: três empates seguidos.' }, agora, true);
+      else if (this.pendente?.chave === chave) this.mostraPalco({ tipo: 'fregues', fregues: this.pendente.fregues, dono: this.pendente.dono }, DURACAO.fregues);
       else if (this.rixa?.chave === chave) this.fala({ id: `rixa:${chave}`, texto: this.rixa.texto }, agora);
       else if (this.guardada) this.fala(this.guardada, agora);
       this.pendente = null;
       this.rixa = null;
       this.guardada = null;
+    }
+
+    // Rodada nova: sobraram dois (duelo), o baralho escapou (tropeço), ou a data chama uma visita.
+    if (view.roundNumber !== p.roundNumber && view.phase === 'bidding') {
+      const vivos = view.players.filter((x) => !x.eliminated);
+      const antes = p.players.filter((x) => !x.eliminated).length;
+      if (vivos.length === 2 && antes > 2) this.depois(DEPOIS_DA_FAIXA_MS, () => this.mostraPalco({ tipo: 'duelo', a: vivos[0]!.id, b: vivos[1]!.id }, DURACAO_PALCO.duelo));
+      else if (this.sorte() < 1 / TROPECO_A_CADA) this.depois(400, () => this.mostraPalco({ tipo: 'tropeco', de: view.dealerId }, DURACAO_PALCO.tropeco));
+      if (!this.visitou && view.roundNumber >= 2) {
+        const visita: Passante | null = this.data === 'churrasco' ? 'espeto' : this.data === 'sexta13' ? 'gato' : this.data === 'madrugada' ? 'galo' : null;
+        if (visita) {
+          this.visitou = true;
+          this.depois(DEPOIS_DA_FAIXA_MS + 3000, () => this.passar(visita));
+        }
+      }
     }
 
     // Fim da rodada: a chinelada em quem saiu, a vaca em quem errou feio, e uma fala.
@@ -189,7 +248,10 @@ export class Agenda {
   ouvir(playerId: string, reaction: ReactionId, agora = Date.now()): void {
     const view = this.antes;
     this.frases = [...this.frases.filter((f) => agora - f.em <= CORO.janelaMs), { playerId, reaction, em: agora }];
+    this.contar('frases', playerId);
     const valor = valorDoGalo(reaction);
+    // "É galo": um galo atravessa a mesa, de peito estufado (sem cocoricó).
+    if (valor) this.passar('galo');
     const plays = view?.phase === 'playing' ? (view.trick?.plays ?? []) : [];
     if (view && valor && plays.length > 0) {
       const levando = resolveTrick(plays, contextoDaRodada(view.rules, view.vira), view.rules.tieRule).winnerId;
@@ -212,6 +274,22 @@ export class Agenda {
     if (esperando <= 0) return;
     const c = useZoeira.getState().cinzeiro;
     useZoeira.setState({ cinzeiro: { total: c.total + esperando, por: { ...c.por, [ator]: (c.por[ator] ?? 0) + esperando } } });
+    this.contar('espera', ator, esperando);
+  }
+
+  private contar(conta: keyof Contas, id: string, n = 1): void {
+    const contas = useZoeira.getState().contas;
+    useZoeira.setState({ contas: { ...contas, [conta]: { ...contas[conta], [id]: (contas[conta][id] ?? 0) + n } } });
+  }
+
+  /** Alguém atravessa a mesa, se ninguém está atravessando. */
+  private passar(tipo: Passante): void {
+    if (!this.ctx.ativa || this.ctx.calma || useZoeira.getState().passante) return;
+    const chave = ++this.n;
+    useZoeira.setState({ passante: { chave, tipo } });
+    this.depois(DURACAO_PALCO.passante, () => {
+      if (useZoeira.getState().passante?.chave === chave) useZoeira.setState({ passante: null });
+    });
   }
 
   private cena(alvo: string, tipo: CenaDeAssento): void {
@@ -236,9 +314,11 @@ export class Agenda {
     });
   }
 
-  private fala(f: Fala, agora: number): void {
+  /** `raro`: lance raro passa na frente do intervalo e do limite da rodada (acontece quase nunca). */
+  private fala(f: Fala, agora: number, raro = false): void {
     if (!this.ctx.ativa) return;
-    if (useZoeira.getState().palco || agora < this.faixaLivreEm || this.falas.n >= FALAS_POR_RODADA || this.ditas.has(f.id)) return;
+    if (useZoeira.getState().palco || this.ditas.has(f.id)) return;
+    if (!raro && (agora < this.faixaLivreEm || this.falas.n >= FALAS_POR_RODADA)) return;
     this.ditas.add(f.id);
     this.falas.n++;
     this.mostraFaixa(f.texto, false, DURACAO.fala, agora);
@@ -253,12 +333,12 @@ export class Agenda {
     });
   }
 
-  private mostraPalco(p: { fregues: string; dono: string }): void {
-    if (!this.ctx.ativa || this.ctx.calma) return;
+  private mostraPalco(p: SemChave<Palco>, ms: number): void {
+    if (!this.ctx.ativa || this.ctx.calma || useZoeira.getState().palco) return;
     const chave = ++this.n;
-    // O meio da mesa é de uma coisa só: com o cartão, a faixa sai.
-    useZoeira.setState({ palco: { chave, fregues: p.fregues, dono: p.dono }, faixa: null });
-    this.depois(DURACAO.fregues, () => {
+    // O meio da mesa é de uma coisa só: com o palco, a faixa sai.
+    useZoeira.setState({ palco: { ...p, chave } as Palco, faixa: null });
+    this.depois(ms, () => {
       if (useZoeira.getState().palco?.chave === chave) useZoeira.setState({ palco: null });
     });
   }
