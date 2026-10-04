@@ -6,6 +6,7 @@ import { createRng, type Rng } from './rng';
 import type { Rules } from './rules';
 import type { Action, ApplyResult, GameState, PlayerAction } from './types';
 import { getPlayerView, type PlayerView } from './view';
+import { porUmFio } from './zoeira';
 
 export interface Clock {
   now(): number;
@@ -46,6 +47,11 @@ export interface HostTiming {
    * (o Thomas, 30/09/2026). Não multiplica com a manilha.
    */
   lastCardMs: number;
+  /**
+   * A mais na última mão da rodada quando ela decide se alguém sai do jogo (`porUmFio`): a luz baixa, o
+   * corte de novela em quem está por um fio, e só então a vencedora sobe.
+   */
+  decisiveMs: number;
   /** Pausa no resumo do fim da rodada (dá tempo de ler o placar). */
   roundPauseMs: number;
   /**
@@ -71,6 +77,7 @@ export const DEFAULT_TIMING: Readonly<HostTiming> = Object.freeze({
   botThinkMs: [650, 1250] as [number, number],
   trickPauseMs: 1300,
   lastCardMs: 600,
+  decisiveMs: 2000,
   roundPauseMs: 7500,
   bidsRevealMs: 2600,
   forcedPlayMs: 650,
@@ -82,6 +89,7 @@ export const INSTANT_TIMING: Readonly<HostTiming> = Object.freeze({
   botThinkMs: [0, 0] as [number, number],
   trickPauseMs: 0,
   lastCardMs: 0,
+  decisiveMs: 0,
   roundPauseMs: 0,
   bidsRevealMs: 0,
   forcedPlayMs: 0,
@@ -393,8 +401,9 @@ export class GameHost {
     if (s.phase === 'trickEnd') {
       const ctx = strengthCtx(s);
       const comManilha = s.round.completedTricks.at(-1)?.plays.some((p) => isManilha(card(p.cardId), ctx)) ?? false;
+      const decide = maoQueDecide(s).length > 0 ? this.timing.decisiveMs : 0;
       this.after(
-        this.scaled(this.timing.trickPauseMs * (comManilha ? MANILHA_PAUSE_FACTOR : 1) + this.timing.lastCardMs + extraMs),
+        this.scaled(this.timing.trickPauseMs * (comManilha ? MANILHA_PAUSE_FACTOR : 1) + this.timing.lastCardMs + decide + extraMs),
         () => this.advance(),
       );
       return;
@@ -454,4 +463,23 @@ export class GameHost {
     const event: HostEvent = { state: this.current, action, auto: reason !== null, reason };
     for (const listener of [...this.listeners]) listener(event);
   }
+}
+
+/**
+ * Na fase `trickEnd` da última mão da rodada: quem sai ou fica conforme essa mão (ver `porUmFio`). Fora
+ * dela, ninguém.
+ */
+export function maoQueDecide(s: GameState): string[] {
+  const r = s.round;
+  const ultima = r.completedTricks.at(-1);
+  if (s.phase !== 'trickEnd' || !ultima || r.order.some((id) => (r.hands[id]?.length ?? 0) > 0)) return [];
+  return porUmFio(
+    s.rules,
+    r.order.map((id) => ({
+      id,
+      lives: s.players.find((p) => p.id === id)?.lives ?? 0,
+      bid: r.bids[id] ?? null,
+      tricks: (r.tricksWon[id] ?? 0) - (ultima.winnerId === id ? 1 : 0),
+    })),
+  );
 }

@@ -1,4 +1,5 @@
 import { REACTIONS, type ReactionId } from './protocol';
+import type { Rules } from './rules';
 
 /**
  * A zoeira que um jogador manda para a mesa (caderno de zoeira, 02/10/2026): atirar coisas num amigo,
@@ -9,9 +10,23 @@ import { REACTIONS, type ReactionId } from './protocol';
 export const ITENS_DE_ATIRAR = ['tomate', 'ovo', 'chinelo', 'bergamota'] as const;
 export type ItemDeAtirar = (typeof ITENS_DE_ATIRAR)[number];
 
+/**
+ * O golpe de cada avatar (caderno de zoeira, refinado em 04/10/2026): quem joga com um destes manda o
+ * golpe da casa, desenhado no estilo da turma e sem palavra (a vó atira o chinelo de volta e vem de
+ * novo, o zorrilho solta a nuvem, o bugio sacode o assento, o garnisé bica, o quero-quero dá o rasante,
+ * o gringo joga o vinho). Conta como tiro (os mesmos três por rodada). A capivara não tem golpe: nela,
+ * o que se atira escorrega sem sujar (isso é só da mesa, não passa por aqui).
+ */
+export const GOLPES_DOS_AVATARES = ['g-vo-do-chinelo', 'g-zorrilho', 'g-bugio', 'g-garnise', 'g-quero-quero', 'g-gringo-do-vinho'] as const;
+export type AvatarComGolpe = (typeof GOLPES_DOS_AVATARES)[number];
+export const temGolpe = (avatar: string | undefined): avatar is AvatarComGolpe => GOLPES_DOS_AVATARES.includes(avatar as AvatarComGolpe);
+
 export type Zoeira =
   | { tipo: 'atirar'; alvo: string; item: ItemDeAtirar }
+  | { tipo: 'golpe'; alvo: string }
   | { tipo: 'cutucar'; alvo: string }
+  /** Quem espera no fumo sopra o palheiro na cara de quem demora (só em quem está na vez). */
+  | { tipo: 'baforada'; alvo: string }
   | { tipo: 'carimbo'; alvo: string; reaction: ReactionId }
   | { tipo: 'grito'; reaction: ReactionId; forca: 1 | 2 | 3 }
   | { tipo: 'pancada'; forca: 1 | 2 | 3 }
@@ -38,6 +53,7 @@ export const ZOEIRA_ESGOTADA = {
   alvo: 'Esse aí não está na mesa.',
   demora: 'Só dá pra cutucar quem está na vez.',
   si: 'Contigo mesmo não vale.',
+  golpe: 'Teu avatar não tem golpe.',
 } as const;
 
 export interface ContextoDaZoeira {
@@ -49,6 +65,8 @@ export interface ContextoDaZoeira {
   ator: string | null;
   /** Quem pode ser alvo (os jogadores e a plateia). */
   alvos: ReadonlySet<string>;
+  /** O avatar de quem manda (o golpe é do avatar). */
+  avatar?: string;
 }
 
 const FRASES = new Set<string>(REACTIONS.map((r) => r.id));
@@ -67,22 +85,26 @@ export class ControleDaZoeira {
     }
     if (('reaction' in z && !FRASES.has(z.reaction)) || ('forca' in z && ![1, 2, 3].includes(z.forca))) return ZOEIRA_ESGOTADA.alvo;
     switch (z.tipo) {
+      case 'golpe':
+        if (!temGolpe(c.avatar)) return ZOEIRA_ESGOTADA.golpe;
+        return (this.tiros.get(`${c.rodada}:${de}`) ?? 0) >= LIMITES_DA_ZOEIRA.tirosPorRodada ? ZOEIRA_ESGOTADA.tiros : null;
       case 'atirar':
         return (this.tiros.get(`${c.rodada}:${de}`) ?? 0) >= LIMITES_DA_ZOEIRA.tirosPorRodada ? ZOEIRA_ESGOTADA.tiros : null;
       case 'virar':
         return (this.viradas.get(`${c.partida}:${de}`) ?? 0) >= LIMITES_DA_ZOEIRA.viradasPorPartida ? ZOEIRA_ESGOTADA.virar : null;
       case 'cutucar':
+      case 'baforada':
         if (c.ator !== z.alvo) return ZOEIRA_ESGOTADA.demora;
-        return c.agora - (this.cutucou.get(de) ?? -Infinity) < LIMITES_DA_ZOEIRA.cutucaoMs ? ZOEIRA_ESGOTADA.cutucao : null;
+        return c.agora - (this.cutucou.get(`${z.tipo}:${de}`) ?? -Infinity) < LIMITES_DA_ZOEIRA.cutucaoMs ? ZOEIRA_ESGOTADA.cutucao : null;
       default:
         return c.agora - (this.ultimo.get(de) ?? -Infinity) < LIMITES_DA_ZOEIRA.intervaloMs ? ZOEIRA_ESGOTADA.cutucao : null;
     }
   }
 
   registrar(de: string, z: Zoeira, c: ContextoDaZoeira): void {
-    if (z.tipo === 'atirar') this.tiros.set(`${c.rodada}:${de}`, (this.tiros.get(`${c.rodada}:${de}`) ?? 0) + 1);
+    if (z.tipo === 'atirar' || z.tipo === 'golpe') this.tiros.set(`${c.rodada}:${de}`, (this.tiros.get(`${c.rodada}:${de}`) ?? 0) + 1);
     else if (z.tipo === 'virar') this.viradas.set(`${c.partida}:${de}`, (this.viradas.get(`${c.partida}:${de}`) ?? 0) + 1);
-    else if (z.tipo === 'cutucar') this.cutucou.set(de, c.agora);
+    else if (z.tipo === 'cutucar' || z.tipo === 'baforada') this.cutucou.set(`${z.tipo}:${de}`, c.agora);
     else this.ultimo.set(de, c.agora);
   }
 
@@ -90,4 +112,24 @@ export class ControleDaZoeira {
   municao(de: string, rodada: string): number {
     return Math.max(0, LIMITES_DA_ZOEIRA.tirosPorRodada - (this.tiros.get(`${rodada}:${de}`) ?? 0));
   }
+}
+
+/**
+ * A mão que decide (caderno de zoeira, "A mão que decide" com o "Corte de novela"): na última mão da
+ * rodada, quem sai do jogo ou fica conforme leve ou não esta mão. A conta é só a pública (cantadas,
+ * mãos feitas antes desta e palitos), sem olhar carta de ninguém. `tricks` é o que cada um fez ANTES
+ * da mão em jogo. Devolve os ids em ordem.
+ */
+export function porUmFio(
+  rules: Pick<Rules, 'penalty'>,
+  jogadores: readonly { id: string; lives: number; bid: number | null; tricks: number }[],
+): string[] {
+  const perde = (bid: number, fez: number) => {
+    const d = Math.abs(bid - fez);
+    return rules.penalty === 'difference' ? d : d > 0 ? 1 : 0;
+  };
+  return jogadores
+    .filter((j) => j.bid !== null && j.lives > 0)
+    .filter((j) => j.lives - perde(j.bid!, j.tricks + 1) <= 0 !== j.lives - perde(j.bid!, j.tricks) <= 0)
+    .map((j) => j.id);
 }

@@ -22,6 +22,7 @@ export const FAST_TIMING: Partial<HostTiming> = {
   botThinkMs: [0, 5],
   trickPauseMs: 5,
   lastCardMs: 0,
+  decisiveMs: 0,
   bidsRevealMs: 5,
   roundPauseMs: 5,
   forcedPlayMs: 5,

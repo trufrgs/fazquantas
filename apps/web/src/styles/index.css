@@ -374,7 +374,30 @@ html.app-ios body {
 .zoeira-chama {
   transform-origin: 50% 100%;
 }
+/* A galinha cisca: abaixa a cabeça, anda um passinho, volta. */
+@keyframes zoeira-cisca {
+  0%,
+  60%,
+  100% {
+    transform: translateX(0) rotate(0deg);
+  }
+  20% {
+    transform: translateX(-8%) rotate(-18deg);
+  }
+  30% {
+    transform: translateX(-8%) rotate(-6deg);
+  }
+  40% {
+    transform: translateX(-8%) rotate(-18deg);
+  }
+}
+.zoeira-galinha {
+  transform-origin: 70% 90%;
+}
 @media (prefers-reduced-motion: no-preference) {
+  .zoeira-galinha {
+    animation: zoeira-cisca 2.4s ease-in-out infinite;
+  }
   .zoeira-borracho {
     animation: zoeira-balanco var(--passo, 3s) ease-in-out infinite;
   }

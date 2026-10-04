@@ -7,7 +7,7 @@ import { Matches } from '../ui/Matches';
 import { Palheiro } from './Palheiro';
 import { BidBadge, CantadaBubble, DealerChip, MaoChip, ReactionBubble, TurnRing } from './Seat';
 import { Lanterna } from './zoeira/desenhos';
-import type { Enfeites } from './zoeira/diretor';
+import type { Enfeites, Mascara } from './zoeira/diretor';
 import { RostoZoado } from './zoeira/RostoZoado';
 import { ChapeuDePatrao } from '../sala/ChapeuDePatrao';
 import { rem } from '../../lib/ui-scale';
@@ -35,6 +35,8 @@ export interface MySeatProps {
   enfeites?: Enfeites;
   /** És patrão da mesa: o chapéu ao lado do nome. */
   patrao?: boolean;
+  /** O que a última rodada deixou no teu rosto (focinho, nariz). */
+  mascara?: Mascara;
 }
 
 const TONE: Record<StatusTone, string> = {
@@ -45,14 +47,14 @@ const TONE: Record<StatusTone, string> = {
 };
 
 /** Sua faixa acima da mão: avatar, vidas, palpite e o que está acontecendo. */
-export function MySeat({ player, avatar, phase, remaining, startingLives, status, reaction, isTurn, deadline, isMao, round, pitando = false, enfeites, patrao = false }: MySeatProps) {
+export function MySeat({ player, avatar, phase, remaining, startingLives, status, reaction, isTurn, deadline, isMao, round, pitando = false, enfeites, patrao = false, mascara }: MySeatProps) {
   // A tua câmera aberta: a prévia fica maior que o avatar.
   const rosto = useMidia((s) => (s.local ? 56 : 40));
   return (
     <div className="relative z-20 flex items-center gap-2.5 px-3">
       <div className="relative">
         {isTurn && !player.eliminated && <TurnRing key={deadline ?? 0} size={rosto} deadline={deadline} />}
-        <RostoZoado id={player.id} size={rosto} enfeites={enfeites}>
+        <RostoZoado id={player.id} size={rosto} enfeites={enfeites} mascara={mascara} frase={reaction}>
           <RostoNaMesa playerId={player.id} seed={avatar} size={40} tamanhoVideo={56} dim={player.eliminated} fora={player.eliminated} />
         </RostoZoado>
         <AnimatePresence>{pitando && !player.eliminated && <Palheiro key="palheiro" size={rosto} atraso={1.7} />}</AnimatePresence>

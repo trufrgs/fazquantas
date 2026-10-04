@@ -174,6 +174,26 @@ export function setMasterVolume(volume: number): void {
 }
 
 /**
+ * O contexto de áudio para quem sintetiza o som na hora (`sintetizado.ts`), com as mesmas regras do
+ * `play`: efeitos ligados, já houve um toque e o áudio está rodando (parado, tenta acordar e não toca).
+ */
+export function contextoParaTocar(): AudioContext | null {
+  if (!enabled || !tocou) return null;
+  const ctx = contexto();
+  if (!ctx) return null;
+  if (ctx.state !== 'running') {
+    acordarAudio();
+    return null;
+  }
+  return ctx;
+}
+
+/** O volume geral dos efeitos (o nó por onde passa todo som do Howler). */
+export function saidaDosEfeitos(ctx: AudioContext): AudioNode {
+  return (Howler as unknown as { masterGain?: GainNode }).masterGain ?? ctx.destination;
+}
+
+/**
  * Toca um som (variação aleatória quando há mais de um arquivo). Nunca lança. Com o áudio parado, o som
  * não toca (iria para a fila do Howler e sairia tudo junto quando o áudio voltasse): tenta acordar.
  */

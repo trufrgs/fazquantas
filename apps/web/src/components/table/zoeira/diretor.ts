@@ -1,4 +1,4 @@
-import { resolveTrick, type Play, type PlayerView, type ReactionId, type RoundRecord, type StrengthCtx, type TieRule } from '@fodinha/engine';
+import { porUmFio, resolveTrick, type Play, type PlayerView, type ReactionId, type RoundRecord, type StrengthCtx, type TieRule } from '@fodinha/engine';
 
 /**
  * O diretor da zoeira: decide o que a mesa faz sozinha para debochar de quem joga, e principalmente o
@@ -7,12 +7,17 @@ import { resolveTrick, type Play, type PlayerView, type ReactionId, type RoundRe
  * jogabilidade, com opções se confundindo entre si". Daí as regras, todas neste arquivo:
  *
  * 1. **Cada coisa tem o seu lugar, e cada lugar mostra uma de cada vez.**
- *    - `enfeite`: o estado de um assento (borracho, mão quente, pé-frio, líder, lanterna, lápide).
- *      Fica enquanto for verdade, cada um num ponto fixo do assento (ver `Enfeites`).
+ *    - `enfeite`: o estado de um assento (borracho, mão quente, pé-frio, líder, lanterna, lápide, a
+ *      galinha de quem só canta zero). Fica enquanto for verdade, cada um num ponto fixo do assento
+ *      (ver `Enfeites`).
+ *    - `máscara`: o que a rodada deixou no meio do rosto (focinho de porco de quem fez mais do que
+ *      cantou, nariz de palhaço de quem fez menos), no avatar ou na câmera. Uma por rosto, do fim da
+ *      rodada até a primeira carta da seguinte: nunca enquanto se joga carta (ver `mascarasDe`).
  *    - `cena de assento`: um instante em cima de um rosto (a vaca, a traíra, a chinelada). No máximo
  *      `MAX_CENAS` ao mesmo tempo na mesa, as de maior `PESO`.
  *    - `palco`: o meio da mesa (o cartão do freguês). Uma por vez e só em tempo morto (mão fechada,
- *      fim de rodada): nunca por cima das cartas enquanto alguém decide.
+ *      fim de rodada): nunca por cima das cartas enquanto alguém decide. A mão que decide (o corte de
+ *      novela em quem está por um fio) é do palco também: a mesa espera por ela (`decisiveMs`).
  *    - `faixa`: a voz do narrador (e o coro). Uma por vez, com intervalo, no máximo `FALAS_POR_RODADA`
  *      por rodada. Tudo o que a mesa "diz" passa por ela: não existe segundo tipo de letreiro. O
  *      narrador só fala em tempo morto (cantadas, mão fechada, fim de rodada); o coro entra na hora,
@@ -38,7 +43,7 @@ export const FALAS_POR_RODADA = 2;
 /** Intervalo mínimo entre o fim de uma fala e o começo da outra (ms). */
 export const INTERVALO_DA_FAIXA_MS = 4000;
 /** Quanto cada coisa fica na mesa (ms). */
-export const DURACAO = { fala: 3400, coro: 2300, vaca: 2100, traira: 2000, chinelada: 1700, fregues: 3000 } as const;
+export const DURACAO = { fala: 3400, coro: 2300, vaca: 2100, traira: 2000, chinelada: 1700, cumadre: 1800, fregues: 3000 } as const;
 /** Tantas mortes da carta de um pelo mesmo dono fazem o freguês. */
 export const FREGUES_EM = 5;
 /** Demorou tanto na vez (ms), o narrador comenta. */
@@ -67,9 +72,23 @@ export interface Enfeites {
   lanterna: boolean;
   /** Saiu do jogo: o que matou ("cantou 3, fez 0"). */
   epitafio: string | null;
+  /** Cantou zero nas últimas três rodadas seguidas (ou mais): a galinha cisca no pé do assento. */
+  galinha: boolean;
 }
 
-const SEM_ENFEITE: Enfeites = { borracho: 0, quente: 0, frio: 0, lider: false, lanterna: false, epitafio: null };
+const SEM_ENFEITE: Enfeites = { borracho: 0, quente: 0, frio: 0, lider: false, lanterna: false, epitafio: null, galinha: false };
+
+/** Quantas rodadas seguidas, a contar da última que jogou, `id` cantou zero. */
+export function zerosSeguidos(history: readonly RoundRecord[], id: string): number {
+  let n = 0;
+  for (let i = history.length - 1; i >= 0; i--) {
+    const b = history[i]!.bids[id];
+    if (b === undefined) continue;
+    if (b !== 0) break;
+    n++;
+  }
+  return n;
+}
 
 /** As rodadas seguidas, a contar da última, em que `id` acertou e em que errou (só as que ele jogou). */
 export function sequencia(history: readonly RoundRecord[], id: string): { acertos: number; erros: number } {
@@ -121,9 +140,54 @@ export function enfeitesDe(view: PlayerView): Map<string, Enfeites> {
           lider: jogou && !fim && vivos.length > 1 && maior > menor && naFrente.length === 1 && naFrente[0]!.id === p.id,
           lanterna: jogou && !fim && vivos.length > 2 && maior > menor && atras.length === 1 && atras[0]!.id === p.id,
           epitafio: null,
+          galinha: !fim && zerosSeguidos(view.history, p.id) >= 3,
         } satisfies Enfeites,
       ];
     }),
+  );
+}
+
+// --------------------------------------------------------------------------------------- máscaras
+
+export type Mascara = 'porco' | 'palhaco';
+
+/**
+ * O que a última rodada deixou no meio de cada rosto: o focinho de porco de quem fez mais do que
+ * cantou (o guloso) e o nariz de palhaço de quem fez menos. Aparece no fim da rodada e fica pela
+ * cantada da seguinte, para a mesa debochar; some na primeira carta (jogando, o rosto fica limpo).
+ * Quem saiu fica só na lápide.
+ */
+export function mascarasDe(view: PlayerView): Map<string, Mascara> {
+  const r = view.history.at(-1);
+  const m = new Map<string, Mascara>();
+  if (!r || view.phase === 'gameOver') return m;
+  const fimDela = view.phase === 'roundEnd' && view.roundNumber === r.number;
+  const semCarta = (view.trick?.plays.length ?? 0) === 0 && view.completedTricks.length === 0;
+  const cantadaDaSeguinte = view.roundNumber === r.number + 1 && (view.phase === 'bidding' || (view.phase === 'playing' && semCarta));
+  if (!fimDela && !cantadaDaSeguinte) return m;
+  for (const [id, cantou] of Object.entries(r.bids)) {
+    if (r.eliminated.includes(id)) continue;
+    const fez = r.tricks[id] ?? 0;
+    if (fez > cantou) m.set(id, 'porco');
+    else if (fez < cantou) m.set(id, 'palhaco');
+  }
+  return m;
+}
+
+// ------------------------------------------------------------------------------ a mão que decide
+
+/**
+ * A última mão da rodada acabou de fechar e ela decide se alguém sai do jogo: quem está por um fio
+ * (a conta é a mesma do anfitrião, `porUmFio`, que segura a mesa `decisiveMs` a mais).
+ */
+export function maoQueDecide(view: PlayerView): string[] {
+  const ultima = view.lastTrick;
+  if (view.phase !== 'trickEnd' || !ultima) return [];
+  const naRodada = view.players.filter((p) => p.inRound && !p.eliminated);
+  if (naRodada.some((p) => p.handCount > 0)) return [];
+  return porUmFio(
+    view.rules,
+    naRodada.map((p) => ({ id: p.id, lives: p.lives, bid: p.bid, tricks: p.tricks - (ultima.winnerId === p.id ? 1 : 0) })),
   );
 }
 
@@ -151,9 +215,9 @@ export function valorDoGalo(id: ReactionId): string | 'qualquer' | null {
 
 // ------------------------------------------------------------------------------- fim da rodada
 
-export type CenaDeAssento = 'vaca' | 'traira' | 'chinelada';
+export type CenaDeAssento = 'vaca' | 'traira' | 'chinelada' | 'cumadre';
 /** Quando faltam lugares (`MAX_CENAS`), entra a de maior peso. */
-export const PESO: Record<CenaDeAssento, number> = { chinelada: 3, traira: 2, vaca: 1 };
+export const PESO: Record<CenaDeAssento, number> = { chinelada: 3, traira: 2, vaca: 1, cumadre: 0 };
 
 export interface Fala {
   /** A chave do ditado: o mesmo não sai duas vezes na partida. */

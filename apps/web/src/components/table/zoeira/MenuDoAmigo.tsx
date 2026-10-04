@@ -1,9 +1,10 @@
-import { ITENS_DE_ATIRAR, REACTIONS, type ItemDeAtirar, type ReactionId, type Zoeira } from '@fodinha/engine';
+import { GAUCHO_AVATARS, ITENS_DE_ATIRAR, REACTIONS, temGolpe, type ItemDeAtirar, type ReactionId, type Zoeira } from '@fodinha/engine';
 import { AnimatePresence, motion } from 'motion/react';
 import { Video } from 'lucide-react';
 import { useEffect, useRef, useState, type ComponentType } from 'react';
 import { useSettings } from '../../../stores/settings';
 import type { Point } from '../layout';
+import { Avatar } from '../../ui/Avatar';
 import { Bergamota, Chinelo, Ovo, Tomate } from './desenhos';
 
 const DESENHO: Record<ItemDeAtirar, ComponentType<{ w: string }>> = { tomate: Tomate, ovo: Ovo, chinelo: Chinelo, bergamota: Bergamota };
@@ -22,9 +23,10 @@ export interface AlvoDoMenu {
 
 /**
  * O menu do amigo: tocar no rosto de alguém abre o que dá para fazer com ele. Atirar (tomate, ovo,
- * chinelo, bergamota: três por rodada), cutucar se é ele quem está demorando, carimbar uma das tuas
- * frases favoritas na testa dele, e ver a câmera grande. Pequeno, perto do rosto, fecha com um toque
- * fora; nada nele mexe na jogada.
+ * chinelo, bergamota e, para quem tem, o golpe do teu avatar: três por rodada), cutucar ou soprar a
+ * fumaça na cara dele se é ele quem está demorando, carimbar uma das tuas frases favoritas na testa
+ * dele, e ver a câmera grande. Pequeno, perto do rosto, fecha com um toque fora; nada nele mexe na
+ * jogada.
  */
 export function MenuDoAmigo({
   alvo,
@@ -33,8 +35,11 @@ export function MenuDoAmigo({
   onZoar,
   onCamera,
   onFechar,
+  meuAvatar,
 }: {
   alvo: AlvoDoMenu | null;
+  /** O teu avatar: o golpe da casa é dele. */
+  meuAvatar?: string;
   largura: number;
   altura: number;
   onZoar: (z: Zoeira) => Promise<string | null>;
@@ -73,6 +78,8 @@ export function MenuDoAmigo({
     else onFechar();
   };
   const frases = favoritas.filter((id) => id !== 'galo').slice(0, 3) as ReactionId[];
+  const golpe = temGolpe(meuAvatar) ? meuAvatar : null;
+  const nomeDoAvatar = GAUCHO_AVATARS.find((a) => a.id === golpe)?.label.split(' ')[0] ?? '';
   return (
     <AnimatePresence>
       {alvo && (
@@ -95,7 +102,7 @@ export function MenuDoAmigo({
           <span className="px-1 font-display text-lg font-bold leading-none" style={{ fontVariationSettings: '"SOFT" 100' }}>
             {alvo.nome}
           </span>
-          <div className="grid grid-cols-4 gap-1.5" role="group" aria-label="Atirar">
+          <div className={`grid gap-1.5 ${golpe ? 'grid-cols-5' : 'grid-cols-4'}`} role="group" aria-label="Atirar">
             {ITENS_DE_ATIRAR.map((item) => {
               const D = DESENHO[item];
               return (
@@ -106,10 +113,21 @@ export function MenuDoAmigo({
                   onClick={() => void fazer({ tipo: 'atirar', alvo: alvo.id, item })}
                   className="flex h-12 items-center justify-center rounded-xl bg-tinta/8 p-1.5 transition active:scale-90"
                 >
-                  <D w="2rem" />
+                  <D w={golpe ? '1.7rem' : '2rem'} />
                 </button>
               );
             })}
+            {golpe && (
+              <button
+                type="button"
+                aria-label={`O golpe do teu ${nomeDoAvatar.toLowerCase()} em ${alvo.nome}`}
+                title="O golpe do teu avatar"
+                onClick={() => void fazer({ tipo: 'golpe', alvo: alvo.id })}
+                className="flex h-12 items-center justify-center rounded-xl bg-ouros/30 p-1 ring-2 ring-ouros transition active:scale-90"
+              >
+                <Avatar seed={golpe} size={34} />
+              </button>
+            )}
           </div>
           {frases.length > 0 && (
             <div className="flex flex-wrap gap-1.5" role="group" aria-label="Carimbar na testa">
@@ -134,6 +152,11 @@ export function MenuDoAmigo({
               {alvo.cutucavel && (
                 <button type="button" onClick={() => void fazer({ tipo: 'cutucar', alvo: alvo.id })} className="ficha ficha-ouro min-h-10 flex-1 rounded-xl text-sm">
                   Cutucar
+                </button>
+              )}
+              {alvo.cutucavel && (
+                <button type="button" onClick={() => void fazer({ tipo: 'baforada', alvo: alvo.id })} className="ficha ficha-papel min-h-10 flex-1 rounded-xl text-sm">
+                  Baforada
                 </button>
               )}
               {alvo.camera && (

@@ -4,38 +4,62 @@ import { play } from '../../../lib/sound';
 import { rem } from '../../../lib/ui-scale';
 import { Carimbo } from '../../ui/Carimbo';
 import { useZoeira } from './agenda';
-import { Chama, Chinelo, Coroa, Lapide, Lenco, Traira, Vaca } from './desenhos';
+import { Chama, Chinelo, Coroa, FocinhoDePorco, FumacaDaOrelha, Galinha, Lapide, Lenco, Coracao, NarizDePalhaco, OculosEscuros, Traira, Vaca } from './desenhos';
 import { dataEspecial } from './noite';
+import { sintetizar } from '../../../lib/sintetizado';
+import type { LiveReaction } from '../../../stores/game';
 
 /** Semana Farroupilha: todo mundo de lenço, vermelho de maragato ou branco de chimango. */
 const FARROUPILHA = dataEspecial() === 'farroupilha';
 const corDoLenco = (id: string) => ([...id].reduce((n, c) => n + c.charCodeAt(0), 0) % 2 ? '#C4372D' : '#F7EFDE');
-import { DURACAO, type Enfeites } from './diretor';
+import { DURACAO, type Enfeites, type Mascara } from './diretor';
 
 /**
  * O rosto de um assento com a zoeira em volta, cada coisa no seu ponto (o mapa está em `diretor.ts`):
  * a lápide e a chama por trás, a coroa do líder em cima, o balanço do borracho e o gelo do pé-frio no
- * próprio rosto, e por cima a cena do momento (a vaca, a traíra, a chinelada). Os selos do assento
- * (pé, cartas na mão, cantada, microfone) ficam de fora, nos cantos de sempre.
+ * próprio rosto, a máscara da rodada no meio dele (focinho, nariz), a galinha de lado, e por cima a
+ * cena do momento (a vaca, a traíra, a chinelada, os corações da cumadre). Os selos do assento (pé, cartas na mão,
+ * cantada, microfone) ficam de fora, nos cantos de sempre. A frase que a própria pessoa manda também
+ * mexe no rosto dela, quando é sobre ela (os óculos do "Que barbada!", o queixo do "Mas bah!", a
+ * fumaça pelas orelhas do palavrão): ver `EFEITO_NO_ROSTO`.
  */
 export function RostoZoado({
   id,
   size,
   enfeites,
+  mascara,
+  frase,
   children,
 }: {
   id: string;
   /** Diâmetro do rosto que está aparecendo (avatar ou câmera), em px na escala 1. */
   size: number;
   enfeites: Enfeites | undefined;
+  mascara?: Mascara;
+  /** A frase que esta pessoa acabou de mandar. */
+  frase?: LiveReaction;
   children: ReactNode;
 }) {
   const cena = useZoeira((s) => s.cenas[id]);
+  const efeito = frase ? EFEITO_NO_ROSTO[frase.reaction] : undefined;
   const [rosto, animar] = useAnimate<HTMLSpanElement>();
   const fora = !!enfeites && enfeites.epitafio !== null;
   // Quem já estava fora quando a mesa abriu aparece direto na lápide; quem sai agora, depois da chinelada.
   const [jaEstavaFora] = useState(fora);
   const u = (k: number) => rem(size * k);
+
+  // O queixo cai até a mesa no "Mas bah!" e no "Barbaridade!".
+  const fraseKey = frase?.key;
+  useEffect(() => {
+    const el = rosto.current;
+    if (!el || efeito !== 'queixo') return;
+    void animar(el, { scaleY: [1, 1.42, 1.38, 1], scaleX: [1, 0.9, 0.92, 1] }, { duration: 1.3, times: [0, 0.18, 0.75, 1], ease: 'easeOut' });
+  }, [fraseKey, efeito, animar, rosto]);
+
+  // O porco ronca quando o focinho aparece.
+  useEffect(() => {
+    if (mascara === 'porco') sintetizar('ronco', { delayMs: 300 });
+  }, [mascara]);
 
   // O rosto reage à cena: amassa embaixo da vaca, vira com o rabo da traíra, voa com a chinelada.
   const chave = cena?.chave;
@@ -43,6 +67,10 @@ export function RostoZoado({
   useEffect(() => {
     const el = rosto.current;
     if (!el || !tipo) return;
+    if (tipo === 'cumadre') {
+      play('play', { delayMs: 250, rate: 1.2 });
+      return;
+    }
     if (tipo === 'vaca') {
       play('pau', { delayMs: 430, rate: 0.7 });
       void animar(el, { scaleX: [1, 1, 1.5, 1.5, 0.85, 1], scaleY: [1, 1, 0.24, 0.24, 1.22, 1] }, { duration: DURACAO.vaca / 1000, times: [0, 0.2, 0.25, 0.62, 0.8, 1], ease: 'easeOut' });
@@ -82,7 +110,12 @@ export function RostoZoado({
           <Chama w="100%" />
         </span>
       )}
-      <span ref={rosto} className="relative block" style={{ transformOrigin: tipo === 'vaca' ? '50% 100%' : '50% 50%' }}>
+      {e?.galinha && (
+        <span className="zoeira-galinha pointer-events-none absolute" style={{ left: u(-0.32), top: u(0.46), width: u(0.4) }} aria-hidden="true">
+          <Galinha w="100%" />
+        </span>
+      )}
+      <span ref={rosto} className="relative block" style={{ transformOrigin: tipo === 'vaca' ? '50% 100%' : efeito === 'queixo' ? '50% 0%' : '50% 50%' }}>
         <span className={`block ${e && e.borracho > 0 ? `zoeira-borracho zoeira-borracho-${e.borracho}` : ''}`}>
           <span className={`block ${e && e.frio > 0 ? 'zoeira-frio' : ''}`}>{children}</span>
         </span>
@@ -102,6 +135,53 @@ export function RostoZoado({
           ))}
         </span>
       )}
+      <AnimatePresence>
+        {!fora && mascara && (
+          <motion.span
+            key={mascara}
+            className="pointer-events-none absolute left-1/2 z-[7] block"
+            style={mascara === 'porco' ? { top: '50%', width: u(0.38), marginLeft: u(-0.19) } : { top: '48%', width: u(0.2), marginLeft: u(-0.1) }}
+            initial={{ scale: 0, rotate: -20 }}
+            animate={{ scale: 1, rotate: 0 }}
+            exit={{ scale: 0, opacity: 0 }}
+            transition={{ type: 'spring', stiffness: 520, damping: 14, delay: 0.4 }}
+            aria-hidden="true"
+          >
+            {mascara === 'porco' ? <FocinhoDePorco w="100%" /> : <NarizDePalhaco w="100%" />}
+          </motion.span>
+        )}
+      </AnimatePresence>
+      <AnimatePresence>
+        {efeito === 'oculos' && (
+          <motion.span
+            key={frase!.key}
+            className="pointer-events-none absolute left-1/2 z-[8] block"
+            style={{ top: '30%', width: u(0.72), marginLeft: u(-0.36) }}
+            initial={{ y: u(-1.3), rotate: -25, opacity: 1 }}
+            animate={{ y: [u(-1.3), 0, 0, 0], rotate: [-25, 6, -3, 0], opacity: [1, 1, 1, 0] }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 2.6, times: [0, 0.16, 0.85, 1], ease: 'easeOut' }}
+            aria-hidden="true"
+          >
+            <OculosEscuros w="100%" />
+          </motion.span>
+        )}
+        {efeito === 'orelhas' &&
+          [-1, 1].map((lado) => (
+            <motion.span
+              key={`${frase!.key}${lado}`}
+              className="pointer-events-none absolute z-[8] block"
+              style={{ top: '22%', left: lado < 0 ? u(-0.18) : undefined, right: lado > 0 ? u(-0.18) : undefined, width: u(0.3) }}
+              initial={{ y: 0, scale: 0.3, opacity: 0 }}
+              animate={{ y: [0, u(-0.3), u(-0.7)], x: [0, u(lado * 0.08), u(lado * 0.16)], scale: [0.3, 1, 1.3], opacity: [0, 1, 0] }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 1.1, repeat: 1, ease: 'easeOut' }}
+              aria-hidden="true"
+            >
+              <FumacaDaOrelha w="100%" />
+            </motion.span>
+          ))}
+      </AnimatePresence>
       {FARROUPILHA && !fora && (
         <span className="pointer-events-none absolute left-1/2 z-[6]" style={{ bottom: u(-0.12), width: u(0.62), marginLeft: u(-0.31) }} aria-hidden="true">
           <Lenco w="100%" cor={corDoLenco(id)} />
@@ -146,6 +226,20 @@ export function RostoZoado({
           </motion.span>
         )}
         {cena?.tipo === 'traira' && <Carimbo key={`c${cena.chave}`} bate atraso={0.75} texto="Traíra" tamanho={Math.max(8, size * 0.2)} className="left-1/2 top-1/2 z-30 -translate-x-1/2 -translate-y-1/2" />}
+        {cena?.tipo === 'cumadre' &&
+          [-0.3, 0.05, 0.32].map((fx, i) => (
+            <motion.span
+              key={`${cena.chave}${i}`}
+              className="pointer-events-none absolute left-1/2 top-[30%] z-20 block"
+              style={{ width: u(0.3 - i * 0.04), marginLeft: u(fx - 0.15) }}
+              initial={{ y: 0, scale: 0, opacity: 0 }}
+              animate={{ y: [0, u(-0.5), u(-1.1)], scale: [0, 1.15, 0.9], opacity: [0, 1, 0], rotate: [0, i % 2 ? 12 : -12, 0] }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: DURACAO.cumadre / 1000, delay: i * 0.25, ease: 'easeOut' }}
+            >
+              <Coracao w="100%" />
+            </motion.span>
+          ))}
         {cena?.tipo === 'chinelada' && (
           <motion.span
             key={cena.chave}
@@ -163,3 +257,14 @@ export function RostoZoado({
     </span>
   );
 }
+
+/**
+ * As frases que mexem no rosto de quem manda (são sobre a própria pessoa). As que são sobre outro
+ * ("Chorão!", "Chinelão!", "Guloso!") têm efeito no rosto do alvo quando carimbadas (`ZoeiraNaMesa`).
+ */
+const EFEITO_NO_ROSTO: Partial<Record<string, 'oculos' | 'queixo' | 'orelhas'>> = {
+  barbada: 'oculos',
+  masbah: 'queixo',
+  barbaridade: 'queixo',
+  fdp: 'orelhas',
+};

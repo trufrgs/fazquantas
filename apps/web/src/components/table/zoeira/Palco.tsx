@@ -3,8 +3,10 @@ import { useEffect } from 'react';
 import { play } from '../../../lib/sound';
 import { rem } from '../../../lib/ui-scale';
 import { DURACAO_PALCO, useZoeira } from './agenda';
-import { Capim, Cinzeiro, CuiaDeCima, Espeto, Galo, GatoPreto } from './desenhos';
+import { Capim, Cinzeiro, CuiaDeCima, Espeto, Galo, GatoPreto, Suor } from './desenhos';
 import { Avatar } from '../../ui/Avatar';
+import { RostoNaMesa } from '../../ui/Midia';
+import { sintetizar } from '../../../lib/sintetizado';
 import { Card, CARD_RATIO } from '../../cards/Card';
 import type { Point } from '../layout';
 import { DURACAO, FREGUES_EM } from './diretor';
@@ -157,20 +159,101 @@ export function CinzeiroDaMesa({ left, bottom, largura }: { left: number; bottom
   );
 }
 
+export interface PorUmFio {
+  nome: string;
+  avatar: string;
+  palitos: number;
+  cantou: number | null;
+  camera: boolean;
+}
+
+/**
+ * O corte de novela da mão que decide: a última carta aparece inteira, e a imagem corta para o rosto
+ * de quem está por um fio (a câmera, se estiver aberta; senão o avatar suando), grande, com as faixas
+ * de cinema e a legenda de telejornal, enquanto o bombo rufa; depois corta de volta para a mesa e a
+ * vencedora sobe. Corte seco, sem zoom de desenho animado: um empurrãozinho lento de câmera, e só. A
+ * legenda diz o que a mesa já sabe (palitos e cantada), nunca o resultado.
+ */
+function CorteDeNovela({ quem, infoDe, largura, altura, escala }: { quem: string[]; infoDe: (id: string) => PorUmFio | null; largura: number; altura: number; escala: number }) {
+  const gente = quem.map((id) => ({ id, info: infoDe(id) })).filter((x) => x.info);
+  const n = Math.max(1, gente.length);
+  // Em px da tela; o rosto usa a escala 1 (`rem`), daí a divisão.
+  const lado = Math.min(largura * (n > 1 ? 0.4 : 0.56), altura * (n > 1 ? 0.34 : 0.44), 340 * escala);
+  const topo = Math.max(altura * 0.12, altura / 2 - lado * 0.62);
+  return (
+    <motion.div className="pointer-events-none absolute inset-0 z-[56] overflow-hidden" exit={{ opacity: 0, transition: { duration: 0.08 } }} role="status" aria-label={`A mão que decide: ${gente.map((g) => g.info!.nome).join(' e ')}`}>
+      <motion.div
+        className="absolute inset-0"
+        style={{ background: 'radial-gradient(ellipse at 50% 45%, rgb(30 18 10 / 0.86), rgb(0 0 0 / 0.95))' }}
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.08 }}
+      />
+      <div className="absolute inset-x-0 top-0 h-[9%] bg-black" />
+      <div className="absolute inset-x-0 bottom-0 h-[9%] bg-black" />
+      <div className="absolute inset-x-0 flex items-start justify-center" style={{ top: topo, gap: largura * 0.06 }}>
+        {gente.map(({ id, info }) => {
+          const i = info!;
+          return (
+            <motion.div
+              key={id}
+              className="flex flex-col items-center"
+              initial={{ opacity: 0, scale: 1 }}
+              animate={{ opacity: 1, scale: 1.07 }}
+              transition={{ opacity: { duration: 0.06 }, scale: { duration: DURACAO_PALCO.corte / 1000, ease: 'linear' } }}
+            >
+              <span className="relative block rounded-full shadow-[0_0_0_4px_rgb(251_242_223/0.9),0_0_60px_18px_rgb(255_215_150/0.35)]">
+                <RostoNaMesa playerId={id} seed={i.avatar} size={lado / escala} tamanhoVideo={lado / escala} />
+                {!i.camera && (
+                  <motion.span
+                    className="absolute block"
+                    style={{ right: '8%', top: '22%', width: lado * 0.12 }}
+                    initial={{ y: 0, opacity: 0 }}
+                    animate={{ y: [0, 0, lado * 0.2], opacity: [0, 1, 0] }}
+                    transition={{ duration: 1.6, times: [0, 0.2, 1], delay: 0.3, ease: 'easeIn' }}
+                  >
+                    <Suor w="100%" />
+                  </motion.span>
+                )}
+              </span>
+              <span className="mt-2 flex flex-col items-start border-l-4 border-ouros bg-black/85 px-3 py-1 text-left">
+                <span className="font-display text-lg font-bold leading-tight text-papel">{i.nome}</span>
+                <span className="text-xs font-semibold leading-tight text-papel/75">
+                  {i.palitos === 1 ? 'No último palito' : `${i.palitos} palitos`}
+                  {i.cantou !== null ? `, cantou ${i.cantou}` : ''}
+                </span>
+              </span>
+            </motion.div>
+          );
+        })}
+      </div>
+    </motion.div>
+  );
+}
+
 /**
  * O resto do palco (o meio da mesa, só em tempo morto): o duelo de galpão quando sobram dois, a cuia
- * que gira e aponta quem dá as cartas no começo, e o baralho que escapa da mão de quem dá.
+ * que gira e aponta quem dá as cartas no começo, o baralho que escapa da mão de quem dá, e o corte de
+ * novela da mão que decide.
  */
 export function PalcoDaMesa({
   nameOf,
   avatarDe,
   pontoDe,
   centro,
+  infoDe,
+  largura,
+  altura,
+  escala,
 }: {
   nameOf: (id: string) => string;
   avatarDe: (id: string) => string | undefined;
   pontoDe: (id: string) => Point | null;
   centro: Point;
+  infoDe: (id: string) => PorUmFio | null;
+  largura: number;
+  altura: number;
+  escala: number;
 }) {
   const palco = useZoeira((s) => s.palco);
   const reduce = useReducedMotion();
@@ -179,9 +262,14 @@ export function PalcoDaMesa({
     if (palco.tipo === 'duelo') play('sweep', { rate: 0.5 });
     if (palco.tipo === 'cuia') play('shuffle', { rate: 1.4 });
     if (palco.tipo === 'tropeco') play('deal', { rate: 0.7 });
+    if (palco.tipo === 'corte') {
+      sintetizar('rufar', { duracaoMs: DURACAO_PALCO.corte });
+      play('pau', { delayMs: DURACAO_PALCO.corte + 120, rate: 0.6 });
+    }
   }, [palco]);
   return (
     <AnimatePresence>
+      {palco?.tipo === 'corte' && <CorteDeNovela key={palco.chave} quem={palco.quem} infoDe={infoDe} largura={largura} altura={altura} escala={escala} />}
       {palco?.tipo === 'duelo' && (
         <motion.div key={palco.chave} role="status" aria-label={`Duelo: ${nameOf(palco.a)} contra ${nameOf(palco.b)}`} className="pointer-events-none absolute inset-0 z-[44] overflow-hidden" exit={{ opacity: 0 }}>
           <motion.div className="absolute inset-x-0 top-0 h-[12%] bg-black" initial={{ y: '-100%' }} animate={{ y: 0 }} exit={{ y: '-100%' }} transition={{ duration: 0.3 }} />

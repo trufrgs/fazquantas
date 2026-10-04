@@ -147,18 +147,39 @@ pnpm exec playwright test                  # E2E locais (sobem os servidores soz
   e o galo da madrugada (3h–6h). Na Semana Farroupilha todo mundo usa lenço. Lances raros viram fala do
   narrador: as quatro manilhas na mesma mão, três empates seguidos. Para olhar no desenvolvimento:
   `?zoeira=duelo|cuia|tropeco|galo|gato|espeto`.
+- **A mesa que debocha sozinha e os refinos** (4ª leva, 04/10/2026; o Thomas pediu que os refinos
+  seguissem a lógica de até aqui sem perguntar): o golpe de cada avatar sem palavra (a vó, o zorrilho,
+  o bugio, o garnisé, o quero-quero e o gringo têm o seu, no menu do amigo, contando como tiro; na
+  Capivara plena o que se atira escorrega sem sujar); a peleia do empate virou tranco seco (as cartas
+  se chocam, faísca curta e poeira, sem estrela nem soco de gibi); a manilha que perde a mão queima no
+  lugar quando a mão sai da mesa (fogo subindo, sem letreiro, sem nariz de palhaço: o nariz é da
+  máscara); a mão que decide e o corte de novela são uma coisa só: na última mão da rodada, se ela
+  decide quem sai (`porUmFio`, conta pública), a última carta aparece inteira, a imagem corta para o
+  rosto de quem está por um fio (câmera ou avatar suando) com faixas de cinema, legenda de telejornal
+  (palitos e cantada, nunca o resultado) e o bombo, e volta para a mesa quando a vencedora sobe (o
+  anfitrião espera `decisiveMs`). Máscaras do fim da rodada (focinho de porco de quem fez mais, nariz de
+  palhaço de quem fez menos, no avatar e na câmera), a galinha de quem cantou zero três vezes seguidas,
+  os corações de cumadre (empardou duas vezes na rodada), o cusco caramelo na cadeira de quem caiu
+  ou sumiu (com a desculpa na plaquinha), a baforada do palheiro na cara de quem demora, e as frases
+  com efeito: as que são sobre quem manda mexem no rosto dele ("Que barbada!" óculos, "Mas bah!" e
+  "Barbaridade!" o queixo, o palavrão fumaça nas orelhas); as que são sobre outro só têm efeito
+  carimbadas no alvo ("Chorão!" lágrimas, "Chinelão!" o chinelo, "Guloso!" o focinho). O "PROCURA-SE"
+  da câmera do líder ficou de fora: a coroa já diz isso. Cenas: `?cena=decide|peleia|lixo`,
+  `?zoeira=cumadre|corte`, `&mascaras=1`.
 - **Zoeira: uma coisa de cada vez em cada lugar.** O Thomas escolheu dezenas de ideias no caderno de
   zoeira (02/10/2026) com uma condição: o excesso não pode sobrecarregar nem atrapalhar a jogada, e as
   opções não podem se confundir entre si. As regras moram em `components/table/zoeira/diretor.ts` e
   valem para tudo o que entrar depois:
   - *enfeite* (estado do assento, cada um no seu ponto): coroa do líder em palitos e lanterna do
     último, chama da mão quente (3+ acertos seguidos) ou véu azul do pé-frio (3+ erros), balanço do
-    borracho (cada palito perdido é um trago), lápide;
+    borracho (cada palito perdido é um trago), lápide, a galinha de quem só canta zero;
+  - *máscara* (o meio do rosto, uma por rosto): focinho ou nariz, do fim da rodada até a primeira
+    carta da seguinte; jogando carta, os rostos ficam limpos;
   - *cena de assento* (um instante em cima de um rosto, no máximo duas na mesa, a mais pesada
     entra): a chinelada em quem sai, a vaca em quem erra por dois ou mais, a traíra em quem mata a
     carta que alguém cantou "é galo";
   - *palco* (o meio da mesa, só em tempo morto): o cartão fidelidade do freguês (cinco cartas mortas
-    pelo mesmo dono);
+    pelo mesmo dono), o duelo, a cuia, o tropeço e o corte de novela (que tira o que estiver lá);
   - *faixa* (o único letreiro): o narrador de galpão, com ditado gaúcho, só em tempo morto e no
     máximo duas falas por rodada, e o coro (três mandam a mesma frase em cinco segundos);
   - o cinzeiro da espera junta as bitucas no canto e a conta sai no fim de jogo, com o freguês da

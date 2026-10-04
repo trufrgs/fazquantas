@@ -31,9 +31,9 @@ import { NaTesta } from './NaTesta';
 import { galoDeUmToque } from './frases';
 import { FrasesAMao } from './FrasesAMao';
 import { FumacaNaMesa, FumacaPorCima } from './Fumaca';
-import { enfeitesDe } from './zoeira/diretor';
-import { CartaoDoFregues, CinzeiroDaMesa, FaixaDaMesa, PalcoDaMesa, PassanteNaMesa } from './zoeira/Palco';
-import { enfeitesDeTeste, useZoeiraDeTeste } from './zoeira/teste';
+import { enfeitesDe, maoQueDecide, mascarasDe } from './zoeira/diretor';
+import { CartaoDoFregues, CinzeiroDaMesa, FaixaDaMesa, PalcoDaMesa, PassanteNaMesa, type PorUmFio } from './zoeira/Palco';
+import { enfeitesDeTeste, mascarasDeTeste, useZoeiraDeTeste } from './zoeira/teste';
 import { useDiretor } from './zoeira/useDiretor';
 import { MenuDoAmigo, type AlvoDoMenu } from './zoeira/MenuDoAmigo';
 import { ZoeiraNaMesa } from './zoeira/ZoeiraNaMesa';
@@ -600,6 +600,17 @@ function Table({
   useDiretor({ view, reactions, demorando, avatarDe, ativa: !cameraRapida, calma: !!reduzirMovimento, aoVivo: !asyncRoom });
   useZoeiraDeTeste(view);
   const enfeites = useMemo(() => (import.meta.env.DEV ? enfeitesDeTeste(view) : null) ?? enfeitesDe(view), [view]);
+  const mascaras = useMemo(() => (cameraRapida ? new Map() : ((import.meta.env.DEV ? mascarasDeTeste(view) : null) ?? mascarasDe(view))), [view, cameraRapida]);
+  // A mão que decide: quem sai ou fica conforme a última mão da rodada (a mesa espera o corte de novela).
+  const decide = useMemo(() => !cameraRapida && maoQueDecide(view).length > 0, [view, cameraRapida]);
+  const infoDe = useCallback(
+    (id: string): PorUmFio | null => {
+      const p = view.players.find((x) => x.id === id);
+      if (!p) return null;
+      return { nome: p.name, avatar: seatOf(id)?.avatar ?? id, palitos: p.lives, cantou: p.bid, camera: comCamera.split(',').includes(id) };
+    },
+    [view.players, seatOf, comCamera],
+  );
   // O cinzeiro fica no canto de baixo, à esquerda, quando o canto está livre (sem a vira e sem assento).
   const cinzeiro = useMemo(() => {
     if (table.width === 0 || comVira || naPlateiaN > 0) return null;
@@ -754,6 +765,7 @@ function Table({
                     enfeites={enfeites.get(p.id)}
                     patrao={online && ehPatrao(room, p.id)}
                     onZoar={conn.zoar && view.phase !== 'gameOver' ? () => setAmigo(p.id) : undefined}
+                    mascara={mascaras.get(p.id)}
                   />
                 );
               })}
@@ -779,13 +791,14 @@ function Table({
               rodada={view.roundNumber}
               ritmo={ritmo}
               acimaDaFumaca={fumaca}
+              decide={decide}
             />
           )}
           <RoundBanner view={view} shown={banner} />
           <CantadasBanner view={view} seatOf={seatOf} top={lugarDaFaixa} />
           {!banner && !cantadasNaMesa && <FaixaDaMesa top={lugarDaFaixa} />}
           <CartaoDoFregues nameOf={nameOf} />
-          <PalcoDaMesa nameOf={nameOf} avatarDe={avatarDe} pontoDe={pontoDe} centro={geometry.center} />
+          <PalcoDaMesa nameOf={nameOf} avatarDe={avatarDe} pontoDe={pontoDe} centro={geometry.center} infoDe={infoDe} largura={table.width} altura={table.height} escala={s} />
           {naTesta && (
             <NaTesta
               key={`testa-${view.roundNumber}`}
@@ -800,7 +813,7 @@ function Table({
           <CoachTip tip={bidding ? null : tip} />
           <VideoAmpliado fora={view.players.filter((x) => x.eliminated).map((x) => x.id)} pb={(room?.plateia ?? []).map((x) => x.playerId)} />
           {online && <PlateiaNaMesa room={room} reactions={reactions} tamanho={ROSTO_DA_PLATEIA} />}
-          <ZoeiraNaMesa zoeiras={zoeiras} pontoDe={pontoDe} tamanho={tamanhoDoRosto} youId={you} sacudir={sacudir} />
+          <ZoeiraNaMesa zoeiras={zoeiras} pontoDe={pontoDe} tamanho={tamanhoDoRosto} youId={you} sacudir={sacudir} avatarDe={avatarDe} />
           <MenuDoAmigo
             alvo={alvoDoMenu}
             largura={table.width}
@@ -808,6 +821,7 @@ function Table({
             onZoar={(z) => conn.zoar?.(z) ?? Promise.resolve(null)}
             onCamera={(id) => useMidia.setState({ ampliado: id })}
             onFechar={fecharAmigo}
+            meuAvatar={you ? avatarDe(you) : undefined}
           />
           {online && <PedidoDaPlateia room={room} />}
           <BidPanel
@@ -888,6 +902,7 @@ function Table({
                 pitando={pitando(me.id)}
                 enfeites={enfeites.get(me.id)}
                 patrao={online && ehPatrao(room, me.id)}
+                mascara={mascaras.get(me.id)}
               />
             </div>
           )}

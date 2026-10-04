@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { card } from '../src/cards';
 import { currentActor, strengthCtx } from '../src/game';
 import { isManilha } from '../src/hierarchy';
-import { DEFAULT_TIMING, GameHost, MANILHA_PAUSE_FACTOR, type HostEvent, type SeatConfig } from '../src/host';
+import { DEFAULT_TIMING, GameHost, MANILHA_PAUSE_FACTOR, maoQueDecide, type HostEvent, type SeatConfig } from '../src/host';
 import { FakeClock } from './fake-clock';
 
 const bots = (n: number): SeatConfig[] =>
@@ -160,17 +160,25 @@ describe('GameHost', () => {
     const ctx = strengthCtx(host.state);
     const pausas = { com: new Set<number>(), sem: new Set<number>() };
     let desde: number | null = null;
+    let comManilha = false;
+    let decide = false;
+    let decisivas = 0;
     for (let guard = 0; guard < 200_000 && host.state.phase !== 'gameOver'; guard++) {
       const fim = host.state.phase === 'trickEnd';
-      if (fim && desde === null) desde = clock.now();
+      if (fim && desde === null) {
+        desde = clock.now();
+        comManilha = host.state.round.completedTricks.at(-1)?.plays.some((p) => isManilha(card(p.cardId), ctx)) ?? false;
+        decide = maoQueDecide(host.state).length > 0;
+      }
       if (!fim && desde !== null) {
-        const ultima = host.state.round.completedTricks.at(-1);
-        const comManilha = ultima?.plays.some((p) => isManilha(card(p.cardId), ctx)) ?? false;
-        (comManilha ? pausas.com : pausas.sem).add(clock.now() - desde);
+        // A mão que decide se alguém sai ganha o corte de novela por cima da pausa de sempre.
+        if (decide) decisivas++;
+        (comManilha ? pausas.com : pausas.sem).add(clock.now() - desde - (decide ? DEFAULT_TIMING.decisiveMs : 0));
         desde = null;
       }
       clock.advance(10);
     }
+    expect(decisivas).toBeGreaterThan(0);
     expect([...pausas.sem]).toEqual([DEFAULT_TIMING.trickPauseMs + DEFAULT_TIMING.lastCardMs]);
     expect([...pausas.com]).toEqual([DEFAULT_TIMING.trickPauseMs * MANILHA_PAUSE_FACTOR + DEFAULT_TIMING.lastCardMs]);
   });

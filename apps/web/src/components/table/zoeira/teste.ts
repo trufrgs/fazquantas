@@ -1,22 +1,23 @@
 import type { PlayerView } from '@fodinha/engine';
 import { useEffect } from 'react';
 import { DURACAO_PALCO, useZoeira } from './agenda';
-import { DURACAO, type CenaDeAssento, type Enfeites } from './diretor';
+import { DURACAO, type CenaDeAssento, type Enfeites, type Mascara } from './diretor';
 
 /**
  * Só no desenvolvimento, junto com as cenas (`?cena=`): força a zoeira para olhar sem esperar o lance.
- * `?enfeites=1` veste os assentos (líder de mão quente, pé-frio, borracho com lanterna…);
- * `?zoeira=vaca|traira|chinelada|fala|coro|fregues|duelo|cuia|tropeco|galo|gato|espeto|cinzeiro` põe a cena no primeiro adversário (ou no
+ * `?enfeites=1` veste os assentos (líder de mão quente, pé-frio, borracho com lanterna, galinha…);
+ * `?mascaras=1` põe focinho e nariz nos rostos;
+ * `?zoeira=vaca|traira|chinelada|cumadre|fala|coro|fregues|duelo|cuia|tropeco|corte|galo|gato|espeto|cinzeiro` põe a cena no primeiro adversário (ou no
  * meio da mesa) um segundo depois de abrir, e de novo a cada cinco.
  */
 const param = (nome: string) => new URLSearchParams(window.location.search).get(nome);
 
 const AMOSTRAS: Enfeites[] = [
-  { borracho: 0, quente: 5, frio: 0, lider: true, lanterna: false, epitafio: null },
-  { borracho: 2, quente: 0, frio: 3, lider: false, lanterna: false, epitafio: null },
-  { borracho: 3, quente: 0, frio: 0, lider: false, lanterna: true, epitafio: null },
-  { borracho: 1, quente: 3, frio: 0, lider: false, lanterna: false, epitafio: null },
-  { borracho: 2, quente: 0, frio: 0, lider: false, lanterna: false, epitafio: null },
+  { borracho: 0, quente: 5, frio: 0, lider: true, lanterna: false, epitafio: null, galinha: false },
+  { borracho: 2, quente: 0, frio: 3, lider: false, lanterna: false, epitafio: null, galinha: false },
+  { borracho: 3, quente: 0, frio: 0, lider: false, lanterna: true, epitafio: null, galinha: false },
+  { borracho: 1, quente: 3, frio: 0, lider: false, lanterna: false, epitafio: null, galinha: false },
+  { borracho: 2, quente: 0, frio: 0, lider: false, lanterna: false, epitafio: null, galinha: true },
 ];
 
 export function enfeitesDeTeste(view: PlayerView): Map<string, Enfeites> | null {
@@ -25,6 +26,11 @@ export function enfeitesDeTeste(view: PlayerView): Map<string, Enfeites> | null 
   const m = new Map<string, Enfeites>(outros.map((p, i) => [p.id, AMOSTRAS[i % AMOSTRAS.length]!]));
   if (view.you) m.set(view.you, AMOSTRAS[2]!);
   return m;
+}
+
+export function mascarasDeTeste(view: PlayerView): Map<string, Mascara> | null {
+  if (!param('mascaras')) return null;
+  return new Map(view.players.map((p, i) => [p.id, i % 2 ? 'palhaco' : 'porco'] as const));
 }
 
 export function useZoeiraDeTeste(view: PlayerView): void {
@@ -38,7 +44,7 @@ export function useZoeiraDeTeste(view: PlayerView): void {
     let n = 100;
     const roda = () => {
       const chave = ++n;
-      if (qual === 'vaca' || qual === 'traira' || qual === 'chinelada') {
+      if (qual === 'vaca' || qual === 'traira' || qual === 'chinelada' || qual === 'cumadre') {
         useZoeira.setState({ cenas: { [alvo]: { tipo: qual as CenaDeAssento, chave } } });
         window.setTimeout(() => useZoeira.setState({ cenas: {} }), DURACAO[qual as CenaDeAssento]);
       } else if (qual === 'fala') {
@@ -56,6 +62,9 @@ export function useZoeiraDeTeste(view: PlayerView): void {
       } else if (qual === 'cuia' || qual === 'tropeco') {
         useZoeira.setState({ palco: qual === 'cuia' ? { chave, tipo: 'cuia', pe: alvo } : { chave, tipo: 'tropeco', de: alvo } });
         window.setTimeout(() => useZoeira.setState({ palco: null }), DURACAO_PALCO[qual]);
+      } else if (qual === 'corte') {
+        useZoeira.setState({ palco: { chave, tipo: 'corte', quem: [alvo] } });
+        window.setTimeout(() => useZoeira.setState({ palco: null }), DURACAO_PALCO.corte);
       } else if (qual === 'galo' || qual === 'gato' || qual === 'espeto') {
         useZoeira.setState({ passante: { chave, tipo: qual } });
         window.setTimeout(() => useZoeira.setState({ passante: null }), DURACAO_PALCO.passante);

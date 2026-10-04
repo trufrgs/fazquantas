@@ -202,7 +202,9 @@ export const reactSchema = z.object({ reaction: reactionSchema });
 const forcaSchema = z.union([z.literal(1), z.literal(2), z.literal(3)]);
 export const zoarSchema = z.discriminatedUnion('tipo', [
   z.object({ tipo: z.literal('atirar'), alvo: playerIdSchema, item: z.enum(ITENS_DE_ATIRAR) }),
+  z.object({ tipo: z.literal('golpe'), alvo: playerIdSchema }),
   z.object({ tipo: z.literal('cutucar'), alvo: playerIdSchema }),
+  z.object({ tipo: z.literal('baforada'), alvo: playerIdSchema }),
   z.object({ tipo: z.literal('carimbo'), alvo: playerIdSchema, reaction: reactionSchema }),
   z.object({ tipo: z.literal('grito'), reaction: reactionSchema, forca: forcaSchema }),
   z.object({ tipo: z.literal('pancada'), forca: forcaSchema }),

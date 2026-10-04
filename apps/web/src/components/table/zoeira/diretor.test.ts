@@ -14,8 +14,11 @@ import {
   FALAS_POR_RODADA,
   FREGUES_EM,
   INTERVALO_DA_FAIXA_MS,
+  maoQueDecide,
   MAX_CENAS,
+  mascarasDe,
   quemMatou,
+  zerosSeguidos,
   sequencia,
   valorDoGalo,
 } from './diretor';
@@ -119,7 +122,7 @@ describe('enfeites do assento', () => {
   it('quem saiu fica só com a lápide, e nela o que matou', () => {
     const history = [rodada(1, 3, { p0: [0, 0, 3, 3], p1: [3, 0, 3, 0] }, ['p1'])];
     const e = enfeitesDe(visao({ players: [jogador(0, 3), jogador(1, 0)], history }));
-    expect(e.get('p1')).toEqual({ borracho: 0, quente: 0, frio: 0, lider: false, lanterna: false, epitafio: 'cantou 3, fez 0' });
+    expect(e.get('p1')).toEqual({ borracho: 0, quente: 0, frio: 0, lider: false, lanterna: false, epitafio: 'cantou 3, fez 0', galinha: false });
     expect(e.get('p0')!.epitafio).toBeNull();
   });
 });
@@ -383,5 +386,81 @@ describe('palco e passantes (3ª leva)', () => {
     );
     a.ouvir('p0', 'cagao', 30);
     expect(useZoeira.getState().contas).toMatchObject({ mortes: { p1: 1 }, empates: { p0: 1, p1: 1 }, frases: { p0: 1 } });
+  });
+});
+
+describe('4ª leva: máscaras, galinha, cumadre e a mão que decide', () => {
+  const contexto: Contexto = { avatarDe: () => undefined, ativa: true, calma: false, aoVivo: true };
+  beforeEach(() => vi.useFakeTimers());
+  afterEach(() => vi.useRealTimers());
+
+  it('máscaras: focinho em quem fez mais, nariz em quem fez menos, do fim da rodada até a primeira carta', () => {
+    const history = [rodada(2, 2, { p0: [0, 1, 3, 2], p1: [2, 1, 3, 2], p2: [1, 1, 3, 3], p3: [1, 0, 1, 0] }, ['p3'])];
+    const ps = [jogador(0, 2), jogador(1, 2), jogador(2, 3), jogador(3, 0)];
+    const fim = mascarasDe(visao({ players: ps, history, phase: 'roundEnd', roundNumber: 2 }));
+    expect([...fim.entries()]).toEqual([
+      ['p0', 'porco'],
+      ['p1', 'palhaco'],
+    ]);
+    expect(mascarasDe(visao({ players: ps, history, phase: 'bidding', roundNumber: 3 })).size).toBe(2);
+    expect(mascarasDe(visao({ players: ps, history, phase: 'playing', roundNumber: 3 })).size).toBe(2);
+    const jogando = visao({ players: ps, history, phase: 'playing', roundNumber: 3, trick: { leaderId: 'p0', plays: [{ playerId: 'p0', cardId: 'O4' }] } });
+    expect(mascarasDe(jogando).size).toBe(0);
+    expect(mascarasDe(visao({ players: ps, history, phase: 'gameOver', roundNumber: 2 })).size).toBe(0);
+  });
+
+  it('a galinha: três zeros seguidos nas rodadas que jogou', () => {
+    const history = [
+      rodada(1, 1, { p0: [0, 0, 3, 3], p1: [1, 1, 3, 3] }),
+      rodada(2, 2, { p0: [0, 0, 3, 3], p1: [0, 0, 3, 3] }),
+      rodada(3, 3, { p0: [0, 1, 3, 2], p1: [1, 1, 3, 3] }),
+    ];
+    expect(zerosSeguidos(history, 'p0')).toBe(3);
+    expect(zerosSeguidos(history, 'p1')).toBe(0);
+    const e = enfeitesDe(visao({ players: [jogador(0, 2), jogador(1, 3)], history, phase: 'bidding', roundNumber: 4 }));
+    expect(e.get('p0')!.galinha).toBe(true);
+    expect(e.get('p1')!.galinha).toBe(false);
+  });
+
+  it('a mão que decide: só na última mão, e só com alguém por um fio', () => {
+    const ultima = { leaderId: 'p0', plays: [{ playerId: 'p0', cardId: 'O4' }, { playerId: 'p1', cardId: 'E3' }], winnerId: 'p1', cancelled: [] } as const;
+    const ps = [jogador(0, 1, { bid: 1, tricks: 0 }), jogador(1, 2, { bid: 0, tricks: 1 })];
+    expect(maoQueDecide(visao({ players: ps, phase: 'trickEnd', lastTrick: { ...ultima, plays: [...ultima.plays], cancelled: [] } }))).toEqual(['p0']);
+    const aindaTemCarta = [jogador(0, 1, { bid: 1, tricks: 0, handCount: 1 }), jogador(1, 2, { bid: 0, tricks: 1, handCount: 1 })];
+    expect(maoQueDecide(visao({ players: aindaTemCarta, phase: 'trickEnd', lastTrick: { ...ultima, plays: [...ultima.plays], cancelled: [] } }))).toEqual([]);
+    expect(maoQueDecide(visao({ players: ps, phase: 'playing' }))).toEqual([]);
+  });
+
+  it('o corte de novela entra na mão que decide e tira o que estiver no palco', () => {
+    const a = new Agenda();
+    a.comecar();
+    a.configurar({ sorte: () => 0.99, data: null });
+    const ps = [jogador(0, 1, { bid: 1, tricks: 0 }), jogador(1, 2, { bid: 0, tricks: 0 })];
+    a.ver(visao({ players: ps, seq: 2, trick: { leaderId: 'p0', plays: [{ playerId: 'p0', cardId: 'O4' }] } }), contexto, 0);
+    useZoeira.setState({ palco: { chave: 999, tipo: 'tropeco', de: 'p1' } });
+    const fechada = [jogador(0, 1, { bid: 1, tricks: 0 }), jogador(1, 2, { bid: 0, tricks: 1 })];
+    a.ver(
+      visao({ players: fechada, phase: 'trickEnd', seq: 3, lastTrick: { leaderId: 'p0', plays: [{ playerId: 'p0', cardId: 'O4' }, { playerId: 'p1', cardId: 'E3' }], winnerId: 'p1', cancelled: [] } }),
+      contexto,
+      10,
+    );
+    // A última carta aparece inteira antes do corte.
+    expect(useZoeira.getState().palco).toMatchObject({ tipo: 'tropeco' });
+    vi.advanceTimersByTime(500);
+    expect(useZoeira.getState().palco).toMatchObject({ tipo: 'corte', quem: ['p0'] });
+  });
+
+  it('cumadre: empardou duas vezes na mesma rodada', () => {
+    const a = new Agenda();
+    a.comecar();
+    const ps = [jogador(0, 3, { bid: 1, handCount: 1 }), jogador(1, 3, { bid: 1, handCount: 1 })];
+    const empate = { leaderId: 'p0', plays: [{ playerId: 'p0', cardId: 'O3' }, { playerId: 'p1', cardId: 'E3' }], winnerId: null, cancelled: ['p0', 'p1'] } as const;
+    const t = () => ({ ...empate, plays: [...empate.plays], cancelled: [...empate.cancelled] });
+    a.ver(visao({ players: ps, seq: 2 }), contexto, 0);
+    a.ver(visao({ players: ps, phase: 'trickEnd', seq: 3, completedTricks: [t()], lastTrick: t() }), contexto, 10);
+    expect(useZoeira.getState().cenas).toEqual({});
+    a.ver(visao({ players: ps, phase: 'playing', seq: 4, completedTricks: [t()] }), contexto, 20);
+    a.ver(visao({ players: ps, phase: 'trickEnd', seq: 5, completedTricks: [t(), t()], lastTrick: t() }), contexto, 30);
+    expect(Object.values(useZoeira.getState().cenas).map((c) => c.tipo)).toEqual(['cumadre', 'cumadre']);
   });
 });

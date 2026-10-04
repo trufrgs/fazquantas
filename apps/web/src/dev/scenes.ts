@@ -31,7 +31,7 @@ interface Scene {
    * cada 1,4 s depois de abrir, para ver os golpes das manilhas ("Quem mata quem").
    */
   /** `cega`: rodada da carta na testa; `cantadas`: quanto cada um cantou (na ordem da mesa; padrão 1). */
-  roteiro?: { vira?: CardId; maos: CardId[][]; cega?: boolean; cantadas?: number[] };
+  roteiro?: { vira?: CardId; maos: CardId[][]; cega?: boolean; cantadas?: number[]; palitos?: number[] };
 }
 
 const YOU = 'eu';
@@ -174,6 +174,27 @@ export const SCENES: Record<string, Scene> = {
     until: () => true,
     roteiro: { vira: 'O6', maos: [['C7', 'C4'], ['O7', 'C5'], ['E7', 'C6'], ['P7', 'O4']] },
   },
+  // A mão que decide (4ª leva): última mão da rodada, dois por um fio. Corte de novela e luz baixa.
+  decide: {
+    players: 4,
+    seed: 5,
+    until: () => true,
+    roteiro: { maos: [['C4'], ['O5'], ['E3'], ['P6']], cantadas: [1, 0, 0, 0], palitos: [1, 3, 1, 2] },
+  },
+  // A peleia do empate: as duas maiores iguais se chocam e ninguém leva.
+  peleia: {
+    players: 4,
+    seed: 5,
+    until: () => true,
+    roteiro: { maos: [['C3', 'O4'], ['O3', 'C5'], ['P5', 'C7'], ['C6', 'O5']] },
+  },
+  // A manilha no lixo: o sete belo perde para o espadão e queima quando a mão sai da mesa.
+  lixo: {
+    players: 4,
+    seed: 5,
+    until: () => true,
+    roteiro: { maos: [['O7', 'O4'], ['E1', 'P4'], ['C5', 'C6'], ['P5', 'O5']] },
+  },
 };
 
 /** Arma a primeira mão da cena: quem puxa é o primeiro da ordem, você joga por último. */
@@ -195,6 +216,7 @@ function armar(state: GameState, roteiro: NonNullable<Scene['roteiro']>): GameSt
   s.round.trick = { leaderId: ordem[0]!, plays: [] };
   s.round.completedTricks = [];
   s.phase = 'playing';
+  if (roteiro.palitos) ordem.forEach((id, i) => (s.players.find((p) => p.id === id)!.lives = roteiro.palitos![i] ?? 3));
   return s;
 }
 
@@ -260,6 +282,17 @@ export function sceneConnection(name: string): GameConnection | null {
           update = viewOf(state);
           listener(update);
         }, 1200 + i * 1400),
+      );
+      // Depois da mão, a mesa recolhe (para ver o que acontece quando as cartas saem).
+      timers.push(
+        window.setTimeout(() => {
+          if (state.phase !== 'trickEnd') return;
+          const r = applyAction(state, { type: 'continue' });
+          if (!r.ok) return;
+          state = r.state;
+          update = viewOf(state);
+          listener(update);
+        }, 1200 + state.round.order.length * 1400 + 4200),
       );
       return () => timers.forEach((t) => window.clearTimeout(t));
     },

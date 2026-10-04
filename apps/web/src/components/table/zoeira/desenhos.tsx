@@ -347,3 +347,151 @@ export function Lenco({ cor, ...p }: Desenho & { cor: string }) {
     </svg>
   );
 }
+
+// -------------------------------------------------------------------------------- o rosto apanha
+
+/** O focinho de porco de quem fez mais do que cantou (o guloso), no meio do rosto. */
+export function FocinhoDePorco(p: Desenho) {
+  return (
+    <svg {...svg(p, '0 0 64 46')}>
+      <ellipse cx="32" cy="23" rx="28" ry="19" fill="#F2A1B0" {...s(5)} />
+      <ellipse cx="32" cy="20" rx="20" ry="11" fill="#F7BCC7" />
+      <ellipse cx="22" cy="24" rx="5" ry="7.5" fill="#8E3B4E" />
+      <ellipse cx="42" cy="24" rx="5" ry="7.5" fill="#8E3B4E" />
+    </svg>
+  );
+}
+
+/** O nariz de palhaço de quem fez menos do que cantou. */
+export function NarizDePalhaco(p: Desenho) {
+  return (
+    <svg {...svg(p, '0 0 40 40')}>
+      <circle cx="20" cy="20" r="16" fill={P.copas} {...s(4)} />
+      <ellipse cx="14" cy="13" rx="5" ry="3.5" fill="#F7B3AA" transform="rotate(-30 14 13)" />
+    </svg>
+  );
+}
+
+/** A galinha que cisca em volta de quem cantou zero três vezes seguidas. */
+export function Galinha(p: Desenho) {
+  return (
+    <svg {...svg(p, '0 0 74 66')}>
+      <path d="M28 56 L26 64 M40 56 L42 64" fill="none" stroke="#E3A82B" strokeWidth={5} strokeLinecap="round" />
+      <path d="M8 30 C4 18 14 12 20 20 C26 12 40 12 50 22 C58 30 58 46 46 54 C34 60 16 56 10 46 C8 42 8 36 8 30 Z" fill="#FBF2DF" {...s(5)} />
+      <path d="M22 34 C28 42 38 42 44 36" fill="none" stroke="#D8CBB0" strokeWidth={4} strokeLinecap="round" />
+      <path d="M48 24 C46 12 54 4 62 8 C70 12 70 24 64 30 C58 34 50 32 48 24 Z" fill="#FBF2DF" {...s(5)} />
+      <path d="M54 8 C52 0 58 -2 60 4 C62 -2 68 0 66 8 Z" fill={P.copas} {...s(3)} />
+      <path d="M68 16 L74 19 L68 22 Z" fill={P.ouro} {...s(3)} />
+      <path d="M64 26 C66 32 62 34 60 30 Z" fill={P.copas} {...s(3)} />
+      <circle cx="62" cy="15" r="2.5" fill={T} />
+    </svg>
+  );
+}
+
+/** O coração da cumadre (empardou duas vezes na mesma rodada: a mesa acha que é namoro). */
+export function Coracao(p: Desenho) {
+  return (
+    <svg {...svg(p, '0 0 50 46')}>
+      <path d="M25 42 C10 32 3 24 3 14 C3 7 8 3 14 3 C19 3 23 6 25 10 C27 6 31 3 36 3 C42 3 47 7 47 14 C47 24 40 32 25 42 Z" fill={P.copasClaro} {...s(4)} />
+      <path d="M11 12 C12 9 15 8 17 9" fill="none" stroke="#F7B3AA" strokeWidth={3.5} strokeLinecap="round" />
+    </svg>
+  );
+}
+
+/** O cusco caramelo que senta na cadeira de quem caiu ou sumiu, de frente. */
+export function CuscoNaCadeira(p: Desenho) {
+  return (
+    <svg {...svg(p, '0 0 100 96')}>
+      <path d="M18 92 C14 66 26 52 50 52 C74 52 86 66 82 92 Z" fill="#C98A3D" {...s(5)} />
+      <path d="M38 92 C38 74 62 74 62 92 Z" fill="#F1D7A8" />
+      <path d="M16 18 C6 22 4 46 14 52 C22 46 24 30 24 22 Z" fill="#8E5A26" {...s(5)} />
+      <path d="M84 18 C94 22 96 46 86 52 C78 46 76 30 76 22 Z" fill="#8E5A26" {...s(5)} />
+      <path d="M22 30 C22 12 36 6 50 6 C64 6 78 12 78 30 C78 50 66 62 50 62 C34 62 22 50 22 30 Z" fill="#C98A3D" {...s(5)} />
+      <path d="M36 44 C36 36 64 36 64 44 C64 54 56 58 50 58 C44 58 36 54 36 44 Z" fill="#F1D7A8" {...s(4)} />
+      <ellipse cx="50" cy="41" rx="6" ry="4.5" fill={T} />
+      <path d="M50 46 V50 M44 52 C47 55 53 55 56 52" fill="none" {...s(3)} />
+      <path d="M46 54 C46 62 54 62 54 54 Z" fill="#E0584B" {...s(3)} />
+      <circle cx="39" cy="28" r="3.6" fill={T} />
+      <circle cx="61" cy="28" r="3.6" fill={T} />
+    </svg>
+  );
+}
+
+/** Os óculos escuros do "Que barbada!", que caem no rosto de quem se acha. */
+export function OculosEscuros(p: Desenho) {
+  return (
+    <svg {...svg(p, '0 0 104 36')}>
+      <path d="M6 8 H98" fill="none" {...s(6)} />
+      <path d="M8 8 H46 C46 24 40 32 28 32 C14 32 8 24 8 8 Z" fill="#1d1d22" {...s(4)} />
+      <path d="M58 8 H96 C96 24 90 32 78 32 C64 32 58 24 58 8 Z" fill="#1d1d22" {...s(4)} />
+      <path d="M16 13 L24 13 M66 13 L74 13" stroke="#6B7FA8" strokeWidth={3} strokeLinecap="round" />
+    </svg>
+  );
+}
+
+/** Uma lágrima (o chafariz do "Chorão!"). */
+export function Lagrima(p: Desenho) {
+  return (
+    <svg {...svg(p, '0 0 20 28')}>
+      <path d="M10 2 C14 10 18 14 18 19 C18 24 14 27 10 27 C6 27 2 24 2 19 C2 14 6 10 10 2 Z" fill="#7FC0F0" {...s(3)} />
+    </svg>
+  );
+}
+
+/** A fumaça que sai pelas orelhas de quem manda o palavrão. */
+export function FumacaDaOrelha(p: Desenho) {
+  return (
+    <svg {...svg(p, '0 0 40 50')}>
+      <path d="M20 48 C8 44 8 34 16 30 C6 26 8 14 18 14 C16 4 30 2 32 12 C40 14 40 26 32 28 C38 34 32 46 20 48 Z" fill="#ECE6DA" {...s(3)} />
+    </svg>
+  );
+}
+
+/** A nuvem verde do zorrilho, com o fedor saindo dela. */
+export function NuvemDoZorrilho(p: Desenho) {
+  return (
+    <svg {...svg(p, '0 0 120 90')}>
+      <path d="M22 70 C6 70 4 50 18 46 C14 30 32 22 42 30 C46 14 70 12 76 28 C88 20 106 28 102 44 C116 48 114 70 98 70 Z" fill="#9BC43A" {...s(5)} />
+      <path d="M34 54 C40 48 46 60 52 54 M62 50 C68 44 74 56 80 50" fill="none" stroke="#5E7F1E" strokeWidth={4} strokeLinecap="round" />
+      <path d="M30 82 C34 76 28 72 32 66 M60 86 C64 80 58 76 62 70 M88 82 C92 76 86 72 90 66" fill="none" stroke="#7FA62E" strokeWidth={4} strokeLinecap="round" />
+    </svg>
+  );
+}
+
+/** O quero-quero em rasante, de asa aberta. */
+export function QueroQuero(p: Desenho) {
+  return (
+    <svg {...svg(p, '0 0 120 70')}>
+      <path d="M40 34 C30 10 50 2 62 26 Z" fill="#7E8A86" {...s(5)} />
+      <path d="M20 40 C36 30 70 28 90 34 C98 36 102 40 100 44 C84 52 50 54 26 48 Z" fill="#B9BFB9" {...s(5)} />
+      <path d="M70 36 C74 46 84 48 94 42 C90 36 80 34 70 36 Z" fill="#1d1d22" />
+      <path d="M50 42 C56 66 76 66 72 40 Z" fill="#7E8A86" {...s(5)} />
+      <path d="M90 30 C92 22 104 22 106 32 C104 38 94 40 90 30 Z" fill="#B9BFB9" {...s(4)} />
+      <path d="M96 22 C92 14 86 12 82 14" fill="none" {...s(3)} />
+      <path d="M106 30 L118 32 L106 35 Z" fill="#C4372D" {...s(3)} />
+      <circle cx="101" cy="28" r="2.6" fill="#C4372D" />
+    </svg>
+  );
+}
+
+/** O jato de vinho do gringo (a mesma cor do vinho das copas). */
+export function JatoDeVinho(p: Desenho) {
+  return (
+    <svg {...svg(p, '0 0 100 60')}>
+      <path d="M4 30 C30 18 60 16 96 26 C70 30 40 36 4 30 Z" fill="#8E1E35" {...s(4)} />
+      {[70, 82, 90].map((x, i) => (
+        <circle key={x} cx={x} cy={40 + i * 6} r={4 - i} fill="#8E1E35" {...s(2)} />
+      ))}
+    </svg>
+  );
+}
+
+/** A gota de suor de quem está por um fio. */
+export function Suor(p: Desenho) {
+  return (
+    <svg {...svg(p, '0 0 22 30')}>
+      <path d="M11 2 C15 11 20 15 20 21 C20 26 16 29 11 29 C6 29 2 26 2 21 C2 15 7 11 11 2 Z" fill="#BFE3FF" {...s(3)} />
+      <path d="M7 20 C7 17 9 15 10 14" fill="none" stroke="#FFFFFF" strokeWidth={2.5} strokeLinecap="round" />
+    </svg>
+  );
+}

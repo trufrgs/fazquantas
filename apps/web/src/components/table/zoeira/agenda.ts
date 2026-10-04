@@ -11,6 +11,7 @@ import {
   falaDaDemora,
   falaDoFimDaRodada,
   FALAS_POR_RODADA,
+  maoQueDecide,
   FREGUES_EM,
   INTERVALO_DA_FAIXA_MS,
   MAX_CENAS,
@@ -47,12 +48,16 @@ export type Palco =
   | { chave: number; tipo: 'fregues'; fregues: string; dono: string }
   | { chave: number; tipo: 'duelo'; a: string; b: string }
   | { chave: number; tipo: 'cuia'; pe: string }
-  | { chave: number; tipo: 'tropeco'; de: string };
+  | { chave: number; tipo: 'tropeco'; de: string }
+  /** A mão que decide: a luz baixa e a câmera (ou o avatar) de quem está por um fio abre grande. */
+  | { chave: number; tipo: 'corte'; quem: string[] };
 export type Passante = 'galo' | 'gato' | 'espeto';
 type SemChave<T> = T extends unknown ? Omit<T, 'chave'> : never;
 
 /** Quanto cada coisa do palco e de passagem fica (ms). */
-export const DURACAO_PALCO = { duelo: 2800, cuia: 2600, tropeco: 2200, passante: 3200 } as const;
+export const DURACAO_PALCO = { duelo: 2800, cuia: 2600, tropeco: 2200, passante: 3200, corte: 1850 } as const;
+/** O corte entra depois de a última carta aparecer inteira (ms). */
+const ANTES_DO_CORTE_MS = 450;
 /** Espera a faixa da rodada sair antes de usar o meio da mesa (ms). */
 const DEPOIS_DA_FAIXA_MS = 1700;
 /** Uma vez a cada tantas rodadas, o baralho escapa da mão de quem dá. */
@@ -206,10 +211,20 @@ export class Agenda {
     // Mão fechada: tempo morto, o meio da mesa está livre.
     if (fechada && p.phase !== 'trickEnd') {
       const fim = view.lastTrick;
-      for (const id of fim?.cancelled ?? []) this.contar('empates', id);
+      // A mão que decide passa na frente de tudo: o corte de novela em quem está por um fio.
+      const porUmFio = maoQueDecide(view);
+      if (porUmFio.length > 0) this.depois(ANTES_DO_CORTE_MS, () => this.mostraPalco({ tipo: 'corte', quem: porUmFio.slice(0, 2) }, DURACAO_PALCO.corte, true));
+      for (const id of fim?.cancelled ?? []) {
+        this.contar('empates', id);
+        // Empardou duas vezes na mesma rodada: os corações de cumadre.
+        const vezes = view.completedTricks.filter((t) => t.cancelled.includes(id)).length;
+        if (vezes === 2) this.cena(id, 'cumadre');
+      }
       this.empatesSeguidos = fim && fim.winnerId === null ? this.empatesSeguidos + 1 : 0;
       // Lance raro primeiro: as quatro manilhas na mesma mão, três empates seguidos.
-      if (quatroManilhas(plays, sctx)) this.fala({ id: `cavaleiros:${chave}`, texto: 'Os quatro cavaleiros na mesma mão.' }, agora, true);
+      if (porUmFio.length > 0) {
+        // O corte já é o lance: nada mais fala por cima dele.
+      } else if (quatroManilhas(plays, sctx)) this.fala({ id: `cavaleiros:${chave}`, texto: 'Os quatro cavaleiros na mesma mão.' }, agora, true);
       else if (this.empatesSeguidos === 3) this.fala({ id: `cumadrera:${chave}`, texto: 'Mesa cumadrera: três empates seguidos.' }, agora, true);
       else if (this.pendente?.chave === chave) this.mostraPalco({ tipo: 'fregues', fregues: this.pendente.fregues, dono: this.pendente.dono }, DURACAO.fregues);
       else if (this.rixa?.chave === chave) this.fala({ id: `rixa:${chave}`, texto: this.rixa.texto }, agora);
@@ -333,8 +348,9 @@ export class Agenda {
     });
   }
 
-  private mostraPalco(p: SemChave<Palco>, ms: number): void {
-    if (!this.ctx.ativa || this.ctx.calma || useZoeira.getState().palco) return;
+  /** `manda`: a mão que decide tira o que estiver no meio da mesa (nada é mais importante que ela). */
+  private mostraPalco(p: SemChave<Palco>, ms: number, manda = false): void {
+    if (!this.ctx.ativa || this.ctx.calma || (useZoeira.getState().palco && !manda)) return;
     const chave = ++this.n;
     // O meio da mesa é de uma coisa só: com o palco, a faixa sai.
     useZoeira.setState({ palco: { ...p, chave } as Palco, faixa: null });

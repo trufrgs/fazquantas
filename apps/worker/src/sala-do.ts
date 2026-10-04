@@ -37,7 +37,7 @@ export const COROA_MS = 3 * 60_000;
  */
 export const IDLE_ROOM_MS = 12 * 60 * 60_000;
 /** `RAPIDO=1` (só nos testes E2E): pausas curtas para a partida acabar em segundos. */
-const FAST_TIMING = { botThinkMs: [60, 140] as [number, number], trickPauseMs: 300, lastCardMs: 100, roundPauseMs: 500, bidsRevealMs: 150, forcedPlayMs: 80, dealMs: 120, awayActMs: 250 };
+const FAST_TIMING = { botThinkMs: [60, 140] as [number, number], trickPauseMs: 300, lastCardMs: 100, decisiveMs: 300, roundPauseMs: 500, bidsRevealMs: 150, forcedPlayMs: 80, dealMs: 120, awayActMs: 250 };
 
 /** O que fica preso a cada WebSocket e sobrevive à hibernação. */
 interface Anexo {

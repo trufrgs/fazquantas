@@ -160,6 +160,7 @@ export class LocalConnection implements GameConnection {
       partida: 'local',
       ator: atorDe(st)?.playerId ?? null,
       alvos: new Set(st.players.map((p) => p.id)),
+      avatar: this.seatInfo.find((x) => x.id === YOU)?.avatar,
     };
     const recado = this.zoeira.pode(YOU, z, ctx);
     if (recado) return recado;

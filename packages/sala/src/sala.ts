@@ -957,6 +957,7 @@ export class Sala {
       partida: this.partida?.id ?? '',
       ator: currentActor(game.state)?.playerId ?? null,
       alvos: new Set(this.seats.map((seat) => seat.playerId)),
+      avatar: this.human(playerId)?.avatar,
     };
     const recado = this.zoeira.pode(playerId, z, ctx);
     if (recado) throw fail('GAME_ERROR', recado);

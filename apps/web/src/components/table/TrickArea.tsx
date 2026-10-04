@@ -23,6 +23,7 @@ import {
   type GolpeNaMao,
 } from './manilhas';
 import { play } from '../../lib/sound';
+import { sintetizar } from '../../lib/sintetizado';
 import { tossRotation, trickStacking, type Point, type TableGeometry } from './layout';
 
 export interface TrickAreaProps {
@@ -48,10 +49,14 @@ export interface TrickAreaProps {
   ritmo?: number;
   /** A mesa está no fumo (`Fumaca`): as cartas ficam por cima dele. */
   acimaDaFumaca?: boolean;
+  /** É a mão que decide se alguém sai do jogo: a vencedora espera o corte de novela (`decisiveMs`). */
+  decide?: boolean;
 }
 
 /** Quanto a vencedora espera para subir depois que a última carta chega (segundos, no ritmo normal). */
 const SEGURA_A_VENCEDORA = 0.6;
+/** Na mão que decide, a vencedora só sobe depois do corte de novela (o anfitrião espera junto). */
+const SEGURA_NA_MAO_QUE_DECIDE = 2.5;
 
 export function TrickArea(p: TrickAreaProps) {
   const cw = p.cardWidth;
@@ -81,11 +86,41 @@ export function TrickArea(p: TrickAreaProps) {
   }
   useEffect(() => {
     if (!ultima.segura) return undefined;
-    const t = window.setTimeout(() => setUltima((u) => ({ ...u, segura: false })), (SEGURA_A_VENCEDORA * 1000) / ritmo);
+    const t = window.setTimeout(() => setUltima((u) => ({ ...u, segura: false })), ((p.decide ? SEGURA_NA_MAO_QUE_DECIDE : SEGURA_A_VENCEDORA) * 1000) / ritmo);
     return () => window.clearTimeout(t);
-  }, [ultima.segura, ritmo]);
+  }, [ultima.segura, ritmo, p.decide]);
   const fechada = p.resolved && !ultima.segura;
   const ultimaCarta = ultima.segura ? p.plays.at(-1)?.cardId : undefined;
+  // A peleia do empate: as cartas que empardaram se chocam no meio delas, ricocheteiam e ficam
+  // apagadas (sem estrelinha nem soco de gibi: o tranco, a faísca e a poeira).
+  const empardadas = fechada && !cameraRapida ? p.plays.filter((pl) => p.cancelled.includes(pl.playerId)) : [];
+  const peleia = empardadas.length >= 2;
+  const meioDaPeleia = peleia
+    ? empardadas.reduce((m, pl) => {
+        const at = p.geometry.tricks.get(pl.playerId) ?? p.geometry.center;
+        return { x: m.x + at.x / empardadas.length, y: m.y + at.y / empardadas.length };
+      }, { x: 0, y: 0 })
+    : null;
+  // A manilha que não levou a mão vai para o lixo: queima na mesa em vez de ir para quem ganhou.
+  const queima = (playerId: string, cardId: Play['cardId']) =>
+    p.resolved && !cameraRapida && ctx !== null && manilhaDe(cardId, ctx) !== null && playerId !== p.winnerId;
+  const aQueimar = useRef<string | null>(null);
+  useEffect(() => {
+    if (p.resolved && p.plays.some((pl) => queima(pl.playerId, pl.cardId))) {
+      aQueimar.current = chave;
+      return;
+    }
+    // A mão saiu da mesa: a manilha perdida pega fogo agora.
+    if (aQueimar.current && aQueimar.current !== chave) {
+      aQueimar.current = null;
+      sintetizar('fogo');
+    }
+    // `queima` só depende do que já está nas dependências.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [chave, p.resolved, p.plays, p.winnerId, ctx, cameraRapida]);
+  useEffect(() => {
+    if (peleia) play('pau', { delayMs: 170, rate: 1.5 });
+  }, [peleia, chave]);
   // "Quem mata quem": quem apanha de quem nesta mão, e na ordem em que a arma chega em cada uma.
   const golpes = useMemo(
     () => (ctx && !cameraRapida ? golpesDaMao(p.plays, ctx, p.resolved).filter((g) => golpeComAnimacao(g, p.plays, mesa)) : []),
@@ -151,6 +186,9 @@ export function TrickArea(p: TrickAreaProps) {
           // Enquanto a vencedora espera, a última carta fica por cima de todas, inteira.
           const z = isWinner ? 50 : play.cardId === ultimaCarta ? 49 : 10 + (stack[i] ?? i);
           const golpe = apanhou.get(play.playerId);
+          const pega = isCancelled && meioDaPeleia ? rumo(at, meioDaPeleia, cw * 0.55) : null;
+          const giro = tossRotation(play.cardId);
+          const fogo = queima(play.playerId, play.cardId);
           return (
             <motion.div
               key={play.cardId}
@@ -161,14 +199,18 @@ export function TrickArea(p: TrickAreaProps) {
               initial={
                 mine ? { rotate: 0 } : { x: from.x - at.x, y: from.y - at.y, scale: fromScale, opacity: shown ? 1 : 0, rotate: 0 }
               }
-              animate={{
-                x: 0,
-                y: isWinner ? -6 : 0,
-                scale: isWinner ? 1.1 : 1,
-                opacity: 1,
-                rotate: tossRotation(play.cardId),
-              }}
-              exit="collect"
+              animate={
+                pega
+                  ? { x: [0, pega.x, -pega.x * 0.14, 0], y: [0, pega.y, -pega.y * 0.14, 0], scale: 1, opacity: 1, rotate: [giro, giro, giro + (pega.x >= 0 ? 7 : -7), giro + (pega.x >= 0 ? 4 : -4)] }
+                  : {
+                      x: 0,
+                      y: isWinner ? -6 : 0,
+                      scale: isWinner ? 1.1 : 1,
+                      opacity: 1,
+                      rotate: giro,
+                    }
+              }
+              exit={fogo ? 'queima' : 'collect'}
               variants={{
                 collect: (to: Point) => ({
                   x: to.x - at.x,
@@ -178,8 +220,21 @@ export function TrickArea(p: TrickAreaProps) {
                   rotate: 0,
                   transition: { duration: 0.42, ease: [0.55, 0, 0.8, 0.4], delay: i * 0.03 },
                 }),
+                // A manilha perdida queima no lugar: pega fogo (acende alaranjada), escurece até virar
+                // carvão e some subindo com as brasas.
+                queima: {
+                  filter: ['brightness(1) sepia(0) saturate(1)', 'brightness(1.25) sepia(1) saturate(3.5) hue-rotate(-18deg)', 'brightness(0.12) sepia(1) saturate(1)'],
+                  scale: [1, 1, 0.9],
+                  y: [0, 0, -cw * 0.25],
+                  opacity: [1, 1, 0],
+                  transition: { duration: 1, times: [0, 0.35, 1], ease: 'easeIn' },
+                },
               }}
-              transition={{ type: 'spring', stiffness: 380, damping: 30 }}
+              transition={
+                pega
+                  ? { x: { duration: 0.5, times: [0, 0.32, 0.55, 1], ease: 'easeOut' }, y: { duration: 0.5, times: [0, 0.32, 0.55, 1], ease: 'easeOut' }, rotate: { duration: 0.5, times: [0, 0.32, 0.55, 1] } }
+                  : { type: 'spring', stiffness: 380, damping: 30 }
+              }
               role="img"
               aria-label={cardName(cardOf(play.cardId))}
             >
@@ -197,6 +252,20 @@ export function TrickArea(p: TrickAreaProps) {
                   filter: isCancelled ? 'grayscale(0.85) brightness(0.8)' : faded ? 'brightness(0.82)' : undefined,
                 }}
               >
+                {fogo && (
+                  // As brasas que sobem da carta queimando (o fogo em si é o filtro na carta inteira,
+                  // que acompanha os pedaços quando ela apanhou antes).
+                  <span aria-hidden="true" className="pointer-events-none absolute inset-0 z-10 block">
+                    {[0.2, 0.38, 0.5, 0.62, 0.8].map((fx, k) => (
+                      <motion.span
+                        key={fx}
+                        className="absolute block rounded-full"
+                        style={{ left: `${fx * 100}%`, top: '70%', width: Math.max(3, cw * 0.06), height: Math.max(3, cw * 0.06), background: '#FFB347', boxShadow: '0 0 6px 2px rgb(255 120 30 / 0.8)', opacity: 0 }}
+                        variants={{ queima: { opacity: [0, 1, 0], y: [0, -cw * (0.9 + (k % 3) * 0.3)], x: [0, (k % 2 ? 1 : -1) * cw * 0.12], transition: { duration: 0.9, delay: 0.15 + k * 0.07, ease: 'easeOut' } } }}
+                      />
+                    ))}
+                  </span>
+                )}
                 {golpe ? (
                   <CartaAtingida
                     id={play.cardId}
@@ -249,12 +318,13 @@ export function TrickArea(p: TrickAreaProps) {
                   initial={{ scale: 2, opacity: 0, rotate: -24 }}
                   animate={{ scale: 1, opacity: 1, rotate: -14 }}
                   exit={{ opacity: 0, transition: { duration: 0.15 } }}
-                  transition={{ type: 'spring', stiffness: 500, damping: 18, delay: 0.1 }}
+                  transition={{ type: 'spring', stiffness: 500, damping: 18, delay: peleia ? 0.5 : 0.1 }}
                 >
                   empardou
                 </motion.span>
               );
             })}
+        {meioDaPeleia && <Faisca key={`faisca-${chave}`} at={meioDaPeleia} cw={cw} />}
       </AnimatePresence>
       {/* O grito de cada manilha que cai: grande se ela passa a mandar na mesa, pequeno se chega depois de uma mais forte. */}
       {ctx &&
@@ -288,5 +358,36 @@ export function TrickArea(p: TrickAreaProps) {
         />
       ))}
     </div>
+  );
+}
+
+/** Até onde a carta avança na peleia: na direção do meio, no máximo `max`. */
+function rumo(de: Point, para: Point, max: number): Point {
+  const dx = para.x - de.x;
+  const dy = para.y - de.y;
+  const d = Math.hypot(dx, dy) || 1;
+  const k = Math.min(d * 0.42, max) / d;
+  return { x: dx * k, y: dy * k };
+}
+
+/** O tranco da peleia: a faísca curta no ponto do choque e uma poeirinha que assenta. */
+function Faisca({ at, cw }: { at: Point; cw: number }) {
+  const r = cw * 0.55;
+  return (
+    <motion.span className="pointer-events-none absolute z-[45] block" style={{ left: at.x - r, top: at.y - r, width: r * 2, height: r * 2 }} exit={{ opacity: 0 }} aria-hidden="true">
+      <motion.span
+        className="absolute inset-0 block rounded-full"
+        style={{ background: 'radial-gradient(circle, rgb(214 196 160 / 0.55), rgb(214 196 160 / 0) 70%)' }}
+        initial={{ scale: 0.3, opacity: 0 }}
+        animate={{ scale: [0.3, 1.4], opacity: [0, 0.9, 0] }}
+        transition={{ duration: 0.9, delay: 0.16, ease: 'easeOut' }}
+      />
+      <motion.svg viewBox="-50 -50 100 100" className="absolute inset-0 h-full w-full overflow-visible" initial={{ scale: 0.4, opacity: 0 }} animate={{ scale: [0.4, 1.1], opacity: [0, 1, 0] }} transition={{ duration: 0.32, delay: 0.16 }}>
+        {[0, 52, 118, 180, 236, 300].map((a) => {
+          const rad = (a * Math.PI) / 180;
+          return <line key={a} x1={Math.cos(rad) * 14} y1={Math.sin(rad) * 14} x2={Math.cos(rad) * 34} y2={Math.sin(rad) * 34} stroke="#FFE7A8" strokeWidth={5} strokeLinecap="round" />;
+        })}
+      </motion.svg>
+    </motion.span>
   );
 }

@@ -65,4 +65,23 @@ describe('zoeira (só enfeite)', () => {
     expect(await ana.call('game:zoar', { tipo: 'atirar', alvo: b.playerId, item: 'pedra' })).toMatchObject({ ok: false, error: { code: 'INVALID_PAYLOAD' } });
     expect(await ana.call('game:zoar', { tipo: 'grito', reaction: 'cagao', forca: 9 })).toMatchObject({ ok: false, error: { code: 'INVALID_PAYLOAD' } });
   });
+
+  it('o golpe é do avatar de quem manda (e gasta tiro); a baforada vai só em quem está na vez', async () => {
+    const { mundo, ana, beto, a, b } = await mesa();
+    ok(await ana.call('room:start'));
+    await beto.waitForView(() => true);
+    // Sem avatar com golpe, não tem golpe.
+    expect(await ana.call('game:zoar', { tipo: 'golpe', alvo: b.playerId })).toMatchObject({ ok: false, error: { message: ZOEIRA_ESGOTADA.golpe } });
+    const caio = connect(mundo);
+    const c = ok(await caio.call<JoinResult>('room:join', { code: a.code, name: 'Caio', avatar: 'g-zorrilho' }));
+    ok(await caio.call('game:zoar', { tipo: 'golpe', alvo: a.playerId }));
+    await new Promise((r) => setTimeout(r, 20));
+    expect(beto.events.filter((e) => e === 'game:zoeira').length).toBe(1);
+    const sala = mundo.rooms.get(a.code)!;
+    const vez = sala.turn!.playerId;
+    const fora = vez === a.playerId ? b.playerId : a.playerId;
+    expect(await caio.call('game:zoar', { tipo: 'baforada', alvo: fora })).toMatchObject({ ok: false, error: { message: ZOEIRA_ESGOTADA.demora } });
+    ok(await caio.call('game:zoar', { tipo: 'baforada', alvo: vez }));
+    void c;
+  });
 });
