@@ -12,6 +12,7 @@ import {
   TURN_TIMEOUT_OPTIONS,
   isCardId,
   ITENS_DE_ATIRAR,
+  VOZ_NA_SALA,
   type BestOf,
   type BotDifficulty,
   type CardId,
@@ -198,6 +199,15 @@ export const gameActionSchema = z.object({
 });
 
 export const reactSchema = z.object({ reaction: reactionSchema });
+
+export const vozSchema = z.object({
+  reaction: reactionSchema,
+  audio: z
+    .string()
+    .max(VOZ_NA_SALA.maxB64)
+    .regex(/^[A-Za-z0-9+/]+=*$/)
+    .nullable(),
+});
 
 const forcaSchema = z.union([z.literal(1), z.literal(2), z.literal(3)]);
 export const zoarSchema = z.discriminatedUnion('tipo', [

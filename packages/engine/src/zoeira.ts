@@ -1,5 +1,9 @@
+import { resolveTrick } from './game';
+import type { StrengthCtx } from './hierarchy';
 import { REACTIONS, type ReactionId } from './protocol';
-import type { Rules } from './rules';
+import type { Rules, TieRule } from './rules';
+import type { CardId } from './cards';
+import type { Play } from './types';
 
 /**
  * A zoeira que um jogador manda para a mesa (caderno de zoeira, 02/10/2026): atirar coisas num amigo,
@@ -31,6 +35,13 @@ export type Zoeira =
   | { tipo: 'grito'; reaction: ReactionId; forca: 1 | 2 | 3 }
   | { tipo: 'pancada'; forca: 1 | 2 | 3 }
   | { tipo: 'virar' };
+
+/**
+ * A frase na tua voz: cada um grava até dois segundos de cada frase favorita (IMA ADPCM a 9,6 kHz, em
+ * base64; ver `apps/web/src/lib/voz.ts`). Na sala, fica só na memória do servidor enquanto a pessoa
+ * estiver lá. `maxB64` cabe numa mensagem (`MAX_MESSAGE_BYTES`, 16 kB).
+ */
+export const VOZ_NA_SALA = { maxB64: 12808, maxFrases: 3 } as const;
 
 /** A zoeira como chega na mesa: quem mandou e quando. */
 export type ZoeiraNaMesa = Zoeira & { de: string; at: number };
@@ -132,4 +143,45 @@ export function porUmFio(
     .filter((j) => j.bid !== null && j.lives > 0)
     .filter((j) => j.lives - perde(j.bid!, j.tricks + 1) <= 0 !== j.lives - perde(j.bid!, j.tricks) <= 0)
     .map((j) => j.id);
+}
+
+/** A demora que acende os palheiros na mesa (e conta bituca no mural da vergonha). */
+export const DEMORA_DO_PALHEIRO_MS = 9000;
+
+/**
+ * A última carta jogada tomou a mão de alguém? Devolve quem matou e de quem era a carta que estava
+ * levando. Empate (ninguém leva) e primeira carta da mão não contam. Serve à mesa (a traíra, o
+ * freguês) e ao mural da vergonha (o maior freguês).
+ */
+export function quemMatou(plays: readonly Play[], ctx: StrengthCtx, tieRule: TieRule): { matador: string; vitima: string; carta: CardId } | null {
+  if (plays.length < 2) return null;
+  const ultima = plays.at(-1)!;
+  const antes = resolveTrick(plays.slice(0, -1), ctx, tieRule).winnerId;
+  const depois = resolveTrick(plays, ctx, tieRule).winnerId;
+  if (!antes || antes === ultima.playerId || depois !== ultima.playerId) return null;
+  const carta = plays.find((p) => p.playerId === antes)?.cardId;
+  return carta ? { matador: ultima.playerId, vitima: antes, carta } : null;
+}
+
+/** O que o mural da vergonha conta de cada um numa partida que vale ranking. */
+export interface Vergonha {
+  /** Ficou em último na partida (sozinho). */
+  lanterna: 0 | 1;
+  /** Vezes que a carta dele, levando a mão, foi morta. */
+  fregues: number;
+  /** Palheiros que a mesa fumou esperando por ele. */
+  bitucas: number;
+  /** Vezes que virou a mesa. */
+  viradas: number;
+}
+
+export type TituloDaVergonha = 'lanterna' | 'fregues' | 'bituca' | 'virada';
+
+/** Um título do mural: quem tem, e quantas vezes no período. */
+export interface TituloNoMural {
+  titulo: TituloDaVergonha;
+  profileId: string;
+  name: string;
+  avatar: string;
+  n: number;
 }

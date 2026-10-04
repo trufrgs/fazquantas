@@ -19,6 +19,8 @@ export interface AlvoDoMenu {
   cutucavel: boolean;
   /** Está de câmera aberta: dá para ver grande. */
   camera: boolean;
+  /** O apelido de zoeira que o admin deu (piada interna). */
+  alcunha?: string;
 }
 
 /**
@@ -99,8 +101,9 @@ export function MenuDoAmigo({
           exit={{ opacity: 0, scale: 0.9 }}
           transition={{ type: 'spring', stiffness: 520, damping: 30 }}
         >
-          <span className="px-1 font-display text-lg font-bold leading-none" style={{ fontVariationSettings: '"SOFT" 100' }}>
+          <span className="flex items-baseline gap-2 px-1 font-display text-lg font-bold leading-none" style={{ fontVariationSettings: '"SOFT" 100' }}>
             {alvo.nome}
+            {alvo.alcunha && <span className="truncate font-hand text-lg font-bold text-copas">{alvo.alcunha}</span>}
           </span>
           <div className={`grid gap-1.5 ${golpe ? 'grid-cols-5' : 'grid-cols-4'}`} role="group" aria-label="Atirar">
             {ITENS_DE_ATIRAR.map((item) => {

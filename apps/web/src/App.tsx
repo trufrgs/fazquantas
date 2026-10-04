@@ -5,6 +5,7 @@ import { CardSprite } from './components/cards/sprite';
 import { GameScreen } from './components/table/GameScreen';
 import { aoAbrir } from './lib/conta';
 import { abaixarMusica, acordarMusica, destravarMusica, forcarMusica, ligarMusica } from './lib/musica';
+import { calarBolicho, destravarBolicho, ligarBolicho } from './lib/bolicho';
 import { midia } from './lib/midia';
 import { isNative, multiplayer } from './lib/platform';
 import { acordarAudio, dormirAudio, forcarAudio, preloadSounds, setSoundEnabled } from './lib/sound';
@@ -36,18 +37,24 @@ export function App() {
   const screen = useApp((s) => s.screen);
   const sound = useSettings((s) => s.sound);
   const musica = useSettings((s) => s.musica);
+  const bolicho = useSettings((s) => s.bolicho);
   // O código do convite vale uma vez só (depois de usado, não entra de novo sozinho).
   const [code, setCode] = useState(inviteCode);
 
   useEffect(() => setSoundEnabled(sound), [sound]);
   // Com alguém de microfone aberto na sala, o tango fica baixinho; e o "Ouvir a conversa" vale na hora.
   const conversando = useOnline((s) => s.room?.midias?.some((m) => m.mic) ?? false);
-  useEffect(() => abaixarMusica(conversando), [conversando]);
+  useEffect(() => {
+    abaixarMusica(conversando);
+    calarBolicho(conversando);
+  }, [conversando]);
   const ouvirConversa = useSettings((s) => s.ouvirConversa);
   useEffect(() => midia.setOuvir(ouvirConversa), [ouvirConversa]);
   // O tango de fundo toca só na sala (esperando) e na mesa; nos menus, não (nem no admin).
   const naSala = screen === 'lobby' || screen === 'game';
   useEffect(() => ligarMusica(musica && naSala && !isAdminPath), [musica, naSala]);
+  // O barulho de bolicho por baixo do tango, nos mesmos lugares (chave própria).
+  useEffect(() => ligarBolicho(bolicho && naSala && !isAdminPath), [bolicho, naSala]);
 
   // Imagens das cartas no cache antes da primeira distribuição.
   useEffect(() => {
@@ -65,6 +72,7 @@ export function App() {
         primeiro = false;
         preloadSounds();
         destravarMusica();
+        destravarBolicho();
       }
       acordarAudio();
       acordarMusica();

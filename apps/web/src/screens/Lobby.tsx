@@ -16,6 +16,7 @@ import { useApp } from '../stores/app';
 import { ehPatrao, naPlateia, useOnline } from '../stores/online';
 import { ChapeuDePatrao } from '../components/sala/ChapeuDePatrao';
 import { BotaoQueroJogar, PainelDaPlateia } from '../components/sala/Plateia';
+import { ChegadaNaSala } from '../components/sala/Chegada';
 import { Chapeu } from '../components/table/zoeira/desenhos';
 import { useSettings } from '../stores/settings';
 
@@ -182,6 +183,7 @@ export function Lobby() {
       </div>
       <ConversaNaSala />
       <VideoAmpliado />
+      <ChegadaNaSala />
 
       <Panel title={`Na mesa (${room.seats.length}/${room.capacity})`}>
         <ul className="flex flex-col divide-y divide-tinta/10">
@@ -192,6 +194,7 @@ export function Lobby() {
                 <span className="flex items-center gap-1.5 font-semibold">
                   <span className="truncate">{s.name}</span>
                   {patroes.includes(s.playerId) && <ChapeuDePatrao w={18} />}
+                  {s.kind === 'human' && s.piada?.alcunha && <span className="truncate pr-1 font-hand text-lg font-bold leading-tight text-copas">{s.piada.alcunha}</span>}
                 </span>
                 <span className="text-sm text-tinta-2">
                   {s.playerId === room.youId

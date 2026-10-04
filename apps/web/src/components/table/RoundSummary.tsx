@@ -33,10 +33,12 @@ export interface RoundSummaryProps {
   onEsconder: () => void;
   /** Não mostra mais o resumo (volta nos ajustes ou no menu da mesa). */
   onNaoMostrar: () => void;
+  /** A foto do vexame de quem saiu nesta rodada de câmera aberta (vai no lugar do avatar). */
+  fotos?: readonly { id: string; rodada: number; url: string }[];
 }
 
 /** Resumo do fim da rodada: quanto cada um pediu e fez, palitos queimados e os que sobram. */
-export function RoundSummary({ open, view, seats, autoMs, onContinue, onAcelerar, onEsconder, onNaoMostrar }: RoundSummaryProps) {
+export function RoundSummary({ open, view, seats, autoMs, onContinue, onAcelerar, onEsconder, onNaoMostrar, fotos = [] }: RoundSummaryProps) {
   const rec = view.history.at(-1);
   const next = nextCards(view);
   return (
@@ -83,7 +85,19 @@ export function RoundSummary({ open, view, seats, autoMs, onContinue, onAcelerar
                   key={id}
                   className={`flex items-center gap-3 py-2 ${id === view.you ? '-mx-2 rounded-xl bg-ouros/15 px-2' : ''}`}
                 >
-                  <Avatar seed={seat?.avatar ?? id} size={34} dim={out} />
+                  {(() => {
+                    const foto = fotos.find((f) => f.id === id && f.rodada === rec.number);
+                    return foto ? (
+                      <img
+                        src={foto.url}
+                        alt={`A cara de ${p?.name ?? id} na hora`}
+                        className="size-[2.9rem] shrink-0 rounded-[3px] border-[3px] border-b-[9px] border-white object-cover shadow-md"
+                        style={{ rotate: '-5deg' }}
+                      />
+                    ) : (
+                      <Avatar seed={seat?.avatar ?? id} size={34} dim={out} />
+                    );
+                  })()}
                   <span className="min-w-0 flex-1">
                     <span className="block truncate font-semibold">{p?.name ?? id}</span>
                     <span className="font-hand text-xl leading-none text-tinta-2">

@@ -42,7 +42,14 @@ export function JornalDoBolicho({ jornal, aberto, onFechar }: { jornal: Jornal; 
                 <p className="m-0 mt-1 text-xs font-semibold first-letter:uppercase">{jornal.data} · Preço: um palito</p>
               </header>
               <p className="m-0 mt-3 font-display text-[1.75rem] font-black leading-[1.02]">{jornal.manchete}</p>
+              {jornal.foto && (
+                <figure className="m-0 mt-3 flex flex-col items-center">
+                  <img src={jornal.foto.url} alt={jornal.foto.legenda} className="size-36 border-[6px] border-b-[18px] border-white object-cover shadow-md" style={{ rotate: '3deg', filter: 'sepia(0.35)' }} />
+                  <figcaption className="mt-1 text-xs font-semibold italic">{jornal.foto.legenda}</figcaption>
+                </figure>
+              )}
               {jornal.nota && <p className="m-0 mt-2 text-sm font-semibold leading-snug">{jornal.nota}</p>}
+              {jornal.lance && <p className="m-0 mt-1.5 text-sm leading-snug">{jornal.lance}</p>}
               {jornal.classificados.length > 0 && (
                 <div className="mt-3 border-t-2 border-[#17110c] pt-2 text-left text-xs leading-snug">
                   <p className="m-0 mb-0.5 font-display text-sm font-black uppercase tracking-wide">Classificados</p>
@@ -97,6 +104,15 @@ function linhas(ctx: CanvasRenderingContext2D, texto: string, largura: number): 
   return out;
 }
 
+function carregarImagem(url: string): Promise<HTMLImageElement | null> {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = () => resolve(null);
+    img.src = url;
+  });
+}
+
 /** A imagem do jornal (1080×1350, o formato que o WhatsApp mostra inteiro). */
 export async function imagemDoJornal(j: Jornal): Promise<Blob | null> {
   try {
@@ -135,12 +151,41 @@ export async function imagemDoJornal(j: Jornal): Promise<Blob | null> {
     ctx.fillText(l, 0, y);
     y += 88;
   }
+  const foto = j.foto ? await carregarImagem(j.foto.url) : null;
+  if (j.foto && foto) {
+    // A polaroide, meio torta e amarelada, com a legenda embaixo.
+    const lado = 280;
+    ctx.save();
+    ctx.translate(0, y + lado / 2 + 10);
+    ctx.rotate((3 * Math.PI) / 180);
+    ctx.fillStyle = '#ffffff';
+    ctx.shadowColor = 'rgba(0,0,0,0.35)';
+    ctx.shadowBlur = 18;
+    ctx.fillRect(-lado / 2 - 14, -lado / 2 - 14, lado + 28, lado + 64);
+    ctx.shadowBlur = 0;
+    ctx.filter = 'sepia(0.35)';
+    ctx.drawImage(foto, -lado / 2, -lado / 2, lado, lado);
+    ctx.restore();
+    y += lado + 110;
+    ctx.fillStyle = '#17110c';
+    ctx.font = `italic 600 30px ${corpo}`;
+    ctx.fillText(j.foto.legenda, 0, y);
+    y += 20;
+  }
   if (j.nota) {
     y += 20;
     ctx.font = `600 40px ${corpo}`;
     for (const l of linhas(ctx, j.nota, 760)) {
       ctx.fillText(l, 0, y);
       y += 52;
+    }
+  }
+  if (j.lance) {
+    y += 6;
+    ctx.font = `500 36px ${corpo}`;
+    for (const l of linhas(ctx, j.lance, 760)) {
+      ctx.fillText(l, 0, y);
+      y += 46;
     }
   }
   if (j.classificados.length > 0) {

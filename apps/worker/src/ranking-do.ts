@@ -5,11 +5,23 @@ import {
   type RankingResponse,
   type RankingRow,
   type RankingScope,
+  type TituloDaVergonha,
+  type TituloNoMural,
 } from '@fodinha/engine';
 import type { PartidaRanqueada } from '@fodinha/sala';
 
 /** Quantas linhas o ranking devolve (a turma de amigos cabe com folga). */
 export const RANKING_LIMIT = 200;
+
+/** As colunas do mural da vergonha em `resultados`. */
+const COLUNAS_DA_VERGONHA = ['lanterna', 'fregues', 'bitucas', 'viradas'] as const;
+/** Cada título: a coluna que soma e o mínimo para alguém levar. */
+const TITULOS: readonly [TituloDaVergonha, (typeof COLUNAS_DA_VERGONHA)[number], number][] = [
+  ['lanterna', 'lanterna', 1],
+  ['fregues', 'fregues', 3],
+  ['bituca', 'bitucas', 3],
+  ['virada', 'viradas', 1],
+];
 
 export interface RankingQuery {
   period: RankingPeriod;
@@ -65,6 +77,11 @@ export class RankingDO extends DurableObject<Env> {
       CREATE INDEX IF NOT EXISTS resultados_terminada ON resultados (terminada);
       CREATE INDEX IF NOT EXISTS resultados_jogador ON resultados (jogador);
     `);
+    // O mural da vergonha (04/10/2026): as colunas entram nas tabelas que já existiam.
+    const colunas = new Set(this.sql.exec<{ name: string }>('PRAGMA table_info(resultados)').toArray().map((c) => c.name));
+    for (const c of COLUNAS_DA_VERGONHA) {
+      if (!colunas.has(c)) this.sql.exec(`ALTER TABLE resultados ADD COLUMN ${c} INTEGER NOT NULL DEFAULT 0`);
+    }
   }
 
   /** Grava uma partida que valeu. Repetida (a sala tentou de novo) não conta duas vezes. */
@@ -91,13 +108,18 @@ export class RankingDO extends DurableObject<Env> {
           p.terminadaEm,
         );
         this.sql.exec(
-          'INSERT OR IGNORE INTO resultados (partida, jogador, pontos, venceu, abandonou, terminada) VALUES (?, ?, ?, ?, ?, ?)',
+          `INSERT OR IGNORE INTO resultados (partida, jogador, pontos, venceu, abandonou, terminada, lanterna, fregues, bitucas, viradas)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
           p.id,
           j.profileId,
           j.points,
           j.won ? 1 : 0,
           j.abandoned ? 1 : 0,
           p.terminadaEm,
+          j.vergonha?.lanterna ?? 0,
+          j.vergonha?.fregues ?? 0,
+          j.vergonha?.bitucas ?? 0,
+          j.vergonha?.viradas ?? 0,
         );
       }
     });
@@ -201,6 +223,31 @@ export class RankingDO extends DurableObject<Env> {
       });
     });
     const you = q.profileId ? (out.find((r) => r.profileId === q.profileId) ?? null) : null;
-    return { range, scope: turma ? 'turma' : 'geral', rows: out, you };
+    return { range, scope: turma ? 'turma' : 'geral', rows: out, you, mural: this.mural(range.start, range.end, turma ? q.profileId : null) };
+  }
+
+  /**
+   * O mural da vergonha do período: para cada título, quem mais juntou (empate: quem fez menos pontos,
+   * que é mais vexame; depois o nome). Abaixo do mínimo, o título fica vago.
+   */
+  private mural(start: number, end: number, turmaDe: string | null): TituloNoMural[] {
+    const out: TituloNoMural[] = [];
+    for (const [titulo, coluna, minimo] of TITULOS) {
+      const row = this.sql
+        .exec<{ id: string; nome: string; avatar: string; n: number }>(
+          `SELECT r.jogador AS id, j.nome AS nome, j.avatar AS avatar, SUM(r.${coluna}) AS n
+             FROM resultados r JOIN jogadores j ON j.id = r.jogador
+            WHERE r.terminada >= ? AND r.terminada < ?
+              ${turmaDe ? 'AND r.jogador IN (SELECT DISTINCT r2.jogador FROM resultados r2 WHERE r2.partida IN (SELECT partida FROM resultados WHERE jogador = ?))' : ''}
+            GROUP BY r.jogador
+           HAVING n >= ?
+            ORDER BY n DESC, SUM(r.pontos) ASC, nome ASC
+            LIMIT 1`,
+          ...(turmaDe ? [start, end, turmaDe, minimo] : [start, end, minimo]),
+        )
+        .toArray()[0];
+      if (row) out.push({ titulo, profileId: row.id, name: row.nome, avatar: row.avatar, n: row.n });
+    }
+    return out;
   }
 }

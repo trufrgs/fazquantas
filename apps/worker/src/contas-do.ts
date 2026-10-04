@@ -1,5 +1,5 @@
 import { DurableObject } from 'cloudflare:workers';
-import { NAME_MAX_LENGTH } from '@fodinha/engine';
+import { NAME_MAX_LENGTH, type PiadaDoApelido } from '@fodinha/engine';
 import { apelidoKey, hashPin, pinWaitMs, randomSalt } from './contas';
 
 /** Resultado de guardar ou entrar com o apelido. */
@@ -24,6 +24,8 @@ export interface Conferencia {
   perfil: string | null;
   /** O nome pedido é apelido guardado de outra pessoa: lugar novo não senta com ele. */
   apelidoDeOutro: boolean;
+  /** A piada interna do admin para o perfil que vale. */
+  piada?: PiadaDoApelido | null;
 }
 
 /** De quem é um apelido, para quem pergunta: ninguém guardou, é o dele, ou é de outra pessoa. */
@@ -47,6 +49,8 @@ export interface ContaAdmin {
   guardadoEm: number | null;
   bloqueadoAte: number | null;
   motivo: string | null;
+  /** A piada interna do admin (chegada e apelido de zoeira). */
+  piada: PiadaDoApelido | null;
 }
 
 type Linha = {
@@ -101,6 +105,11 @@ export class ContasDO extends DurableObject<Env> {
         perfil TEXT PRIMARY KEY,
         destino TEXT NOT NULL,
         criado INTEGER NOT NULL
+      );
+      CREATE TABLE IF NOT EXISTS piadas (
+        perfil TEXT PRIMARY KEY,
+        chegada TEXT,
+        alcunha TEXT
       );
     `);
   }
@@ -266,7 +275,7 @@ export class ContasDO extends DurableObject<Env> {
       return { bloqueado: true, nome, avatar: null, perfil, apelidoDeOutro: false };
     }
     const meu = perfil ? this.porPerfil(perfil) : null;
-    if (meu) return { bloqueado: false, nome: meu.apelido, avatar: meu.avatar, perfil, apelidoDeOutro: false };
+    if (meu) return { bloqueado: false, nome: meu.apelido, avatar: meu.avatar, perfil, apelidoDeOutro: false, piada: this.piadaDe(meu.perfil) };
     const dono = this.porApelido(nome);
     if (!dono) return { bloqueado: false, nome, avatar: null, perfil, apelidoDeOutro: false };
     for (let k = 2; k < 100; k++) {
@@ -277,7 +286,29 @@ export class ContasDO extends DurableObject<Env> {
     return { bloqueado: false, nome: 'Jogador', avatar: null, perfil, apelidoDeOutro: true };
   }
 
+  /** A piada interna de um perfil (só de apelido guardado: é o admin quem escreve). */
+  private piadaDe(perfil: string): PiadaDoApelido | null {
+    const l = this.sql.exec<{ chegada: string | null; alcunha: string | null }>('SELECT chegada, alcunha FROM piadas WHERE perfil = ?', perfil).toArray()[0];
+    if (!l || (!l.chegada && !l.alcunha)) return null;
+    return { ...(l.chegada ? { chegada: l.chegada } : {}), ...(l.alcunha ? { alcunha: l.alcunha } : {}) };
+  }
+
   // --- admin ---------------------------------------------------------------
+
+  /** Admin: a piada interna de um apelido guardado (os dois vazios apagam). */
+  async definirPiada(perfil: string, chegada: string | null, alcunha: string | null): Promise<void> {
+    if (!chegada && !alcunha) {
+      this.sql.exec('DELETE FROM piadas WHERE perfil = ?', perfil);
+      return;
+    }
+    this.sql.exec(
+      `INSERT INTO piadas (perfil, chegada, alcunha) VALUES (?, ?, ?)
+       ON CONFLICT(perfil) DO UPDATE SET chegada = excluded.chegada, alcunha = excluded.alcunha`,
+      perfil,
+      chegada,
+      alcunha,
+    );
+  }
 
   /** Espera antes de aceitar outra tentativa de senha do admin (0 = pode tentar). */
   async adminEspera(): Promise<number> {
@@ -316,6 +347,7 @@ export class ContasDO extends DurableObject<Env> {
         guardadoEm: null,
         bloqueadoAte: null,
         motivo: null,
+        piada: this.piadaDe(l.perfil),
       };
       if (l.apelido !== null) Object.assign(c, { apelido: l.apelido, avatar: l.avatar, guardadoEm: l.criado });
       if (l.ate !== null) Object.assign(c, { bloqueadoAte: l.ate, motivo: l.motivo });

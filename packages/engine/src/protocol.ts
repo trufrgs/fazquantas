@@ -141,6 +141,8 @@ export type SeatPublic =
       connected: boolean;
       /** A mesa está jogando por ele (caiu ou estourou o tempo seguidas vezes). */
       away: boolean;
+      /** A piada interna do admin para este apelido (ver `PiadaDoApelido`). */
+      piada?: PiadaDoApelido;
     }
   | {
       kind: 'bot';
@@ -160,6 +162,19 @@ export interface PlateiaPublic {
   quer: boolean;
   /** Um patrão aceitou: senta na próxima partida (se tiver lugar). */
   aceito: boolean;
+  piada?: PiadaDoApelido;
+}
+
+/**
+ * A piada interna por apelido (caderno de zoeira): no painel do admin, o que acontece quando um amigo
+ * entra na sala ("Chegou o Igor. Segurem as carteiras.") e o apelido de zoeira embaixo do nome. Fica
+ * no servidor, fora do código (que é público).
+ */
+export interface PiadaDoApelido {
+  /** A frase da chegada, já pronta ("Chegou o Igor. Segurem as carteiras."). */
+  chegada?: string;
+  /** O apelido de zoeira ("o Pé-frio"). */
+  alcunha?: string;
 }
 
 export type RoomStatus = 'lobby' | 'playing' | 'finished';
@@ -343,6 +358,8 @@ export interface ClientToServerEvents {
   'room:present': (ack?: (r: Ack) => void) => void;
   /** Zoar alguém (atirar, cutucar, carimbar, gritar, bater a carta, virar a mesa): só enfeite. */
   'game:zoar': (p: Zoeira, ack?: (r: Ack) => void) => void;
+  /** A frase na voz de quem manda (`null` apaga): o servidor guarda na memória e repassa à sala. */
+  'voz:frase': (p: { reaction: ReactionId; audio: string | null }, ack?: (r: Ack) => void) => void;
   /** Quem está na plateia pede (ou desiste de) jogar a próxima. */
   'room:querJogar': (p: { quer: boolean }, ack?: (r: Ack) => void) => void;
   /** Patrão: aceita (ou recusa) o pedido de quem está na plateia. */
@@ -364,6 +381,8 @@ export interface ServerToClientEvents {
   'game:zoeira': (z: ZoeiraNaMesa) => void;
   /** O sinal do WebRTC de outro jogador da sala (microfone e câmera). */
   'midia:sinal': (p: { de: string; dados: unknown }) => void;
+  /** A frase na voz de alguém da sala (`null`: apagou). Quem chega recebe as de todos. */
+  'voz:frase': (p: { playerId: string; reaction: ReactionId; audio: string | null }) => void;
   /** Recado da administração do jogo para quem está na sala (ex.: "reinício em 5 min"). */
   'room:notice': (n: { text: string; at: number }) => void;
 }

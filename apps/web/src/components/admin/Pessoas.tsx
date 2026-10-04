@@ -10,6 +10,8 @@ import { hora, type Dados, type RodarAcao } from './tipos';
 export function Pessoas({ dados, agora, acao }: { dados: Dados; agora: number; acao: RodarAcao }) {
   const [busca, setBusca] = useState('');
   const [renomeando, setRenomeando] = useState<{ id: string; nome: string } | null>(null);
+  // A piada interna do apelido: a frase da chegada e o apelido de zoeira (fica no servidor, não no código).
+  const [piada, setPiada] = useState<{ id: string; chegada: string; alcunha: string } | null>(null);
   // Juntar: a mesma pessoa em outro aparelho (ou navegador) vira o perfil do apelido guardado.
   const [juntando, setJuntando] = useState<{ id: string; destino: string } | null>(null);
   const guardados = useMemo(
@@ -67,6 +69,11 @@ export function Pessoas({ dados, agora, acao }: { dados: Dados; agora: number; a
                     {j.visto ? ` · visto ${hora(j.visto.ultima)} (${j.visto.dias} dia${j.visto.dias > 1 ? 's' : ''}) · ${j.visto.cidade || j.visto.ip} · ${j.visto.aparelho}` : ''}
                   </p>
                   {bloqueado && j.conta?.motivo && <p className="text-sm text-copas">Motivo: {j.conta.motivo}</p>}
+                  {(j.conta?.piada?.chegada || j.conta?.piada?.alcunha) && (
+                    <p className="text-sm italic text-tinta-2">
+                      {[j.conta.piada.alcunha && `"${j.conta.piada.alcunha}"`, j.conta.piada.chegada].filter(Boolean).join(' · ')}
+                    </p>
+                  )}
                 </div>
               </div>
               {juntando?.id === j.id ? (
@@ -101,6 +108,41 @@ export function Pessoas({ dados, agora, acao }: { dados: Dados; agora: number; a
                     Cancelar
                   </Button>
                 </form>
+              ) : piada?.id === j.id ? (
+                <form
+                  className="flex flex-col gap-2"
+                  onSubmit={async (e) => {
+                    e.preventDefault();
+                    const r = await perfil(j.id, { acao: 'piada', chegada: piada.chegada, alcunha: piada.alcunha }, `Piada de ${j.nome} guardada.`);
+                    if (r?.ok) setPiada(null);
+                  }}
+                >
+                  <input
+                    value={piada.chegada}
+                    onChange={(e) => setPiada({ ...piada, chegada: e.target.value })}
+                    maxLength={120}
+                    autoFocus
+                    placeholder={`Chegou o ${j.nome}. Segurem as carteiras.`}
+                    aria-label={`O que a mesa diz quando ${j.nome} chega`}
+                    className="h-10 rounded-2xl border-0 bg-white/70 px-4 text-tinta shadow-inner ring-1 ring-tinta/15 outline-none focus:ring-2 focus:ring-espadas"
+                  />
+                  <input
+                    value={piada.alcunha}
+                    onChange={(e) => setPiada({ ...piada, alcunha: e.target.value })}
+                    maxLength={28}
+                    placeholder="o Pé-frio"
+                    aria-label={`Apelido de zoeira de ${j.nome}`}
+                    className="h-10 rounded-2xl border-0 bg-white/70 px-4 text-tinta shadow-inner ring-1 ring-tinta/15 outline-none focus:ring-2 focus:ring-espadas"
+                  />
+                  <div className="flex gap-2">
+                    <Button size="sm" variant="ouro" type="submit">
+                      Salvar
+                    </Button>
+                    <Button size="sm" onClick={() => setPiada(null)}>
+                      Cancelar
+                    </Button>
+                  </div>
+                </form>
               ) : renomeando?.id === j.id ? (
                 <form
                   className="flex flex-wrap gap-2"
@@ -133,6 +175,9 @@ export function Pessoas({ dados, agora, acao }: { dados: Dados; agora: number; a
                       </Button>
                       <Button size="sm" onClick={() => void perfil(j.id, { acao: 'liberar-apelido' }, `Apelido de ${j.nome} liberado.`)}>
                         Liberar apelido
+                      </Button>
+                      <Button size="sm" onClick={() => setPiada({ id: j.id, chegada: j.conta?.piada?.chegada ?? '', alcunha: j.conta?.piada?.alcunha ?? '' })}>
+                        Piada interna
                       </Button>
                     </>
                   )}

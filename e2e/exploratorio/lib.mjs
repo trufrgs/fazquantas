@@ -93,7 +93,10 @@ export async function device(label, { name = label, engine = 'chromium', dev = '
       rede.quadros.push({ t: Date.now(), de: 'pagina', m: String(m).slice(0, 50), modo: rede.modo });
       passa(server)(m);
     });
-    server.onMessage(passa(ws));
+    server.onMessage((m) => {
+      rede.quadros.push({ t: Date.now(), de: 'servidor', m: String(m).slice(0, 50), modo: rede.modo });
+      passa(ws)(m);
+    });
     // Conexão morta em silêncio: o fechamento que a página manda também não chega ao servidor
     // (como um TCP morto); o servidor segue achando que ela está lá, só que muda.
     ws.onClose((code, reason) => {

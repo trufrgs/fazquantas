@@ -110,7 +110,16 @@ export interface Dados {
     manutencao?: Manutencao;
     avisosAdmin?: number;
   };
-  contas: { profileId: string; apelido: string | null; avatar: string | null; guardadoEm: number | null; bloqueadoAte: number | null; motivo: string | null }[];
+  contas: {
+    profileId: string;
+    apelido: string | null;
+    avatar: string | null;
+    guardadoEm: number | null;
+    bloqueadoAte: number | null;
+    motivo: string | null;
+    /** A piada interna do apelido (chegada e apelido de zoeira). */
+    piada?: { chegada?: string; alcunha?: string } | null;
+  }[];
   ranking: { profileId: string; nome: string; pontos: number; vitorias: number; partidas: number }[];
   padrao?: Automacao;
 }

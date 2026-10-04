@@ -1,3 +1,5 @@
+import type { TituloNoMural } from './zoeira';
+
 /**
  * Ranking: períodos no horário de Brasília (sem horário de verão desde 2019) e o formato das
  * linhas que o servidor devolve.
@@ -99,4 +101,6 @@ export interface RankingResponse {
   rows: RankingRow[];
   /** A linha de quem pediu, mesmo fora do top. */
   you: RankingRow | null;
+  /** O mural da vergonha do período: os títulos que ninguém quer (ausente em servidor antigo). */
+  mural?: TituloNoMural[];
 }

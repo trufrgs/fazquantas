@@ -42,6 +42,8 @@ export interface SettingsState {
   claimed: string | null;
   /** Tango de fundo, baixinho, na sala e na mesa (independente dos efeitos). */
   musica: boolean;
+  /** O barulho do bolicho por baixo do tango (conversa ao fundo, copo, sinuca), na sala e na mesa. */
+  bolicho: boolean;
   /** Ouvir a conversa da mesa online (o microfone de quem abriu). */
   ouvirConversa: boolean;
   /** As três frases que ficam no alto da mesa, a um toque (★ no quadro de frases). */
@@ -70,6 +72,7 @@ export const useSettings = create<SettingsState>()(
       notify: false,
       claimed: null,
       musica: true,
+      bolicho: true,
       ouvirConversa: true,
       frasesFavoritas: [...FAVORITAS_PADRAO],
       resumoDaRodada: true,

@@ -282,6 +282,14 @@ async function admin(path: string, request: Request, b: Json, env: Env, cors: Re
         await painel.registrar('admin: juntou perfis', profileId, `${apelido} (${movidos} resultados)`);
         return json({ ok: true, resultados: movidos }, cors);
       }
+      case 'piada': {
+        // A piada interna do apelido: a frase da chegada e o apelido de zoeira (vazios apagam).
+        const chegada = texto(b.chegada, 120) || null;
+        const alcunha = texto(b.alcunha, 28) || null;
+        await contas.definirPiada(profileId, chegada, alcunha);
+        await painel.registrar('admin: piada do apelido', profileId, [chegada, alcunha].filter(Boolean).join(' / '));
+        return json({ ok: true }, cors);
+      }
       case 'tirar-do-ranking': {
         const partidas = await rankingStub(env).remover(profileId);
         await painel.registrar('admin: tirou do ranking', profileId, `${partidas} resultados`);

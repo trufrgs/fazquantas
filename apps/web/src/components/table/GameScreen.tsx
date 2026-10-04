@@ -37,14 +37,20 @@ import { enfeitesDeTeste, mascarasDeTeste, useZoeiraDeTeste } from './zoeira/tes
 import { useDiretor } from './zoeira/useDiretor';
 import { MenuDoAmigo, type AlvoDoMenu } from './zoeira/MenuDoAmigo';
 import { ZoeiraNaMesa } from './zoeira/ZoeiraNaMesa';
-import { useMidia } from '../../lib/midia';
+import { midia, useMidia } from '../../lib/midia';
+import { fotografar } from '../../lib/foto';
+import { sintetizar } from '../../lib/sintetizado';
 import { animate } from 'motion/react';
+import { guardarFoto, marcarLance, useZoeira } from './zoeira/agenda';
+import { useAbano, useGargalhada, useSopro } from './zoeira/microfone';
+import { chaveDaMao } from './manilhas';
 import { pedirSensor, useChacoalhao } from '../../lib/chacoalhao';
 import { useAlgumaCamera, VideoAmpliado } from '../ui/Midia';
 import { useApp } from '../../stores/app';
 import { useGame, type LiveReaction, type LiveZoeira } from '../../stores/game';
 import { ehPatrao, isHost, naPlateia, useOnline } from '../../stores/online';
 import { BotaoQueroJogar, cantoDaPlateia, PedidoDaPlateia, PlateiaNaMesa } from '../sala/Plateia';
+import { ChegadaNaSala } from '../sala/Chegada';
 import { SenhaDaSala } from '../setup/RoomSettings';
 import { SPEED_MULTIPLIER, useSettings } from '../../stores/settings';
 import { AdminNotice } from '../ui/AdminNotice';
@@ -603,6 +609,48 @@ function Table({
   const mascaras = useMemo(() => (cameraRapida ? new Map() : ((import.meta.env.DEV ? mascarasDeTeste(view) : null) ?? mascarasDe(view))), [view, cameraRapida]);
   // A mão que decide: quem sai ou fica conforme a última mão da rodada (a mesa espera o corte de novela).
   const decide = useMemo(() => !cameraRapida && maoQueDecide(view).length > 0, [view, cameraRapida]);
+  // Soprar e abanar: abre a fumaça por um instante, só na tua tela (arrasto rápido ou sopro no microfone).
+  const [abano, setAbano] = useState(0);
+  const abanar = useCallback(() => {
+    setAbano((n) => n + 1);
+    sintetizar('sopro');
+  }, []);
+  useAbano(fumaca, abanar);
+  useSopro(fumaca && online, you, abanar);
+  // O gargalhômetro: logo depois de uma mão fechar, a mesa caindo na gargalhada vira lance da noite.
+  const maoFechada = view.phase === 'trickEnd' && view.lastTrick ? chaveDaMao(view.roundNumber, view.lastTrick.plays) : null;
+  const viewRef = useRef(view);
+  useEffect(() => {
+    viewRef.current = view;
+  }, [view]);
+  useGargalhada(online && !cameraRapida, maoFechada, () => marcarLance(viewRef.current));
+  const lanceAgora = useZoeira((z) => z.lanceAgora);
+  // Voz do além: quem saiu do jogo fala com eco (fora do iPhone; ver `midia.setAlem`).
+  const foraKey = view.players.filter((p) => p.eliminated).map((p) => p.id).join(',');
+  useEffect(() => {
+    if (!online) return undefined;
+    midia.setAlem(view.phase === 'gameOver' || !foraKey ? [] : foraKey.split(','));
+    return () => midia.setAlem([]);
+  }, [online, foraKey, view.phase]);
+  // A foto do vexame: no fim da rodada, a cara de quem saiu (ou perdeu dois palitos) de câmera aberta.
+  const ultimaRodada = view.history.at(-1);
+  useEffect(() => {
+    if (view.phase !== 'roundEnd' || !ultimaRodada || ultimaRodada.number !== view.roundNumber || cameraRapida) return;
+    const quem = Object.keys(ultimaRodada.bids).filter(
+      (id) => ultimaRodada.eliminated.includes(id) || (ultimaRodada.livesBefore[id] ?? 0) - (ultimaRodada.livesAfter[id] ?? 0) >= 2,
+    );
+    const cameras = comCamera.split(',');
+    for (const id of quem) {
+      if (!cameras.includes(id)) continue;
+      const m = useMidia.getState();
+      void fotografar(id === you ? m.local : m.remotos[id], id === you).then((url) => {
+        if (url) guardarFoto({ id, rodada: ultimaRodada.number, url });
+      });
+    }
+    // Uma vez por fim de rodada.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [view.phase, ultimaRodada?.number]);
+  const fotos = useZoeira((z) => z.fotos);
   const infoDe = useCallback(
     (id: string): PorUmFio | null => {
       const p = view.players.find((x) => x.id === id);
@@ -657,8 +705,10 @@ function Table({
     const p = pontoDe(amigo);
     const nome = view.players.find((x) => x.id === amigo)?.name ?? room?.plateia?.find((x) => x.playerId === amigo)?.name;
     if (!p || !nome) return null;
-    return { id: amigo, nome, p, cutucavel: demorando && view.actor?.playerId === amigo, camera: comCamera.split(',').includes(amigo) };
-  }, [amigo, pontoDe, view.players, view.actor, room?.plateia, demorando, comCamera]);
+    const lugar = room?.seats.find((x) => x.playerId === amigo) ?? room?.plateia?.find((x) => x.playerId === amigo);
+    const alcunha = lugar && 'piada' in lugar ? lugar.piada?.alcunha : undefined;
+    return { id: amigo, nome, p, cutucavel: demorando && view.actor?.playerId === amigo, camera: comCamera.split(',').includes(amigo), alcunha };
+  }, [amigo, pontoDe, view.players, view.actor, room?.plateia, room?.seats, demorando, comCamera]);
   const lugarDaFaixa = cantadasTop(geometry, reveal, view.players.filter((p) => p.inRound).length, s);
   const turnLeft = useTimeLeft(view.turnDeadline);
   // Vez com tempo (tua ou de outra pessoa): o tempo vai no aviso da tua faixa, nada por cima das
@@ -772,7 +822,7 @@ function Table({
           {cinzeiro && <CinzeiroDaMesa {...cinzeiro} />}
           <PassanteNaMesa altura={table.height} />
           {/* A fumaça de quem espera: por cima dos assentos, por baixo das cartas que quem joga precisa ver. */}
-          <AnimatePresence>{fumaca && <FumacaNaMesa key="fumaca" />}</AnimatePresence>
+          <AnimatePresence>{fumaca && <FumacaNaMesa key="fumaca" abano={abano} />}</AnimatePresence>
           {/* As cartas na testa entram depois da faixa da rodada (as duas ocupam o centro da mesa). */}
         {reveal && !banner && <RevealCards players={view.players} you={you} layout={reveal} acimaDaFumaca={fumaca} />}
           {table.width > 0 && (
@@ -792,6 +842,7 @@ function Table({
               ritmo={ritmo}
               acimaDaFumaca={fumaca}
               decide={decide}
+              lance={!!lanceAgora && lanceAgora === maoFechada}
             />
           )}
           <RoundBanner view={view} shown={banner} />
@@ -824,6 +875,7 @@ function Table({
             meuAvatar={you ? avatarDe(you) : undefined}
           />
           {online && <PedidoDaPlateia room={room} />}
+          {online && <ChegadaNaSala />}
           <BidPanel
             open={bidding}
             cards={view.cardsThisRound}
@@ -948,7 +1000,7 @@ function Table({
       </div>
 
       {/* Passado o limite, a fumaça passa por cima de tudo, a tua mão inclusive: fica difícil de ver. */}
-      <AnimatePresence>{fumaca && <FumacaPorCima key="veu" />}</AnimatePresence>
+      <AnimatePresence>{fumaca && <FumacaPorCima key="veu" abano={abano} />}</AnimatePresence>
 
       <RoundSummary
         open={resumoAberto}
@@ -959,6 +1011,7 @@ function Table({
         autoMs={autoMs}
         onContinue={online ? undefined : () => conn.skipPause?.()}
         onAcelerar={soBots && !cameraRapida && !view.result ? () => conn.acelerar?.() : undefined}
+        fotos={fotos}
       />
       {view.phase === 'gameOver' && (
         <GameOver

@@ -14,6 +14,8 @@ Recursos de terceiros usados no jogo, todos com licença que permite uso comerci
 | Sons de interface (Interface Sounds) | Kenney | CC0 | [kenney.nl](https://kenney.nl/assets/interface-sounds) |
 | Sons da espada e do bastião partido (RPG Audio) | Kenney | CC0 | [kenney.nl](https://kenney.nl/assets/rpg-audio) |
 | Tango de fundo ("Tango de Manzana") | Kevin MacLeod (incompetech.com) | [CC BY 3.0](https://creativecommons.org/licenses/by/3.0/) | [Wikimedia Commons](https://commons.wikimedia.org/wiki/File:Tango_de_Manzana_%28ISRC_USUAN1100404%29.mp3) |
+| Barulho de bolicho ("Atmosphere Bar #2") | BigSoundBank (Joseph Sardin) | CC0 | [bigsoundbank.com](https://bigsoundbank.com/detail-0480-atmosphere-bar-2.html) |
+| Copo e sinuca (Impact Sounds) | Kenney | CC0 | [kenney.nl](https://kenney.nl/assets/impact-sounds) |
 | Vitória no bandoneón ("Win Jingle") | Fupi | CC0 | [OpenGameArt](https://opengameart.org/content/win-jingle) |
 | Trompete de eliminação ("Game Over Trumpet SFX") | 0new4y | CC0 | [OpenGameArt](https://opengameart.org/content/game-over-trumpet-sfx) |
 | Som de vida perdida ("UI Sound Effects") | Robin Lamb | CC0 | [OpenGameArt](https://opengameart.org/content/ui-sound-effects-button-clicks-user-feedback-notifications) |

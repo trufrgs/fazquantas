@@ -1,5 +1,5 @@
-import { motion } from 'motion/react';
-import type { CSSProperties } from 'react';
+import { motion, useAnimate } from 'motion/react';
+import { useEffect, type CSSProperties, type ReactNode } from 'react';
 
 /**
  * A fumaça de quem espera ("uma animação de fumaça mais exagerada, e que conforme demora mais vai
@@ -16,6 +16,9 @@ import type { CSSProperties } from 'react';
  * (decide quem chama), e sala de vez longa (uma hora ou mais por jogada) também não: lá ninguém está
  * esperando ao vivo. Tudo anda por CSS e `transform`/`opacity`, sem filtro de desfoque, que pesa no
  * celular.
+ *
+ * Quem está no meio dela abana (arrasto rápido) ou sopra o microfone e ela abre por um instante, só
+ * na tela de quem abanou (`abano` muda a cada abanada).
  */
 
 /** Segundos, a contar de quando os palheiros acendem. */
@@ -63,8 +66,21 @@ function Nuvem({ x, y, tam, entra, vai, ate, sobe = 5 }: { x: number; y: number;
   );
 }
 
+/** A abanada: a fumaça abre quase toda e volta a fechar em dois segundos. */
+function Abanada({ abano, children }: { abano: number; children: ReactNode }) {
+  const [el, animar] = useAnimate<HTMLDivElement>();
+  useEffect(() => {
+    if (abano > 0 && el.current) void animar(el.current, { opacity: [1, 0.12, 0.12, 1], scale: [1, 1.08, 1.08, 1] }, { duration: 2, times: [0, 0.12, 0.55, 1], ease: 'easeInOut' });
+  }, [abano, animar, el]);
+  return (
+    <div ref={el} className="absolute inset-0">
+      {children}
+    </div>
+  );
+}
+
 /** A fumaça que enche a mesa (dentro da área da mesa, por cima dos assentos e por baixo das cartas). */
-export function FumacaNaMesa() {
+export function FumacaNaMesa({ abano = 0 }: { abano?: number }) {
   return (
     <motion.div
       aria-hidden="true"
@@ -73,39 +89,43 @@ export function FumacaNaMesa() {
       style={{ maskImage: 'linear-gradient(to bottom, #000 86%, transparent)', WebkitMaskImage: 'linear-gradient(to bottom, #000 86%, transparent)' }}
       exit={{ opacity: 0, scale: 1.25, transition: { duration: 0.55, ease: 'easeOut' } }}
     >
-      {/* O fundo: fecha devagar, até a mesa sumir. */}
-      <motion.div
-        className="absolute inset-0"
-        style={{ background: 'radial-gradient(ellipse 120% 90% at 50% 40%, rgb(222 215 204 / 0.97), rgb(205 198 188 / 0.95))' }}
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 0.93 }}
-        transition={{ duration: FUMACA.encheS, ease: [0.45, 0, 0.75, 0.6] }}
-      />
-      {NUVENS.map((n, i) => (
-        <Nuvem key={i} x={n.x} y={n.y} tam={n.tam} entra={n.entra} vai={n.vai} ate={n.cheia} />
-      ))}
+      <Abanada abano={abano}>
+        {/* O fundo: fecha devagar, até a mesa sumir. */}
+        <motion.div
+          className="absolute inset-0"
+          style={{ background: 'radial-gradient(ellipse 120% 90% at 50% 40%, rgb(222 215 204 / 0.97), rgb(205 198 188 / 0.95))' }}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 0.93 }}
+          transition={{ duration: FUMACA.encheS, ease: [0.45, 0, 0.75, 0.6] }}
+        />
+        {NUVENS.map((n, i) => (
+          <Nuvem key={i} x={n.x} y={n.y} tam={n.tam} entra={n.entra} vai={n.vai} ate={n.cheia} />
+        ))}
+      </Abanada>
     </motion.div>
   );
 }
 
 /** O véu que, passado o limite, passa por cima de tudo (a tela inteira, a tua mão inclusive). */
-export function FumacaPorCima() {
+export function FumacaPorCima({ abano = 0 }: { abano?: number }) {
   return (
     <motion.div
       aria-hidden="true"
       className="pointer-events-none absolute inset-0 z-[45] overflow-hidden"
       exit={{ opacity: 0, scale: 1.25, transition: { duration: 0.55, ease: 'easeOut' } }}
     >
-      <motion.div
-        className="absolute inset-0"
-        style={{ background: 'linear-gradient(180deg, rgb(222 215 204), rgb(210 203 192))' }}
-        initial={{ opacity: 0 }}
-        animate={{ opacity: FUMACA.veuMax * 0.7 }}
-        transition={{ delay: FUMACA.veuAposS, duration: FUMACA.veuS, ease: 'linear' }}
-      />
-      {VEUS.map((n, i) => (
-        <Nuvem key={i} x={n.x} y={n.y} tam={n.tam} entra={n.entra} vai={n.vai} ate={FUMACA.veuMax * 0.75} sobe={8} />
-      ))}
+      <Abanada abano={abano}>
+        <motion.div
+          className="absolute inset-0"
+          style={{ background: 'linear-gradient(180deg, rgb(222 215 204), rgb(210 203 192))' }}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: FUMACA.veuMax * 0.7 }}
+          transition={{ delay: FUMACA.veuAposS, duration: FUMACA.veuS, ease: 'linear' }}
+        />
+        {VEUS.map((n, i) => (
+          <Nuvem key={i} x={n.x} y={n.y} tam={n.tam} entra={n.entra} vai={n.vai} ate={FUMACA.veuMax * 0.75} sobe={8} />
+        ))}
+      </Abanada>
     </motion.div>
   );
 }

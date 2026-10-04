@@ -59,6 +59,12 @@ export const useMidia = create<EstadoDaMidia>(() => ({
 
 /** Volume (0 a 1) que conta como fala, e quanto a fala "segura" depois. */
 const LIMIAR = 0.035;
+/**
+ * Voz do além (caderno de zoeira): quem saiu do jogo fala com eco de caverna, no som de quem escuta.
+ * Mexer no som da conversa é arriscado no iPhone (o Web Audio com trilha de outra pessoa às vezes fica
+ * mudo lá): no iPhone e no iPad fica desligado até alguém testar num aparelho de verdade.
+ */
+const ECO_DO_ALEM = typeof navigator !== 'undefined' && !/iPhone|iPad|iPod/.test(navigator.userAgent) && !(navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 const SEGURA_MS = 350;
 /** Ligação que caiu: espera antes de tentar de novo com a mesma pessoa. */
 const ESPERA_RELIGAR_MS = 4000;
@@ -124,6 +130,74 @@ class MidiaDaMesa {
   private religar: number | null = null;
   private filas = new Map<string, Promise<void>>();
   private anunciadoEm = 0;
+  /** Quem quer saber do volume de cada um a cada medida (a fumaça soprada, o gargalhômetro). */
+  private readonly ouvintesDeVolume = new Set<(id: string, volume: number, aberto: boolean) => void>();
+  /** Quem saiu do jogo (fala com eco) e o caminho do eco de cada um. */
+  private alem = new Set<string>();
+  private readonly ecos = new Map<string, AudioNode[]>();
+
+  /** O volume de cada um (tu inclusive, com o teu id da sala), umas oito vezes por segundo. */
+  aoVolume(fn: (id: string, volume: number, aberto: boolean) => void): () => void {
+    this.ouvintesDeVolume.add(fn);
+    return () => this.ouvintesDeVolume.delete(fn);
+  }
+
+  /** Quem fala com eco de caverna agora (quem saiu do jogo). Fora do iPhone (`ECO_DO_ALEM`). */
+  setAlem(ids: readonly string[]): void {
+    if (!ECO_DO_ALEM) return;
+    const novo = new Set(ids.filter((id) => id !== this.eu));
+    for (const id of this.alem) if (!novo.has(id)) this.desligarEco(id);
+    this.alem = novo;
+    for (const id of novo) this.ligarEco(id);
+  }
+
+  private ligarEco(id: string): void {
+    if (this.ecos.has(id) || !this.ouvir || !this.alem.has(id)) return;
+    const audio = this.audios.get(id);
+    const stream = useMidia.getState().remotos[id];
+    if (!audio || !stream || stream.getAudioTracks().length === 0) return;
+    try {
+      this.ctx ??= new AudioContext();
+      const ctx = this.ctx;
+      if (ctx.state !== 'running') void ctx.resume().catch(() => undefined);
+      const fonte = ctx.createMediaStreamSource(stream);
+      const abafa = ctx.createBiquadFilter();
+      abafa.type = 'lowpass';
+      abafa.frequency.value = 1900;
+      const seco = ctx.createGain();
+      seco.gain.value = 0.6;
+      const atraso = ctx.createDelay(1);
+      atraso.delayTime.value = 0.23;
+      const volta = ctx.createGain();
+      volta.gain.value = 0.45;
+      const eco = ctx.createGain();
+      eco.gain.value = 0.55;
+      fonte.connect(abafa);
+      abafa.connect(seco).connect(ctx.destination);
+      abafa.connect(atraso);
+      atraso.connect(volta).connect(atraso);
+      atraso.connect(eco).connect(ctx.destination);
+      // O elemento segue tocando, mudo (sem ele, o Chrome entrega silêncio ao Web Audio).
+      audio.muted = true;
+      this.ecos.set(id, [fonte, abafa, seco, atraso, volta, eco]);
+    } catch {
+      // sem eco: a voz segue normal
+    }
+  }
+
+  private desligarEco(id: string): void {
+    const nos = this.ecos.get(id);
+    this.ecos.delete(id);
+    for (const n of nos ?? []) {
+      try {
+        n.disconnect();
+      } catch {
+        // já desligado
+      }
+    }
+    const audio = this.audios.get(id);
+    if (nos && audio) audio.muted = !this.ouvir;
+  }
 
   usar(transporte: TransporteDaMidia): void {
     this.transporte = transporte;
@@ -395,6 +469,8 @@ class MidiaDaMesa {
     audio.srcObject = stream;
     void audio.play().catch(() => undefined);
     this.medir(id, stream);
+    this.desligarEco(id);
+    this.ligarEco(id);
   }
 
   private fechar(id: string): void {
@@ -406,6 +482,7 @@ class MidiaDaMesa {
     } catch {
       // já estava fechada
     }
+    this.desligarEco(id);
     const audio = this.audios.get(id);
     if (audio) {
       audio.srcObject = null;
@@ -426,7 +503,9 @@ class MidiaDaMesa {
   /** Ouvir ou não a conversa dos outros (ajuste "Ouvir a conversa"). */
   setOuvir(on: boolean): void {
     this.ouvir = on;
+    for (const id of [...this.ecos.keys()]) this.desligarEco(id);
     for (const a of this.audios.values()) a.muted = !on;
+    if (on) for (const id of this.alem) this.ligarEco(id);
   }
 
   /** Um toque na tela: o iPhone só deixa tocar o áudio que chegou depois de um toque. */
@@ -469,6 +548,7 @@ class MidiaDaMesa {
       const aberto = id === this.eu ? mic : this.abertos.get(id)?.mic;
       if (volume > LIMIAR && aberto) m.ate = agora + SEGURA_MS;
       if (m.ate > agora) falando[id] = true;
+      for (const fn of this.ouvintesDeVolume) fn(id, volume, !!aberto);
     }
     const antes = useMidia.getState().falando;
     const mudou = Object.keys(falando).length !== Object.keys(antes).length || Object.keys(falando).some((id) => !antes[id]);
@@ -508,6 +588,8 @@ class MidiaDaMesa {
     this.outros = [];
     this.abertos = new Map();
     this.filas = new Map();
+    this.alem = new Set();
+    this.ecos.clear();
     this.eu = null;
     useMidia.setState({ mic: false, camera: false, pedindo: null, falando: {}, local: null, remotos: {}, ampliado: null, usouMic: false });
   }

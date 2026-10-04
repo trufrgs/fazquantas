@@ -1,4 +1,4 @@
-import { porUmFio, resolveTrick, type Play, type PlayerView, type ReactionId, type RoundRecord, type StrengthCtx, type TieRule } from '@fodinha/engine';
+import { porUmFio, quemMatou, type PlayerView, type ReactionId, type RoundRecord } from '@fodinha/engine';
 
 /**
  * O diretor da zoeira: decide o que a mesa faz sozinha para debochar de quem joga, e principalmente o
@@ -193,19 +193,8 @@ export function maoQueDecide(view: PlayerView): string[] {
 
 // ------------------------------------------------------------------------------- quem mata quem
 
-/**
- * A última carta jogada tomou a mão de alguém? Devolve quem matou e de quem era a carta que estava
- * levando. Empate (ninguém leva) e primeira carta da mão não contam.
- */
-export function quemMatou(plays: readonly Play[], ctx: StrengthCtx, tieRule: TieRule): { matador: string; vitima: string; carta: Play['cardId'] } | null {
-  if (plays.length < 2) return null;
-  const ultima = plays.at(-1)!;
-  const antes = resolveTrick(plays.slice(0, -1), ctx, tieRule).winnerId;
-  const depois = resolveTrick(plays, ctx, tieRule).winnerId;
-  if (!antes || antes === ultima.playerId || depois !== ultima.playerId) return null;
-  const carta = plays.find((p) => p.playerId === antes)?.cardId;
-  return carta ? { matador: ultima.playerId, vitima: antes, carta } : null;
-}
+/** Quem matou a carta de quem: a conta mora na engine (o mural da vergonha usa a mesma). */
+export { quemMatou };
 
 /** O valor de que um "é galo" fala (`galo-3` → `3`); o genérico vale para a carta que estiver levando. */
 export function valorDoGalo(id: ReactionId): string | 'qualquer' | null {

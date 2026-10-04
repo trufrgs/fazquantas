@@ -42,6 +42,24 @@ export interface Quadro {
   cinzeiro: { total: number; por: Record<string, number> };
   /** Quem mais teve a carta morta pelo mesmo dono na partida. */
   fregues: { fregues: string; dono: string; vezes: number } | null;
+  /** A foto do vexame de quem saiu (ou perdeu dois palitos) de câmera aberta: só nesta mesa. */
+  fotos: Foto[];
+  /** As mãos que fizeram a mesa cair na gargalhada (o "lance da noite"). */
+  lances: Lance[];
+  /** A mão que está na mesa agora e acabou de virar lance (`chaveDaMao`), para o selo. */
+  lanceAgora: string | null;
+}
+
+export interface Foto {
+  id: string;
+  rodada: number;
+  url: string;
+}
+
+export interface Lance {
+  rodada: number;
+  dono: string;
+  carta: CardId;
 }
 
 export type Palco =
@@ -63,7 +81,35 @@ const DEPOIS_DA_FAIXA_MS = 1700;
 /** Uma vez a cada tantas rodadas, o baralho escapa da mão de quem dá. */
 const TROPECO_A_CADA = 18;
 
-const VAZIO: Quadro = { cenas: {}, faixa: null, palco: null, passante: null, contas: CONTAS_VAZIAS, cinzeiro: { total: 0, por: {} }, fregues: null };
+const VAZIO: Quadro = {
+  cenas: {},
+  faixa: null,
+  palco: null,
+  passante: null,
+  contas: CONTAS_VAZIAS,
+  cinzeiro: { total: 0, por: {} },
+  fregues: null,
+  fotos: [],
+  lances: [],
+  lanceAgora: null,
+};
+
+/** Guarda a foto do vexame (no máximo seis por partida, as primeiras: a mesa não vira álbum). */
+export function guardarFoto(f: Foto): void {
+  const { fotos } = useZoeira.getState();
+  if (fotos.length >= 6 || fotos.some((x) => x.id === f.id && x.rodada === f.rodada)) return;
+  useZoeira.setState({ fotos: [...fotos, f] });
+}
+
+/** A mesa caiu na gargalhada com a mão que acabou de fechar: vira lance da noite. */
+export function marcarLance(view: PlayerView): void {
+  const t = view.lastTrick;
+  if (view.phase !== 'trickEnd' || !t?.winnerId) return;
+  const carta = t.plays.find((p) => p.playerId === t.winnerId)?.cardId;
+  if (!carta) return;
+  const { lances } = useZoeira.getState();
+  useZoeira.setState({ lances: [...lances, { rodada: view.roundNumber, dono: t.winnerId, carta }], lanceAgora: chaveDaMao(view.roundNumber, t.plays) });
+}
 
 export const useZoeira = create<Quadro>(() => VAZIO);
 
@@ -123,7 +169,7 @@ export class Agenda {
   parar(): void {
     for (const t of this.timers) clearTimeout(t);
     this.timers.clear();
-    useZoeira.setState({ cenas: {}, faixa: null, palco: null, passante: null });
+    useZoeira.setState({ cenas: {}, faixa: null, palco: null, passante: null, lanceAgora: null });
   }
 
   private depois(ms: number, fn: () => void): void {

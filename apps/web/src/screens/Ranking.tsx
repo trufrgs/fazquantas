@@ -4,6 +4,8 @@ import {
   type RankingPeriod,
   type RankingResponse,
   type RankingScope,
+  type TituloDaVergonha,
+  type TituloNoMural,
 } from '@fodinha/engine';
 import { ChevronLeft, ChevronRight, Trophy } from 'lucide-react';
 import { useEffect, useState } from 'react';
@@ -174,6 +176,47 @@ export function Ranking() {
           "Minha turma" mostra só quem já jogou uma partida valendo contigo.
         </p>
       </Panel>
+      {data?.mural && data.mural.length > 0 && <MuralDaVergonha mural={data.mural} periodo={period} profileId={profileId} />}
     </ScreenFrame>
+  );
+}
+
+/** O nome de cada título no mural, pelo período (a lanterna "da semana", "do mês"…). */
+function nomeDoTitulo(t: TituloDaVergonha, periodo: RankingPeriod): string {
+  const de = { semana: 'da semana', mes: 'do mês', ano: 'do ano', sempre: 'de todos os tempos' }[periodo];
+  return { lanterna: `Lanterna ${de}`, fregues: 'Maior freguês', bituca: 'Recordista de bituca', virada: 'Virador de mesa' }[t];
+}
+
+function contaDoTitulo(t: TituloDaVergonha, n: number): string {
+  const p = (um: string, varios: string) => `${n} ${n === 1 ? um : varios}`;
+  return {
+    lanterna: p('vez em último', 'vezes em último'),
+    fregues: p('carta morta', 'cartas mortas'),
+    bituca: p('bituca de espera', 'bitucas de espera'),
+    virada: p('mesa virada', 'mesas viradas'),
+  }[t];
+}
+
+/**
+ * O mural da vergonha (caderno de zoeira): ao lado dos pontos, os títulos que ninguém quer, pendurados
+ * até alguém tomar o posto no período. Sai das partidas que valeram ranking.
+ */
+function MuralDaVergonha({ mural, periodo, profileId }: { mural: TituloNoMural[]; periodo: RankingPeriod; profileId: string | null }) {
+  return (
+    <Panel title="Mural da vergonha">
+      <ul className="flex flex-col divide-y divide-tinta/10">
+        {mural.map((t) => (
+          <li key={t.titulo} className="flex items-center gap-3 py-2.5">
+            <Avatar seed={t.avatar || t.profileId} size={36} />
+            <span className="min-w-0 flex-1">
+              <span className="block text-xs font-semibold uppercase tracking-wide text-tinta-2">{nomeDoTitulo(t.titulo, periodo)}</span>
+              <span className="block truncate font-bold">{t.profileId === profileId ? `${t.name} (tu)` : t.name}</span>
+            </span>
+            <span className="shrink-0 font-hand text-lg leading-none text-copas">{contaDoTitulo(t.titulo, t.n)}</span>
+          </li>
+        ))}
+      </ul>
+      <p className="mt-2 text-sm text-tinta-2">Fica pendurado até alguém tomar o posto.</p>
+    </Panel>
   );
 }

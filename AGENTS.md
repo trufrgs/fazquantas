@@ -166,6 +166,20 @@ pnpm exec playwright test                  # E2E locais (sobem os servidores soz
   carimbadas no alvo ("Chorão!" lágrimas, "Chinelão!" o chinelo, "Guloso!" o focinho). O "PROCURA-SE"
   da câmera do líder ficou de fora: a coroa já diz isso. Cenas: `?cena=decide|peleia|lixo`,
   `?zoeira=cumadre|corte`, `&mascaras=1`.
+- **O microfone, a voz e a noite** (5ª leva, 04/10/2026): a frase na tua voz (Ajustes, "Frases na tua
+  voz": até 2 s por frase favorita, IMA ADPCM a 9,6 kHz feito no próprio app para não depender do codec
+  de cada navegador e caber em `MAX_MESSAGE_BYTES`; fica no aparelho e, na sala, só na memória do
+  servidor, `voz:frase`); soprar o microfone ou abanar com o dedo abre a fumaça na tua tela; o
+  gargalhômetro (dois microfones saltando juntos sobre o próprio fundo logo depois da mão) bate o selo
+  "lance da noite" na carta e vai para o fim de jogo e o jornal; a voz do além (eco em quem saiu, fora
+  do iPhone até testar num aparelho de verdade); a foto do vexame (a cara de quem saiu de câmera aberta,
+  tirada em cada aparelho, no resumo, no fim de jogo e no jornal); o mural da vergonha no ranking
+  (lanterna, maior freguês, recordista de bituca, virador de mesa; contado pela sala e somado pelo
+  `RankingDO`); a piada interna por apelido (admin, Jogadores, "Piada interna": a faixa da chegada e o
+  apelido de zoeira na sala e no menu do amigo; fica no `ContasDO`, fora do código); o barulho de
+  bolicho por baixo do tango (conversa, copo e sinuca, CC0; cala com microfone aberto). O rádio com
+  estações ficou de fora: não há milonga nem vaneira com licença que permita uso comercial (a regra
+  do `CREDITS.md`). Microfone: só volume, nada gravado; contas em `zoeira/microfone.ts` (testadas).
 - **Zoeira: uma coisa de cada vez em cada lugar.** O Thomas escolheu dezenas de ideias no caderno de
   zoeira (02/10/2026) com uma condição: o excesso não pode sobrecarregar nem atrapalhar a jogada, e as
   opções não podem se confundir entre si. As regras moram em `components/table/zoeira/diretor.ts` e

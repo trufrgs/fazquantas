@@ -12,6 +12,12 @@ import {
   ROOM_CAPACITY,
   WS_CLOSE,
   ControleDaZoeira,
+  DEMORA_DO_PALHEIRO_MS,
+  quemMatou,
+  strengthCtx,
+  VOZ_NA_SALA,
+  type PiadaDoApelido,
+  type Vergonha,
   createRng,
   currentActor,
   newSeries,
@@ -92,6 +98,8 @@ export interface Perfil {
   aba?: string | null;
   /** A página de quem entra está à vista (sem a informação, conta como à vista). */
   visivel?: boolean;
+  /** A piada interna do admin para este apelido. */
+  piada?: PiadaDoApelido | null;
 }
 
 export interface AjustesSala {
@@ -116,6 +124,8 @@ export interface PartidaRanqueada {
     points: number;
     won: boolean;
     abandoned: boolean;
+    /** O que vai para o mural da vergonha (ausente: partida de antes do mural). */
+    vergonha?: Vergonha;
   }[];
 }
 
@@ -184,6 +194,7 @@ interface HumanSeat {
   plateia?: boolean;
   quer?: boolean;
   aceito?: boolean;
+  piada?: PiadaDoApelido | null;
 }
 
 interface BotSeat {
@@ -284,6 +295,15 @@ export class Sala {
   private readonly lastReactionAt = new Map<string, number>();
   /** Os limites da zoeira de cada um (tiros por rodada, uma virada de mesa por partida…). */
   private readonly zoeira = new ControleDaZoeira();
+  /**
+   * A frase na voz de cada um (`voz:frase`), por jogador: só na memória, nunca no retrato da sala; sai
+   * junto com a pessoa. No máximo `VOZ_NA_SALA.maxFrases` por pessoa (a nova tira a mais antiga).
+   */
+  private readonly vozes = new Map<string, Map<ReactionId, string>>();
+  /** O mural da vergonha da partida em curso: carta morta, bitucas e mesas viradas de cada um. */
+  private vergonha = new Map<string, Omit<Vergonha, 'lanterna'>>();
+  /** De quem é a vez e desde quando (a demora vira bituca no mural). */
+  private vezDesde: { playerId: string; desde: number } | null = null;
   private stateDirty = false;
   private outbox: { playerId: string; message: ViewMessage }[] = [];
   private flushQueued = false;
@@ -365,6 +385,7 @@ export class Sala {
             avatar: seat.avatar,
             connected: seat.conexao !== null,
             away: game?.isAway(seat.playerId) ?? false,
+            ...(seat.piada ? { piada: seat.piada } : {}),
           }
         : {
             kind: 'bot',
@@ -384,6 +405,7 @@ export class Sala {
       connected: seat.conexao !== null,
       quer: seat.quer ?? false,
       aceito: seat.aceito ?? false,
+      ...(seat.piada ? { piada: seat.piada } : {}),
     }));
   }
 
@@ -515,6 +537,7 @@ export class Sala {
       desconectadoEm: null,
       visivel: true,
       aba: perfil.aba ?? null,
+      ...(perfil.piada ? { piada: perfil.piada } : {}),
       ...(this.podeSentar() ? {} : { plateia: true, quer: false, aceito: false }),
     };
     this.seats.push(seat);
@@ -548,6 +571,7 @@ export class Sala {
     }
     if (perfil.profileId) seat.profileId = perfil.profileId;
     if (perfil.aba) seat.aba = perfil.aba;
+    if (perfil.piada !== undefined) seat.piada = perfil.piada;
     this.bind(seat, conexao, perfil.visivel ?? true);
     if (this.currentStatus === 'playing' && !seat.plateia) this.gameHost?.setAway(playerId, false);
     this.conferirCoroa();
@@ -934,6 +958,17 @@ export class Sala {
     this.human(para)?.conexao?.enviar('midia:sinal', { de, dados });
   }
 
+  /** Guarda (ou apaga, com `null`) a frase na voz de alguém e repassa para o resto da sala. */
+  vozDaFrase(playerId: string, reaction: ReactionId, audio: string | null): void {
+    if (!this.naSala(playerId)) throw fail('NOT_IN_ROOM', MESSAGES.notInRoom);
+    const dele = this.vozes.get(playerId) ?? new Map<ReactionId, string>();
+    dele.delete(reaction);
+    if (audio !== null) dele.set(reaction, audio);
+    while (dele.size > VOZ_NA_SALA.maxFrases) dele.delete(dele.keys().next().value!);
+    this.vozes.set(playerId, dele);
+    for (const seat of this.humans()) if (seat.playerId !== playerId) seat.conexao?.enviar('voz:frase', { playerId, reaction, audio });
+  }
+
   react(playerId: string, reaction: ReactionId): void {
     const at = this.deps.relogio.now();
     const last = this.lastReactionAt.get(playerId);
@@ -962,6 +997,7 @@ export class Sala {
     const recado = this.zoeira.pode(playerId, z, ctx);
     if (recado) throw fail('GAME_ERROR', recado);
     this.zoeira.registrar(playerId, z, ctx);
+    if (z.tipo === 'virar') this.somarVergonha(playerId, 'viradas');
     for (const seat of this.humans()) seat.conexao?.enviar('game:zoeira', { ...z, de: playerId, at });
   }
 
@@ -1146,6 +1182,11 @@ export class Sala {
     seat.visivel = visivel;
     conexao.jogadorId = seat.playerId;
     conexao.vincular(seat.playerId);
+    // Quem chega (ou volta) recebe a voz de cada um da sala.
+    for (const [id, dele] of this.vozes) {
+      if (id === seat.playerId) continue;
+      for (const [reaction, audio] of dele) conexao.enviar('voz:frase', { playerId: id, reaction, audio });
+    }
   }
 
   private unbind(seat: HumanSeat): void {
@@ -1223,6 +1264,7 @@ export class Sala {
     if (!seat) return;
     this.lastReactionAt.delete(seat.playerId);
     this.revanche.delete(seat.playerId);
+    this.vozes.delete(seat.playerId);
     if (seat.kind === 'human') this.unbind(seat);
     this.patroes.delete(seat.playerId);
     if (seat.playerId === this.criadorId) this.criadorId = '';
@@ -1232,6 +1274,7 @@ export class Sala {
 
   private replaceWithBot(index: number, seat: HumanSeat): void {
     this.unbind(seat);
+    this.vozes.delete(seat.playerId);
     this.revanche.delete(seat.playerId);
     this.patroes.delete(seat.playerId);
     if (seat.playerId === this.criadorId) this.criadorId = '';
@@ -1398,6 +1441,8 @@ export class Sala {
     this.gameHost = game;
     this.lastAway = '';
     this.lastActorKey = '';
+    this.vergonha = new Map();
+    this.vezDesde = null;
     this.unsubscribeGame = game.subscribe((event) => this.onGameEvent(game, event));
   }
 
@@ -1420,6 +1465,7 @@ export class Sala {
           },
         });
       }
+      this.contarVergonha(event);
       // Quem ficou ausente (estourou o tempo de novo) aparece para a mesa e pode pausar a partida.
       const away = game.awayPlayers().sort().join(',');
       if (away !== this.lastAway) {
@@ -1438,6 +1484,34 @@ export class Sala {
     } catch (error) {
       this.deps.logger.error(`[${this.code}] erro ao repassar evento da partida`, error);
     }
+  }
+
+  private somarVergonha(playerId: string, conta: keyof Omit<Vergonha, 'lanterna'>, n = 1): void {
+    const v = this.vergonha.get(playerId) ?? { fregues: 0, bitucas: 0, viradas: 0 };
+    v[conta] += n;
+    this.vergonha.set(playerId, v);
+  }
+
+  /**
+   * O mural da vergonha conta na hora: a carta que levava a mão e foi morta (o freguês) e a vez que
+   * demorou mais que o palheiro (uma bituca por quem esperava; na sala de vez longa não conta).
+   */
+  private contarVergonha(event: HostEvent): void {
+    const st = event.state;
+    if (event.action?.type === 'play') {
+      const plays = st.phase === 'trickEnd' ? (st.round.completedTricks.at(-1)?.plays ?? []) : (st.round.trick?.plays ?? []);
+      const morte = quemMatou(plays, strengthCtx(st), st.rules.tieRule);
+      if (morte) this.somarVergonha(morte.vitima, 'fregues');
+    }
+    const ator = currentActor(st)?.playerId ?? null;
+    if (ator === this.vezDesde?.playerId) return;
+    const agora = this.deps.relogio.now();
+    const antes = this.vezDesde;
+    if (antes && !this.isAsync && agora - antes.desde >= DEMORA_DO_PALHEIRO_MS) {
+      const esperando = st.players.filter((p) => p.eliminatedRound === null && p.id !== antes.playerId).length;
+      if (esperando > 0) this.somarVergonha(antes.playerId, 'bitucas', esperando);
+    }
+    this.vezDesde = ator ? { playerId: ator, desde: agora } : null;
   }
 
   /** A vez passou para alguém com a página escondida: vale uma notificação (uma por vez). */
@@ -1530,8 +1604,12 @@ export class Sala {
     if (quitters.length > 0) groups.push(quitters.map((q) => q.profileId));
     const points = placementPoints(groups);
     const winners = new Set(game.state.result?.winners ?? []);
+    // A lanterna é de quem ficou sozinho em último na mesa (bot conta: perder para o bot também é vexame).
+    const ultimos = standingsOf(game.state.players).at(-1) ?? [];
+    const lanterna = ultimos.length === 1 && game.state.players.length > 2 ? ultimos[0] : null;
     const players: PartidaRanqueada['jogadores'] = [];
     for (const seat of byPlayer.values()) {
+      const v = this.vergonha.get(seat.playerId);
       players.push({
         profileId: seat.profileId!,
         name: seat.name,
@@ -1539,6 +1617,7 @@ export class Sala {
         points: points[seat.profileId!] ?? 0,
         won: winners.has(seat.playerId),
         abandoned: false,
+        vergonha: { lanterna: seat.playerId === lanterna ? 1 : 0, fregues: v?.fregues ?? 0, bitucas: v?.bitucas ?? 0, viradas: v?.viradas ?? 0 },
       });
     }
     for (const q of quitters) {

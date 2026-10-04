@@ -1,6 +1,7 @@
 import type { PlayerView, ZoeiraNaMesa } from '@fodinha/engine';
 import { create } from 'zustand';
 import type { GameConnection, ReactionEvent, SeatInfo, ViewUpdate } from '../lib/connection';
+import { tocarVoz, vozDe } from '../lib/voz';
 
 export interface LiveReaction extends ReactionEvent {
   key: number;
@@ -78,11 +79,18 @@ export const useGame = create<GameState>((set, get) => ({
       conn.onReaction((r) => {
         const key = ++counter;
         set({ reactions: [...get().reactions, { ...r, key }] });
+        // Quem gravou a frase na própria voz: é ela que toca.
+        const voz = vozDe(r.playerId, r.reaction, conn.youId);
+        if (voz) tocarVoz(voz);
         window.setTimeout(() => set({ reactions: get().reactions.filter((x) => x.key !== key) }), 2600);
       }),
       conn.onZoeira?.((z) => {
         const key = ++counter;
         // O grito é uma frase mais forte: vai para os balões, maior.
+        if (z.tipo === 'grito' || z.tipo === 'carimbo') {
+          const voz = vozDe(z.de, z.reaction, conn.youId);
+          if (voz) tocarVoz(voz, z.tipo === 'grito' ? z.forca : 0);
+        }
         if (z.tipo === 'grito') {
           set({ reactions: [...get().reactions, { playerId: z.de, reaction: z.reaction, key, forca: z.forca }] });
           window.setTimeout(() => set({ reactions: get().reactions.filter((x) => x.key !== key) }), 2600 + z.forca * 400);

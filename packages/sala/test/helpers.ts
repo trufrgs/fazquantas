@@ -150,6 +150,8 @@ export class ClienteTeste implements Conexao {
   readonly reactions: Reaction[] = [];
   /** Sinais de microfone e câmera que chegaram (de quem e o quê). */
   readonly sinais: { de: string; dados: unknown }[] = [];
+  /** As frases na voz dos outros que chegaram. */
+  readonly vozes: { playerId: string; reaction: string; audio: string | null }[] = [];
   /** Ordem de chegada (eventos e respostas), para conferir a sequência. */
   readonly events: string[] = [];
   kicked = 0;
@@ -177,6 +179,7 @@ export class ClienteTeste implements Conexao {
       for (const l of [...this.viewListeners]) l(d as ViewMessage);
     } else if (evento === 'game:reaction') this.reactions.push(d as Reaction);
     else if (evento === 'midia:sinal') this.sinais.push(d as { de: string; dados: unknown });
+    else if (evento === 'voz:frase') this.vozes.push(d as { playerId: string; reaction: string; audio: string | null });
     else if (evento === 'room:kicked') this.kicked += 1;
     else if (evento === 'room:replaced') this.replaced += 1;
     this.events.push(evento);

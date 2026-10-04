@@ -22,6 +22,7 @@ import { SalaSocket, type DisconnectReason } from '../lib/sala-socket';
 import { forgetRoom, knownRoom, rememberRoom } from '../lib/minhas-salas';
 import { storage } from '../lib/storage';
 import { midia, type TransporteDaMidia } from '../lib/midia';
+import { esquecerVozesDaSala, guardarVozDaSala, useMinhasVozes } from '../lib/voz';
 import { useApp } from './app';
 import { useGame } from './game';
 import { useSettings } from './settings';
@@ -237,6 +238,8 @@ interface OnlineState {
   desistirDaVolta: () => void;
   /** Recado da administração para a sala (faixa no alto até a pessoa fechar). */
   notice: { text: string; at: number } | null;
+  /** A piada interna de quem acabou de chegar ("Chegou o Igor. Segurem as carteiras."). */
+  chegada: { key: number; texto: string } | null;
   dismissNotice: () => void;
   create: (settings?: RoomUpdatePayload) => Promise<boolean>;
   /** `auto`: a volta que o app faz sozinho (abrir o app); não toma o lugar de outro aparelho em uso. */
@@ -368,8 +371,12 @@ function openSocket(code: string): SalaSocket {
   closeSocket();
   const s = new SalaSocket(roomUrl(code));
   socket = s;
+  esquecerVozesDaSala();
+  // As tuas frases gravadas vão para a sala a cada entrada (o servidor guarda só na memória).
+  let vozesMandadas = false;
 
   s.on('connect', () => {
+    vozesMandadas = false;
     if (useOnline.getState().status === 'reconnecting') void rejoin();
   });
   s.on('disconnect', (reason, detail) => {
@@ -397,9 +404,21 @@ function openSocket(code: string): SalaSocket {
       const naPlateiaAntes = new Set((before.plateia ?? []).map((x) => x.playerId));
       const plateiaNova = (room.plateia ?? []).filter((x) => !naPlateiaAntes.has(x.playerId) && !known.has(x.playerId));
       if (plateiaNova.length > 0) warnRoom(`${plateiaNova.map((x) => x.name).join(' e ')} chegou na plateia.`, 'entrou');
+      // A piada interna de quem chegou (o admin escreveu): a faixa da chegada, para a sala inteira.
+      const piada = [...arrived, ...plateiaNova].map((x) => ('piada' in x ? x.piada?.chegada : undefined)).find(Boolean);
+      if (piada) useOnline.setState({ chegada: { key: Date.now(), texto: piada } });
     }
     useOnline.setState({ room, status: 'online' });
     midia.sincronizar(room);
+    // Os assentos da mesa (quem caiu, quem a mesa está jogando por ele) acompanham a sala na hora:
+    // antes só mudavam com a próxima jogada, e o cusco ficava sentado enquanto ninguém jogava.
+    if (connection && useGame.getState().conn === connection) useGame.setState({ seats: connection.seats() });
+    if (!vozesMandadas) {
+      vozesMandadas = true;
+      for (const [reaction, audio] of Object.entries(useMinhasVozes.getState().vozes)) {
+        if (audio) s.emit('voz:frase', { reaction: reaction as ReactionId, audio });
+      }
+    }
     const app = useApp.getState();
     if (room.status !== 'lobby' && connection) app.swap('lobby', 'game');
     if (room.status === 'lobby' && useGame.getState().conn?.kind === 'online') {
@@ -427,6 +446,7 @@ function openSocket(code: string): SalaSocket {
   s.on('game:reaction', (r) => connection?.pushReaction({ playerId: r.playerId, reaction: r.reaction }));
   s.on('game:zoeira', (z) => connection?.pushZoeira(z));
   s.on('midia:sinal', (p) => midia.receberSinal(p.de, p.dados));
+  s.on('voz:frase', (p) => guardarVozDaSala(p.playerId, p.reaction, p.audio));
   s.on('room:kicked', () => useOnline.setState({ kicked: true }));
   s.on('room:notice', (n) => {
     useOnline.setState({ notice: n });
@@ -438,6 +458,7 @@ function openSocket(code: string): SalaSocket {
 function closeSocket() {
   const s = socket;
   socket = null;
+  esquecerVozesDaSala();
   if (!s) return;
   s.removeAllListeners();
   s.close();
@@ -542,6 +563,7 @@ export const useOnline = create<OnlineState>((set) => ({
   kicked: false,
   passwordFor: null,
   notice: null,
+  chegada: null,
   voltando: null,
   dismissNotice: () => set({ notice: null }),
   desistirDaVolta: () => {
@@ -716,3 +738,13 @@ export function ehPatrao(room: RoomState | null, id = room?.youId): boolean {
 export function naPlateia(room: RoomState | null): boolean {
   return !!room && (room.plateia ?? []).some((p) => p.playerId === room.youId);
 }
+
+// Gravou ou apagou uma frase com a sala aberta: a sala fica sabendo na hora.
+useMinhasVozes.subscribe((agora, antes) => {
+  if (!socket || useOnline.getState().status !== 'online') return;
+  const frases = new Set([...Object.keys(agora.vozes), ...Object.keys(antes.vozes)]) as Set<ReactionId>;
+  for (const reaction of frases) {
+    const audio = agora.vozes[reaction] ?? null;
+    if (audio !== (antes.vozes[reaction] ?? null)) socket.emit('voz:frase', { reaction, audio });
+  }
+});

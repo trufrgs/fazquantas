@@ -91,7 +91,8 @@ export function RostoZoado({
   }, [chave, tipo, animar, rosto]);
 
   const e = fora ? undefined : enfeites;
-  const chama = e && e.quente > 0 ? 0.95 + Math.min(e.quente - 3, 3) * 0.2 : 0;
+  // A chama cresce um pouco com a sequência, até um teto: maior que isso, invadia o assento de cima e o alto da mesa.
+  const chama = e && e.quente > 0 ? 0.95 + Math.min(e.quente - 3, 1) * 0.15 : 0;
   return (
     <span className="relative inline-block shrink-0 align-top" style={{ width: rem(size), height: rem(size) }}>
       {fora && (

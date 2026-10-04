@@ -6,7 +6,7 @@ import { Avatar } from '../ui/Avatar';
 import { Button } from '../ui/Button';
 import { useZoeira } from './zoeira/agenda';
 import { JornalDoBolicho } from './zoeira/JornalDoBolicho';
-import { jornalDaNoite, trofeusDaNoite } from './zoeira/noite';
+import { fraseDoLance, jornalDaNoite, trofeusDaNoite } from './zoeira/noite';
 
 export interface GameOverProps {
   view: PlayerView;
@@ -86,8 +86,10 @@ export function GameOver({
 
   const cinzeiro = useZoeira((s) => s.cinzeiro);
   const contas = useZoeira((s) => s.contas);
+  const fotos = useZoeira((s) => s.fotos);
+  const lances = useZoeira((s) => s.lances);
   const trofeus = useMemo(() => trofeusDaNoite(view, contas), [view, contas]);
-  const jornal = useMemo(() => jornalDaNoite(view, contas), [view, contas]);
+  const jornal = useMemo(() => jornalDaNoite(view, contas, new Date(), { fotos, lances }), [view, contas, fotos, lances]);
   const [lendo, setLendo] = useState(false);
   if (!result) return null;
   const name = (id: string) => view.players.find((p) => p.id === id)?.name ?? series?.names[id] ?? id;
@@ -223,6 +225,33 @@ export function GameOver({
                 ))}
               </div>
               {cinzeiro.total > 0 && <p className="m-0 mt-1 font-hand text-lg leading-tight text-tinta-2">Cinzeiro da espera: {cinzeiro.total} {cinzeiro.total === 1 ? 'bituca' : 'bitucas'}.</p>}
+            </div>
+          )}
+          {(fotos.length > 0 || lances.length > 0) && (
+            <div className="mt-3 rounded-2xl bg-tinta/5 p-3" aria-label="A foto do vexame e o lance da noite">
+              {fotos.length > 0 && (
+                <>
+                  <p className="m-0 mb-2 font-display text-base font-bold" style={{ fontVariationSettings: '"SOFT" 100' }}>
+                    A foto do vexame
+                  </p>
+                  <div className="flex flex-wrap justify-center gap-3">
+                    {fotos.slice(0, 3).map((f, i) => (
+                      <figure key={`${f.id}-${f.rodada}`} className="m-0 flex flex-col items-center" style={{ rotate: `${i % 2 ? 4 : -4}deg` }}>
+                        <img src={f.url} alt={`A cara de ${name(f.id)} na hora`} className="size-20 border-[4px] border-b-[14px] border-white object-cover shadow-md" />
+                        <figcaption className="mt-0.5 text-xs font-semibold text-tinta-2">
+                          {name(f.id)}, {f.rodada}ª
+                        </figcaption>
+                      </figure>
+                    ))}
+                  </div>
+                </>
+              )}
+              {lances.length > 0 && (
+                <p className={`m-0 text-sm leading-tight ${fotos.length > 0 ? 'mt-2' : ''}`}>
+                  <span className="font-semibold">Lance da noite: </span>
+                  {fraseDoLance(name(lances.at(-1)!.dono), lances.at(-1)!.carta)}
+                </p>
+              )}
             </div>
           )}
           {jornal && (

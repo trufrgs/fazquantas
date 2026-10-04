@@ -45,6 +45,7 @@ sala (`routeWebSocket`) e simula as falhas de verdade de celular:
 | `10-fumaca.mjs` | A fumaça da demora enchendo a mesa (e a carta da vez ainda tocável), o carimbo de quem saiu no rosto e no vídeo ampliado, e o alto da sala depois da partida (o voltar redondo, o convite junto do código) |
 | `11-plateia.mjs` | Quem chega no meio da partida vai para a plateia (sem mão, câmera em preto e branco), pede a próxima, a patroa aceita pelo aviso na mesa, senha posta no meio da partida barra quem chega, o aceito senta na volta à sala e um convidado vira patrão |
 | `12-zoar.mjs` | O menu do amigo (tomate no rosto, carimbo na testa, cutucão em quem demora), o grito segurando a frase, a pancada da carta e a virada de mesa (uma por partida), vistos dos dois lados |
+| `13-leva5.mjs` | A frase na voz de quem gravou chegando na sala, a piada interna da chegada (admin) com o apelido de zoeira, o golpe do Zorrilho online, o cusco na cadeira de quem caiu e o mural da vergonha depois de uma partida valendo ranking (precisa do worker com `ADMIN_SENHA`, como na E2E) |
 
 Referências de tempo (29/09/2026, local): modo avião volta em ~0,2 s; conexão morta é percebida em
 ~16 s e volta em ~0,2 s; jogada com a conexão morta avisa em ~6 s; celular que dormiu volta em ~0,3 s.

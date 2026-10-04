@@ -51,6 +51,8 @@ export interface TrickAreaProps {
   acimaDaFumaca?: boolean;
   /** É a mão que decide se alguém sai do jogo: a vencedora espera o corte de novela (`decisiveMs`). */
   decide?: boolean;
+  /** A mesa caiu na gargalhada com esta mão (gargalhômetro): a vencedora leva o selo "lance da noite". */
+  lance?: boolean;
 }
 
 /** Quanto a vencedora espera para subir depois que a última carta chega (segundos, no ritmo normal). */
@@ -325,6 +327,9 @@ export function TrickArea(p: TrickAreaProps) {
               );
             })}
         {meioDaPeleia && <Faisca key={`faisca-${chave}`} at={meioDaPeleia} cw={cw} />}
+        {p.lance && fechada && p.winnerId && (
+          <SeloDoLance key={`lance-${chave}`} at={p.geometry.tricks.get(p.winnerId) ?? p.geometry.center} cw={cw} ch={ch} />
+        )}
       </AnimatePresence>
       {/* O grito de cada manilha que cai: grande se ela passa a mandar na mesa, pequeno se chega depois de uma mais forte. */}
       {ctx &&
@@ -388,6 +393,33 @@ function Faisca({ at, cw }: { at: Point; cw: number }) {
           return <line key={a} x1={Math.cos(rad) * 14} y1={Math.sin(rad) * 14} x2={Math.cos(rad) * 34} y2={Math.sin(rad) * 34} stroke="#FFE7A8" strokeWidth={5} strokeLinecap="round" />;
         })}
       </motion.svg>
+    </motion.span>
+  );
+}
+
+/** O selo dourado do lance da noite, batido no canto da carta que levou a mão da gargalhada. */
+function SeloDoLance({ at, cw, ch }: { at: Point; cw: number; ch: number }) {
+  const d = Math.max(44, cw * 0.62);
+  return (
+    <motion.span
+      className="pointer-events-none absolute z-[52] flex items-center justify-center rounded-full text-center font-display font-black uppercase leading-[0.9] text-tinta"
+      style={{
+        left: at.x + cw * 0.3 - d / 2,
+        top: at.y - ch * 0.5 - d * 0.3,
+        width: d,
+        height: d,
+        fontSize: d * 0.2,
+        background: 'radial-gradient(circle at 35% 30%, #F6D77A, #E3A82B 60%, #A8741A)',
+        boxShadow: '0 0 0 3px #2B1D14, 0 6px 14px rgb(0 0 0 / 0.45)',
+      }}
+      initial={{ scale: 2.4, opacity: 0, rotate: -30 }}
+      animate={{ scale: 1, opacity: 1, rotate: -12 }}
+      exit={{ opacity: 0, transition: { duration: 0.15 } }}
+      transition={{ type: 'spring', stiffness: 520, damping: 16 }}
+      role="img"
+      aria-label="Lance da noite"
+    >
+      Lance da noite
     </motion.span>
   );
 }

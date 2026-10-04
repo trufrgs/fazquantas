@@ -1,4 +1,6 @@
 import { ApelidoGuardado } from '../components/setup/ApelidoGuardado';
+import { FrasesNaTuaVoz } from '../components/setup/FrasesNaTuaVoz';
+import { podeGravar } from '../lib/voz';
 import { InstalarApp } from '../components/setup/InstalarApp';
 import { ProfileEditor } from '../components/setup/ProfileEditor';
 import { disableNotify, enableNotify, notifyState } from '../lib/avisos';
@@ -22,6 +24,7 @@ export function Settings() {
         <div className="divide-y divide-tinta/10">
           <Toggle checked={s.sound} onChange={(sound) => s.set({ sound })} label="Efeitos" description="Cartas, golpes das manilhas e avisos da mesa." />
           <Toggle checked={s.musica} onChange={(musica) => s.set({ musica })} label="Música" description="Um tango de fundo, baixinho, na sala e na mesa." />
+          <Toggle checked={s.bolicho} onChange={(bolicho) => s.set({ bolicho })} label="Barulho de bolicho" description="Conversa ao fundo, copo e sinuca. Cala quando alguém abre o microfone." />
           <Toggle checked={s.haptics} onChange={(haptics) => s.set({ haptics })} label="Vibração" description="Na tua vez e quando perde palito." />
           <Toggle checked={s.hints} onChange={(hints) => s.set({ hints })} label="Sugerir palpite e carta" description="Na tua vez, marca o palpite e a carta que o jogo faria. Vem desligado." />
           <Toggle checked={s.resumoDaRodada} onChange={(resumoDaRodada) => s.set({ resumoDaRodada })} label="Resumo da rodada" description="No fim de cada rodada, quem cantou, quem fez e quem queimou palito." />
@@ -66,6 +69,11 @@ export function Settings() {
           </div>
         </div>
       </Panel>
+      {podeGravar() && (
+        <Panel title="Frases na tua voz">
+          <FrasesNaTuaVoz />
+        </Panel>
+      )}
       {multiplayer && (
         <Panel title="Apelido guardado">
           <ApelidoGuardado />

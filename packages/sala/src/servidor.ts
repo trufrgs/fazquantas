@@ -3,6 +3,7 @@ import {
   type Ack,
   type ClientToServerEvents,
   type IceServer,
+  type PiadaDoApelido,
   type ProtocolError,
   type WireToServer,
 } from '@fodinha/engine';
@@ -27,6 +28,7 @@ import {
   patraoSchema,
   querJogarSchema,
   zoarSchema,
+  vozSchema,
 } from './validacao';
 
 /** Os STUN públicos (Cloudflare e Google): bastam para a voz ligar direto na maioria das redes. */
@@ -69,7 +71,7 @@ export interface ServidorDeps extends Omit<SalaDeps, 'aoEncerrar'> {
   conferirPerfil?(
     profileId: string | null,
     name: string,
-  ): Promise<{ bloqueado: boolean; nome: string; avatar: string | null; perfil?: string | null; apelidoDeOutro?: boolean }>;
+  ): Promise<{ bloqueado: boolean; nome: string; avatar: string | null; perfil?: string | null; apelidoDeOutro?: boolean; piada?: PiadaDoApelido | null }>;
   /** Prazo da conferência do perfil (padrão `PERFIL_PRAZO_MS`; os testes encurtam). */
   perfilPrazoMs?: number;
   /**
@@ -105,6 +107,7 @@ const EVENTS: ReadonlySet<string> = new Set<EventName>([
   'midia:ice',
   'midia:estado',
   'midia:sinal',
+  'voz:frase',
   'presence',
 ]);
 
@@ -289,6 +292,7 @@ export class SalaServidor {
         profileId: conferido?.perfil ?? profileId,
         aba: p.aba ?? null,
         visivel: p.visible ?? true,
+        piada: conferido?.piada ?? null,
       },
       apelidoDeOutro: conferido?.apelidoDeOutro ?? false,
     };
@@ -486,6 +490,12 @@ export class SalaServidor {
         const z = parsePayload(zoarSchema, payload);
         const { sala, playerId } = this.membership(conexao);
         sala.zoar(playerId, z);
+        return;
+      }
+      case 'voz:frase': {
+        const { reaction, audio } = parsePayload(vozSchema, payload);
+        const { sala, playerId } = this.membership(conexao);
+        sala.vozDaFrase(playerId, reaction, audio);
         return;
       }
       case 'game:react': {

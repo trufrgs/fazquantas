@@ -1,4 +1,4 @@
-import { card, isManilha, type Play, type PlayerView, type StrengthCtx } from '@fodinha/engine';
+import { card, cardName, isManilha, type CardId, type Play, type PlayerView, type StrengthCtx } from '@fodinha/engine';
 
 /**
  * O que a noite deixou (3ª leva do caderno de zoeira, 04/10/2026): os troféus que ninguém quer
@@ -97,9 +97,23 @@ export interface Jornal {
   nota: string | null;
   classificados: string[];
   data: string;
+  /** A foto do vexame, quando houve (com ela, os classificados saem da página: não cabe tudo). */
+  foto?: { url: string; legenda: string } | null;
+  /** A mão que fez a mesa cair na gargalhada. */
+  lance?: string | null;
 }
 
-export function jornalDaNoite(view: PlayerView, contas: Contas, agora = new Date()): Jornal | null {
+/** O lance da noite em uma frase: "a mão de Beto com o sete de espadas". */
+export function fraseDoLance(nome: string, carta: CardId): string {
+  return `A mão de ${nome} com o ${cardName(card(carta)).toLocaleLowerCase('pt-BR')} fez a mesa chorar de rir.`;
+}
+
+export function jornalDaNoite(
+  view: PlayerView,
+  contas: Contas,
+  agora = new Date(),
+  extras: { fotos?: readonly { id: string; rodada: number; url: string }[]; lances?: readonly { dono: string; carta: CardId }[] } = {},
+): Jornal | null {
   const result = view.result;
   if (!result) return null;
   const nome = (id: string) => view.players.find((p) => p.id === id)?.name ?? '';
@@ -117,7 +131,11 @@ export function jornalDaNoite(view: PlayerView, contas: Contas, agora = new Date
   if (tartaruga) classificados.push(`Vende-se relógio pouco usado. Falar com ${nome(tartaruga.quem)}.`);
   if (classificados.length === 0 && primeiroFora) classificados.push(`Procura-se a sorte de ${primeiroFora.name}. Sumiu cedo.`);
   const data = agora.toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' });
-  return { manchete, nota, classificados: classificados.slice(0, 2), data };
+  const f = extras.fotos?.find((x) => nome(x.id));
+  const foto = f ? { url: f.url, legenda: `A cara de ${nome(f.id)} na ${f.rodada}ª rodada` } : null;
+  const l = extras.lances?.at(-1);
+  const lance = l && nome(l.dono) ? `Lance da noite: ${fraseDoLance(nome(l.dono), l.carta).replace(/^A /, 'a ')}` : null;
+  return { manchete, nota, classificados: foto ? [] : classificados.slice(0, lance ? 1 : 2), data, foto, lance };
 }
 
 /** A data em que a mesa muda sozinha (horário de Brasília). */
