@@ -181,7 +181,7 @@ function CorteDeNovela({ quem, infoDe, largura, altura, escala }: { quem: string
   const lado = Math.min(largura * (n > 1 ? 0.4 : 0.56), altura * (n > 1 ? 0.34 : 0.44), 340 * escala);
   const topo = Math.max(altura * 0.12, altura / 2 - lado * 0.62);
   return (
-    <motion.div className="pointer-events-none absolute inset-0 z-[56] overflow-hidden" exit={{ opacity: 0, transition: { duration: 0.08 } }} role="status" aria-label={`A mão que decide: ${gente.map((g) => g.info!.nome).join(' e ')}`}>
+    <motion.div className="pointer-events-none absolute inset-0 z-[62] overflow-hidden" exit={{ opacity: 0, transition: { duration: 0.08 } }} role="status" aria-label={`A mão que decide: ${gente.map((g) => g.info!.nome).join(' e ')}`}>
       <motion.div
         className="absolute inset-0"
         style={{ background: 'radial-gradient(ellipse at 50% 45%, rgb(30 18 10 / 0.86), rgb(0 0 0 / 0.95))' }}
@@ -245,6 +245,7 @@ export function PalcoDaMesa({
   largura,
   altura,
   escala,
+  coberto = false,
 }: {
   nameOf: (id: string) => string;
   avatarDe: (id: string) => string | undefined;
@@ -254,6 +255,8 @@ export function PalcoDaMesa({
   largura: number;
   altura: number;
   escala: number;
+  /** Um menu está aberto por cima da mesa: o corte não passa na frente dele. */
+  coberto?: boolean;
 }) {
   const palco = useZoeira((s) => s.palco);
   const reduce = useReducedMotion();
@@ -269,7 +272,7 @@ export function PalcoDaMesa({
   }, [palco]);
   return (
     <AnimatePresence>
-      {palco?.tipo === 'corte' && <CorteDeNovela key={palco.chave} quem={palco.quem} infoDe={infoDe} largura={largura} altura={altura} escala={escala} />}
+      {palco?.tipo === 'corte' && !coberto && <CorteDeNovela key={palco.chave} quem={palco.quem} infoDe={infoDe} largura={largura} altura={altura} escala={escala} />}
       {palco?.tipo === 'duelo' && (
         <motion.div key={palco.chave} role="status" aria-label={`Duelo: ${nameOf(palco.a)} contra ${nameOf(palco.b)}`} className="pointer-events-none absolute inset-0 z-[44] overflow-hidden" exit={{ opacity: 0 }}>
           <motion.div className="absolute inset-x-0 top-0 h-[12%] bg-black" initial={{ y: '-100%' }} animate={{ y: 0 }} exit={{ y: '-100%' }} transition={{ duration: 0.3 }} />

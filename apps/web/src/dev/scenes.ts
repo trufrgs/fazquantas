@@ -181,6 +181,13 @@ export const SCENES: Record<string, Scene> = {
     until: () => true,
     roteiro: { maos: [['C4'], ['O5'], ['E3'], ['P6']], cantadas: [1, 0, 0, 0], palitos: [1, 3, 1, 2] },
   },
+  // A mão que decide com o espadão por último: o golpe espera o corte acabar.
+  decidemanilha: {
+    players: 4,
+    seed: 5,
+    until: () => true,
+    roteiro: { maos: [['C4'], ['O5'], ['C6'], ['E1']], cantadas: [1, 0, 0, 0], palitos: [1, 3, 2, 1] },
+  },
   // A peleia do empate: as duas maiores iguais se chocam e ninguém leva.
   peleia: {
     players: 4,

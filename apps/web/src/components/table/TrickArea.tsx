@@ -126,9 +126,12 @@ export function TrickArea(p: TrickAreaProps) {
     if (peleia) play('pau', { delayMs: 170, rate: 1.5 });
   }, [peleia, chave]);
   // "Quem mata quem": quem apanha de quem nesta mão, e na ordem em que a arma chega em cada uma.
+  // Na mão que decide, os golpes do fechamento esperam o corte de novela acabar: a arma sai quando a
+  // imagem volta para a mesa, junto com a vencedora (senão o golpe acontecia escondido atrás do corte).
+  const esperaOCorte = !!p.decide && ultima.segura;
   const golpes = useMemo(
-    () => (ctx && !cameraRapida ? golpesDaMao(p.plays, ctx, p.resolved).filter((g) => golpeComAnimacao(g, p.plays, mesa)) : []),
-    [ctx, cameraRapida, p.plays, p.resolved, mesa],
+    () => (ctx && !cameraRapida && !esperaOCorte ? golpesDaMao(p.plays, ctx, p.resolved).filter((g) => golpeComAnimacao(g, p.plays, mesa)) : []),
+    [ctx, cameraRapida, p.plays, p.resolved, mesa, esperaOCorte],
   );
   const pontoDe = (playerId: string) => p.geometry.tricks.get(playerId) ?? p.geometry.center;
   const apanhou = new Map<string, { g: GolpeNaMao; ordem: number }>();

@@ -862,7 +862,7 @@ function Table({
           <CantadasBanner view={view} seatOf={seatOf} top={lugarDaFaixa} />
           {!banner && !cantadasNaMesa && <FaixaDaMesa top={lugarDaFaixa} />}
           <CartaoDoFregues nameOf={nameOf} />
-          <PalcoDaMesa nameOf={nameOf} avatarDe={avatarDe} pontoDe={pontoDe} centro={geometry.center} infoDe={infoDe} largura={table.width} altura={table.height} escala={s} />
+          <PalcoDaMesa nameOf={nameOf} avatarDe={avatarDe} pontoDe={pontoDe} centro={geometry.center} infoDe={infoDe} largura={table.width} altura={table.height} escala={s} coberto={layerOpen || picker} />
           {naTesta && (
             <NaTesta
               key={`testa-${view.roundNumber}`}
