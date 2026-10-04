@@ -122,6 +122,8 @@ export interface Contexto {
   calma: boolean;
   /** Sala em que se espera ao vivo (na de vez longa, demorar é o normal). */
   aoVivo: boolean;
+  /** O ritmo da mesa (1 = normal; a sala rápida encurta as pausas, e o corte acompanha). */
+  ritmo?: number;
 }
 
 const RIVAIS = ['g-maragato', 'g-chimango'] as const;
@@ -185,6 +187,9 @@ export class Agenda {
     const p = this.antes;
     this.antes = view;
     this.ctx = ctx;
+    // O corte de novela é da mão que decide: a mesa saiu dela (recolheu a mão, fim da rodada, fim de
+    // jogo), o corte sai junto, na hora. Numa sala rápida ele não pode cobrir o resumo.
+    if (view.phase !== 'trickEnd' && useZoeira.getState().palco?.tipo === 'corte') useZoeira.setState({ palco: null });
     const fechada = view.phase === 'trickEnd';
     const plays = (fechada ? view.lastTrick?.plays : view.trick?.plays) ?? [];
     const chave = plays.length > 0 ? chaveDaMao(view.roundNumber, plays) : '';
@@ -259,7 +264,13 @@ export class Agenda {
       const fim = view.lastTrick;
       // A mão que decide passa na frente de tudo: o corte de novela em quem está por um fio.
       const porUmFio = maoQueDecide(view);
-      if (porUmFio.length > 0) this.depois(ANTES_DO_CORTE_MS, () => this.mostraPalco({ tipo: 'corte', quem: porUmFio.slice(0, 2) }, DURACAO_PALCO.corte, true));
+      const ritmo = Math.max(1, ctx.ritmo ?? 1);
+      if (porUmFio.length > 0) {
+        this.depois(ANTES_DO_CORTE_MS / ritmo, () => {
+          // Ainda na mesma mão (a mesa pode ter andado no meio do caminho).
+          if (this.antes?.phase === 'trickEnd' && this.antes.seq === view.seq) this.mostraPalco({ tipo: 'corte', quem: porUmFio.slice(0, 2) }, DURACAO_PALCO.corte / ritmo, true);
+        });
+      }
       for (const id of fim?.cancelled ?? []) {
         this.contar('empates', id);
         // Empardou duas vezes na mesma rodada: os corações de cumadre.

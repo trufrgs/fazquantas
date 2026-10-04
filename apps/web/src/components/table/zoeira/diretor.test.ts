@@ -448,6 +448,9 @@ describe('4ª leva: máscaras, galinha, cumadre e a mão que decide', () => {
     expect(useZoeira.getState().palco).toMatchObject({ tipo: 'tropeco' });
     vi.advanceTimersByTime(500);
     expect(useZoeira.getState().palco).toMatchObject({ tipo: 'corte', quem: ['p0'] });
+    // A mesa recolheu a mão (ou acabou a rodada): o corte sai na hora, não cobre o resumo.
+    a.ver(visao({ players: fechada, phase: 'roundEnd', seq: 4 }), contexto, 600);
+    expect(useZoeira.getState().palco).toBeNull();
   });
 
   it('cumadre: empardou duas vezes na mesma rodada', () => {

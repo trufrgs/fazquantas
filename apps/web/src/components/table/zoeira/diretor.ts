@@ -1,4 +1,4 @@
-import { porUmFio, quemMatou, type PlayerView, type ReactionId, type RoundRecord } from '@fodinha/engine';
+import { quemMatou, quemVaiProCorte, type PlayerView, type ReactionId, type RoundRecord } from '@fodinha/engine';
 
 /**
  * O diretor da zoeira: decide o que a mesa faz sozinha para debochar de quem joga, e principalmente o
@@ -176,18 +176,22 @@ export function mascarasDe(view: PlayerView): Map<string, Mascara> {
 
 // ------------------------------------------------------------------------------ a mão que decide
 
+/** Na mão que decide, quanto a vencedora (e o que denuncia o resultado) espera o corte de novela (ms). */
+export const DEPOIS_DO_CORTE_MS = 2500;
+
 /**
- * A última mão da rodada acabou de fechar e ela decide se alguém sai do jogo: quem está por um fio
- * (a conta é a mesma do anfitrião, `porUmFio`, que segura a mesa `decisiveMs` a mais).
+ * A última mão da rodada acabou de fechar e ela decide se alguém sai do jogo: quem ganha o corte de
+ * novela (a conta é a mesma do anfitrião, `quemVaiProCorte`, que segura a mesa `decisiveMs` a mais).
  */
 export function maoQueDecide(view: PlayerView): string[] {
   const ultima = view.lastTrick;
   if (view.phase !== 'trickEnd' || !ultima) return [];
   const naRodada = view.players.filter((p) => p.inRound && !p.eliminated);
   if (naRodada.some((p) => p.handCount > 0)) return [];
-  return porUmFio(
+  return quemVaiProCorte(
     view.rules,
     naRodada.map((p) => ({ id: p.id, lives: p.lives, bid: p.bid, tricks: p.tricks - (ultima.winnerId === p.id ? 1 : 0) })),
+    view.history,
   );
 }
 

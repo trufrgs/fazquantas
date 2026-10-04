@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { ControleDaZoeira, porUmFio, temGolpe, ZOEIRA_ESGOTADA, type ContextoDaZoeira } from '../src/zoeira';
+import { ControleDaZoeira, porUmFio, quemVaiProCorte, temGolpe, ZOEIRA_ESGOTADA, type ContextoDaZoeira } from '../src/zoeira';
 
 const fixo = { penalty: 'fixed' } as const;
 const diferenca = { penalty: 'difference' } as const;
@@ -26,6 +26,20 @@ describe('porUmFio (a mão que decide)', () => {
 
   it('ignores players already out', () => {
     expect(porUmFio(fixo, [{ id: 'a', lives: 0, bid: 1, tricks: 0 }])).toEqual([]);
+  });
+});
+
+describe('quemVaiProCorte (the soap-opera cut stays rare)', () => {
+  const fio = (id: string) => ({ id, lives: 1, bid: 1, tricks: 0 });
+  it('one or two on the edge get the cut; the whole table on the edge does not', () => {
+    expect(quemVaiProCorte(fixo, [fio('a')], [])).toEqual(['a']);
+    expect(quemVaiProCorte(fixo, [fio('a'), fio('b')], [])).toEqual(['a', 'b']);
+    expect(quemVaiProCorte(fixo, [fio('a'), fio('b'), fio('c')], [])).toEqual([]);
+  });
+
+  it('only the first round on the last stick: whoever was already on it last round gets no new cut', () => {
+    const anterior = { livesBefore: { a: 1, b: 2 } };
+    expect(quemVaiProCorte(fixo, [fio('a'), fio('b')], [anterior])).toEqual(['b']);
   });
 });
 

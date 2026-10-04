@@ -5,6 +5,7 @@ import { setMyTurn, warnTurn } from '../../lib/avisos';
 import { haptic } from '../../lib/haptics';
 import { play, type SoundId } from '../../lib/sound';
 import { useSettings } from '../../stores/settings';
+import { DEPOIS_DO_CORTE_MS, maoQueDecide } from './zoeira/diretor';
 import {
   acertoDe,
   acertoDoPunhal,
@@ -120,11 +121,13 @@ export function useTableEffects(update: ViewUpdate | null, online = false, ritmo
 
     if (v.roundNumber === p.roundNumber && bids(v) > bids(p)) play('bid');
     if (v.roundNumber === p.roundNumber && played(v) > played(p)) play('play');
+    // Na mão que decide, o resultado só soa depois do corte de novela (não estraga o suspense).
+    const depoisDoCorte = v.phase === 'trickEnd' && maoQueDecide(v).length > 0 ? DEPOIS_DO_CORTE_MS : 0;
     if (v.phase === 'trickEnd' && p.phase !== 'trickEnd' && (v.lastTrick?.cancelled.length ?? 0) > 0) {
-      play('melou', { delayMs: 280 });
+      play('melou', { delayMs: 280 + depoisDoCorte });
     }
     // A manilha estava na testa de quem cantou zero: a corneta da desgraça, junto com a cena.
-    if (v.phase === 'trickEnd' && p.phase !== 'trickEnd' && manilhaNaTesta(v)) play('eliminated', { delayMs: 900, rate: 1.15 });
+    if (v.phase === 'trickEnd' && p.phase !== 'trickEnd' && manilhaNaTesta(v)) play('eliminated', { delayMs: 900 + depoisDoCorte, rate: 1.15 });
     if (p.phase === 'trickEnd' && v.phase !== 'trickEnd') play('sweep');
 
     const myTurnNow = v.actor?.playerId === you;

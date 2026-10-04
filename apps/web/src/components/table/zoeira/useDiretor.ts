@@ -9,14 +9,14 @@ import { Agenda, type Contexto } from './agenda';
  */
 export function useDiretor(o: { view: PlayerView; reactions: readonly LiveReaction[]; demorando: boolean } & Contexto): void {
   const [agenda] = useState(() => new Agenda());
-  const { view, reactions, demorando, avatarDe, ativa, calma, aoVivo } = o;
+  const { view, reactions, demorando, avatarDe, ativa, calma, aoVivo, ritmo } = o;
   useEffect(() => {
     agenda.comecar();
     return () => agenda.parar();
   }, [agenda]);
   useEffect(() => {
-    agenda.ver(view, { avatarDe, ativa, calma, aoVivo });
-  }, [agenda, view, avatarDe, ativa, calma, aoVivo]);
+    agenda.ver(view, { avatarDe, ativa, calma, aoVivo, ritmo });
+  }, [agenda, view, avatarDe, ativa, calma, aoVivo, ritmo]);
   // As frases: cada uma passa uma vez (a loja guarda cada frase por uns segundos).
   const ouvidas = useRef(0);
   useEffect(() => {

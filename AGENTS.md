@@ -157,7 +157,11 @@ pnpm exec playwright test                  # E2E locais (sobem os servidores soz
   decide quem sai (`porUmFio`, conta pública), a última carta aparece inteira, a imagem corta para o
   rosto de quem está por um fio (câmera ou avatar suando) com faixas de cinema, legenda de telejornal
   (palitos e cantada, nunca o resultado) e o bombo, e volta para a mesa quando a vencedora sobe (o
-  anfitrião espera `decisiveMs`). Máscaras do fim da rodada (focinho de porco de quem fez mais, nariz de
+  anfitrião espera `decisiveMs`). Para não virar rotina (`quemVaiProCorte`): só com uma ou duas pessoas
+  por um fio (a mesa inteira no último palito dilui o suspense) e só na primeira rodada de cada uma na
+  beira. Durante o corte nada conta o resultado (a faixa do status diz "A mão que decide…", o placar de
+  mãos espera, o som do empate e o "Tava na testa!" esperam a vencedora subir), e ele sai na hora em
+  que a mesa sai da mão (sala rápida não fica com o corte por cima do resumo). Máscaras do fim da rodada (focinho de porco de quem fez mais, nariz de
   palhaço de quem fez menos, no avatar e na câmera), a galinha de quem cantou zero três vezes seguidas,
   os corações de cumadre (empardou duas vezes na rodada), o cusco caramelo na cadeira de quem caiu
   ou sumiu (com a desculpa na plaquinha), a baforada do palheiro na cara de quem demora, e as frases

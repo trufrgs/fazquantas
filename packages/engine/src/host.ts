@@ -6,7 +6,7 @@ import { createRng, type Rng } from './rng';
 import type { Rules } from './rules';
 import type { Action, ApplyResult, GameState, PlayerAction } from './types';
 import { getPlayerView, type PlayerView } from './view';
-import { porUmFio } from './zoeira';
+import { quemVaiProCorte } from './zoeira';
 
 export interface Clock {
   now(): number;
@@ -466,14 +466,14 @@ export class GameHost {
 }
 
 /**
- * Na fase `trickEnd` da última mão da rodada: quem sai ou fica conforme essa mão (ver `porUmFio`). Fora
- * dela, ninguém.
+ * Na fase `trickEnd` da última mão da rodada: quem ganha o corte de novela, por um fio (ver
+ * `quemVaiProCorte`). Fora dela, ninguém.
  */
 export function maoQueDecide(s: GameState): string[] {
   const r = s.round;
   const ultima = r.completedTricks.at(-1);
   if (s.phase !== 'trickEnd' || !ultima || r.order.some((id) => (r.hands[id]?.length ?? 0) > 0)) return [];
-  return porUmFio(
+  return quemVaiProCorte(
     s.rules,
     r.order.map((id) => ({
       id,
@@ -481,5 +481,6 @@ export function maoQueDecide(s: GameState): string[] {
       bid: r.bids[id] ?? null,
       tricks: (r.tricksWon[id] ?? 0) - (ultima.winnerId === id ? 1 : 0),
     })),
+    s.history,
   );
 }

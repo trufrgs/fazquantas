@@ -145,6 +145,24 @@ export function porUmFio(
     .map((j) => j.id);
 }
 
+/**
+ * Quem ganha o corte de novela na mão que decide: os que estão por um fio (`porUmFio`), mas só quando
+ * é coisa de um ou dois (com a mesa inteira no último palito, o suspense dilui e o corte viraria
+ * rotina) e só na primeira rodada da pessoa na beira (quem já estava no último palito na rodada
+ * anterior não ganha outro: o corte é o susto, não o costume). A mesma conta no anfitrião (que segura
+ * a mesa `decisiveMs` a mais) e na tela, a partir do histórico público.
+ */
+export function quemVaiProCorte(
+  rules: Pick<Rules, 'penalty'>,
+  jogadores: readonly { id: string; lives: number; bid: number | null; tricks: number }[],
+  history: readonly { livesBefore: Record<string, number> }[],
+): string[] {
+  const fio = porUmFio(rules, jogadores);
+  if (fio.length === 0 || fio.length > 2) return [];
+  const anterior = history.at(-1);
+  return fio.filter((id) => !((anterior?.livesBefore[id] ?? Infinity) <= 1));
+}
+
 /** A demora que acende os palheiros na mesa (e conta bituca no mural da vergonha). */
 export const DEMORA_DO_PALHEIRO_MS = 9000;
 

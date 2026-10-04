@@ -31,7 +31,7 @@ import { NaTesta } from './NaTesta';
 import { galoDeUmToque } from './frases';
 import { FrasesAMao } from './FrasesAMao';
 import { FumacaNaMesa, FumacaPorCima } from './Fumaca';
-import { enfeitesDe, maoQueDecide, mascarasDe } from './zoeira/diretor';
+import { DEPOIS_DO_CORTE_MS, enfeitesDe, maoQueDecide, mascarasDe } from './zoeira/diretor';
 import { CartaoDoFregues, CinzeiroDaMesa, FaixaDaMesa, PalcoDaMesa, PassanteNaMesa, type PorUmFio } from './zoeira/Palco';
 import { enfeitesDeTeste, mascarasDeTeste, useZoeiraDeTeste } from './zoeira/teste';
 import { useDiretor } from './zoeira/useDiretor';
@@ -603,7 +603,7 @@ function Table({
   // A zoeira: o que a mesa faz sozinha para debochar de quem joga, uma coisa de cada vez em cada
   // lugar (as regras estão em `zoeira/diretor.ts`).
   const avatarDe = useCallback((id: string) => seatOf(id)?.avatar, [seatOf]);
-  useDiretor({ view, reactions, demorando, avatarDe, ativa: !cameraRapida, calma: !!reduzirMovimento, aoVivo: !asyncRoom });
+  useDiretor({ view, reactions, demorando, avatarDe, ativa: !cameraRapida, calma: !!reduzirMovimento, aoVivo: !asyncRoom, ritmo });
   useZoeiraDeTeste(view);
   const enfeites = useMemo(() => (import.meta.env.DEV ? enfeitesDeTeste(view) : null) ?? enfeitesDe(view), [view]);
   const mascaras = useMemo(() => (cameraRapida ? new Map() : ((import.meta.env.DEV ? mascarasDeTeste(view) : null) ?? mascarasDe(view))), [view, cameraRapida]);
@@ -625,6 +625,17 @@ function Table({
   }, [view]);
   useGargalhada(online && !cameraRapida, maoFechada, () => marcarLance(viewRef.current));
   const lanceAgora = useZoeira((z) => z.lanceAgora);
+  // Na mão que decide, até a vencedora subir, nada na tela conta quem levou: nem a faixa do status
+  // ("Tu fez a mão!") nem o placar de mãos do assento. O suspense é o corte de novela.
+  const [revelada, setRevelada] = useState<string | null>(null);
+  useEffect(() => {
+    if (!decide || !maoFechada) return undefined;
+    const t = window.setTimeout(() => setRevelada(maoFechada), DEPOIS_DO_CORTE_MS / ritmo);
+    return () => window.clearTimeout(t);
+  }, [decide, maoFechada, ritmo]);
+  const segurando = decide && maoFechada !== null && revelada !== maoFechada;
+  const vencedorEscondido = segurando ? (view.lastTrick?.winnerId ?? null) : null;
+  const semAMaoQueDecide = <T extends { id: string; tricks: number }>(p: T): T => (p.id === vencedorEscondido ? { ...p, tricks: p.tricks - 1 } : p);
   // Voz do além: quem saiu do jogo fala com eco (fora do iPhone; ver `midia.setAlem`).
   const foraKey = view.players.filter((p) => p.eliminated).map((p) => p.id).join(',');
   useEffect(() => {
@@ -724,7 +735,9 @@ function Table({
             text: `${status.text} · ${formatLeft(turnTotalMs ? Math.min(turnLeft, turnTotalMs) : turnLeft)}`,
             tone: apertado ? 'bad' : status.tone,
           }
-        : status;
+        : segurando
+          ? { text: 'A mão que decide…', tone: 'info' as StatusTone }
+          : status;
   const park = () => {
     useOnline.getState().park();
     leaveTable();
@@ -789,7 +802,7 @@ function Table({
                   <Seat
                     key={p.id}
                     video={comCamera.split(',').includes(p.id)}
-                    player={p}
+                    player={semAMaoQueDecide(p)}
                     info={seatOf(p.id)}
                     x={at.x}
                     y={at.y}
@@ -855,6 +868,7 @@ function Table({
               key={`testa-${view.roundNumber}`}
               manilha={naTesta.nome}
               tu={naTesta.playerId === you}
+              atraso={decide ? 0.9 + DEPOIS_DO_CORTE_MS / 1000 : 0.9}
               x={assentoNaTesta?.x ?? table.width / 2}
               acima={assentoNaTesta ? assentoNaTesta.y - geometry.seatBox.h / 2 : table.height - 8 * s}
               abaixo={assentoNaTesta ? assentoNaTesta.y + geometry.seatBox.h / 2 : table.height - 8 * s}
@@ -940,7 +954,7 @@ function Table({
               style={{ opacity: mySeatUnderPanel ? 0 : 1 }}
             >
               <MySeat
-                player={me}
+                player={semAMaoQueDecide(me)}
                 avatar={seatOf(me.id)?.avatar ?? me.id}
                 phase={view.phase}
                 remaining={remaining}

@@ -24,6 +24,7 @@ import {
 } from './manilhas';
 import { play } from '../../lib/sound';
 import { sintetizar } from '../../lib/sintetizado';
+import { DEPOIS_DO_CORTE_MS } from './zoeira/diretor';
 import { tossRotation, trickStacking, type Point, type TableGeometry } from './layout';
 
 export interface TrickAreaProps {
@@ -58,7 +59,7 @@ export interface TrickAreaProps {
 /** Quanto a vencedora espera para subir depois que a última carta chega (segundos, no ritmo normal). */
 const SEGURA_A_VENCEDORA = 0.6;
 /** Na mão que decide, a vencedora só sobe depois do corte de novela (o anfitrião espera junto). */
-const SEGURA_NA_MAO_QUE_DECIDE = 2.5;
+const SEGURA_NA_MAO_QUE_DECIDE = DEPOIS_DO_CORTE_MS / 1000;
 
 export function TrickArea(p: TrickAreaProps) {
   const cw = p.cardWidth;
@@ -91,11 +92,12 @@ export function TrickArea(p: TrickAreaProps) {
     const t = window.setTimeout(() => setUltima((u) => ({ ...u, segura: false })), ((p.decide ? SEGURA_NA_MAO_QUE_DECIDE : SEGURA_A_VENCEDORA) * 1000) / ritmo);
     return () => window.clearTimeout(t);
   }, [ultima.segura, ritmo, p.decide]);
+  const reduce = useReducedMotion();
   const fechada = p.resolved && !ultima.segura;
   const ultimaCarta = ultima.segura ? p.plays.at(-1)?.cardId : undefined;
   // A peleia do empate: as cartas que empardaram se chocam no meio delas, ricocheteiam e ficam
   // apagadas (sem estrelinha nem soco de gibi: o tranco, a faísca e a poeira).
-  const empardadas = fechada && !cameraRapida ? p.plays.filter((pl) => p.cancelled.includes(pl.playerId)) : [];
+  const empardadas = fechada && !cameraRapida && !reduce ? p.plays.filter((pl) => p.cancelled.includes(pl.playerId)) : [];
   const peleia = empardadas.length >= 2;
   const meioDaPeleia = peleia
     ? empardadas.reduce((m, pl) => {
@@ -105,7 +107,7 @@ export function TrickArea(p: TrickAreaProps) {
     : null;
   // A manilha que não levou a mão vai para o lixo: queima na mesa em vez de ir para quem ganhou.
   const queima = (playerId: string, cardId: Play['cardId']) =>
-    p.resolved && !cameraRapida && ctx !== null && manilhaDe(cardId, ctx) !== null && playerId !== p.winnerId;
+    p.resolved && !cameraRapida && !reduce && ctx !== null && manilhaDe(cardId, ctx) !== null && playerId !== p.winnerId;
   const aQueimar = useRef<string | null>(null);
   useEffect(() => {
     if (p.resolved && p.plays.some((pl) => queima(pl.playerId, pl.cardId))) {
@@ -119,7 +121,7 @@ export function TrickArea(p: TrickAreaProps) {
     }
     // `queima` só depende do que já está nas dependências.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [chave, p.resolved, p.plays, p.winnerId, ctx, cameraRapida]);
+  }, [chave, p.resolved, p.plays, p.winnerId, ctx, cameraRapida, reduce]);
   useEffect(() => {
     if (peleia) play('pau', { delayMs: 170, rate: 1.5 });
   }, [peleia, chave]);
@@ -155,7 +157,6 @@ export function TrickArea(p: TrickAreaProps) {
   // e tem o som da madeira rachando na hora do corte dele (aqui, onde se sabe a ordem da espada).
   const camada = useRef<HTMLDivElement>(null);
   const tremidos = useRef(new Set<string>());
-  const reduce = useReducedMotion();
   useEffect(() => {
     const novos = golpes.filter((g) => !tremidos.current.has(`${chave}:${chaveDoGolpe(g)}`));
     for (const g of novos) tremidos.current.add(`${chave}:${chaveDoGolpe(g)}`);

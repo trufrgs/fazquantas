@@ -17,6 +17,7 @@ export function NaTesta({
   largura,
   manilha,
   tu,
+  atraso = 0.9,
 }: {
   x: number;
   acima: number;
@@ -24,6 +25,8 @@ export function NaTesta({
   largura: number;
   manilha: string;
   tu: boolean;
+  /** Quando entra (s): depois do golpe da manilha e, na mão que decide, depois do corte de novela. */
+  atraso?: number;
 }) {
   const reduce = useReducedMotion();
   const ref = useRef<HTMLDivElement>(null);
@@ -42,7 +45,7 @@ export function NaTesta({
       style={{ left, top: desce ? abaixo : acima }}
       initial={{ opacity: 0, scale: 0.3, rotate: -12 }}
       animate={reduce ? { opacity: 1, scale: 1, rotate: 0 } : { opacity: [0, 1, 1, 1], scale: [0.3, 1.3, 0.94, 1], rotate: [-12, 9, -5, 0] }}
-      transition={{ duration: 0.75, delay: 0.9, times: [0, 0.35, 0.7, 1] }}
+      transition={{ duration: 0.75, delay: atraso, times: [0, 0.35, 0.7, 1] }}
       role="status"
     >
       <span className="whitespace-nowrap rounded-2xl bg-copas px-3 py-1 font-hand text-2xl font-bold leading-tight text-papel shadow-lg ring-2 ring-papel/70">
