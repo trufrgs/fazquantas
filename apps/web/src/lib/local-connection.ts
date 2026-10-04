@@ -15,6 +15,7 @@ import {
 } from '@fodinha/engine';
 import { randomAvatarSeed } from './avatar';
 import type { GameConnection, ReactionEvent, SeatInfo, ViewUpdate } from './connection';
+import { ControleDaZoeira, currentActor as atorDe, type Zoeira, type ZoeiraNaMesa } from '@fodinha/engine';
 import { storage } from './storage';
 
 export const LOCAL_SAVE_KEY = 'fodinha:partida-local';
@@ -59,6 +60,9 @@ export class LocalConnection implements GameConnection {
   private readonly host: GameHost;
   private readonly listeners = new Set<(u: ViewUpdate) => void>();
   private readonly reactionListeners = new Set<(r: ReactionEvent) => void>();
+  private readonly zoeiraListeners = new Set<(z: ZoeiraNaMesa) => void>();
+  /** Contra os bots também vale atirar tomate, com os mesmos limites da sala. */
+  private readonly zoeira = new ControleDaZoeira();
   private last: ViewUpdate | null = null;
   private lastBanter = 0;
   private timers: number[] = [];
@@ -148,6 +152,28 @@ export class LocalConnection implements GameConnection {
     this.emitReaction({ playerId: YOU, reaction });
   }
 
+  async zoar(z: Zoeira): Promise<string | null> {
+    const st = this.host.state;
+    const ctx = {
+      agora: Date.now(),
+      rodada: String(st.round.number),
+      partida: 'local',
+      ator: atorDe(st)?.playerId ?? null,
+      alvos: new Set(st.players.map((p) => p.id)),
+    };
+    const recado = this.zoeira.pode(YOU, z, ctx);
+    if (recado) return recado;
+    this.zoeira.registrar(YOU, z, ctx);
+    const naMesa = { ...z, de: YOU, at: ctx.agora } as ZoeiraNaMesa;
+    for (const l of [...this.zoeiraListeners]) l(naMesa);
+    return null;
+  }
+
+  onZoeira(listener: (z: ZoeiraNaMesa) => void): () => void {
+    this.zoeiraListeners.add(listener);
+    return () => this.zoeiraListeners.delete(listener);
+  }
+
   pause(): void {
     this.host.pause();
   }
@@ -178,6 +204,7 @@ export class LocalConnection implements GameConnection {
     for (const t of this.timers) window.clearTimeout(t);
     this.listeners.clear();
     this.reactionListeners.clear();
+    this.zoeiraListeners.clear();
   }
 
   private onHostEvent(e: HostEvent): void {

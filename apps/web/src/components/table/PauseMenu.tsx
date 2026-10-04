@@ -27,10 +27,13 @@ export interface PauseMenuProps {
   onPace?: (pace: Pace) => void;
   /** Online, patrão: a senha da sala (dá para pôr no meio da partida). */
   senha?: ReactNode;
+  /** Virar a mesa (uma vez por partida, só enfeite). Resolve com o recado do limite, ou `null`. */
+  onVirar?: () => Promise<string | null>;
 }
 
 export function PauseMenu(p: PauseMenuProps) {
   const s = useSettings();
+  const [recadoVirar, setRecadoVirar] = useState<string | null>(null);
   const aberto = useMidia();
   const conversaPossivel = useTemConversa() && p.online;
   const [confirm, setConfirm] = useState<'exit' | 'restart' | null>(null);
@@ -69,6 +72,23 @@ export function PauseMenu(p: PauseMenuProps) {
           <Button variant="ouro" size="lg" icon={<Play size={20} />} onClick={p.onClose}>
             Continuar
           </Button>
+          {p.onVirar && (
+            <Button
+              variant="copas"
+              onClick={async () => {
+                const r = await p.onVirar?.();
+                setRecadoVirar(r ?? null);
+                if (!r) p.onClose();
+              }}
+            >
+              Virar a mesa
+            </Button>
+          )}
+          {recadoVirar && (
+            <p role="alert" className="text-center text-sm font-semibold text-copas">
+              {recadoVirar}
+            </p>
+          )}
           <div className="grid grid-cols-2 gap-2">
             {/* A consulta que ficava num selo na mesa: com as cartas no ícone, fica claro o que é. */}
             <Button icon={<IconeForca mode={p.hierarchy} />} onClick={p.onHierarchy} aria-label="Força das cartas: quem mata quem">

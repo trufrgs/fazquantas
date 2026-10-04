@@ -128,6 +128,15 @@ pnpm exec playwright test                  # E2E locais (sobem os servidores soz
   criou. A senha da sala também vale no meio da partida (menu ☰ dos patrões). Servidor em
   `packages/sala/src/sala.ts` (`plateia` no assento humano, `patroes`), testes em
   `packages/sala/test/plateia.test.ts`, roteiro `e2e/exploratorio/11-plateia.mjs`.
+- **Zoar o amigo** (2ª leva do caderno, 04/10/2026): tocar no rosto de alguém abre o menu do amigo
+  (`zoeira/MenuDoAmigo.tsx`): atirar tomate, ovo, chinelo ou bergamota (três por rodada; mancha o rosto
+  por uns segundos), carimbar uma das tuas frases favoritas na testa dele, cutucar quem está demorando
+  na vez (o aparelho dele vibra) e ver a câmera grande. Segurar uma frase favorita faz ela crescer até
+  o grito (o balão cresce e a vogal estica: "CAGÃÃÃÃO!"). Jogar a carta num arrasto rápido bate na mesa
+  (tremor e rachadura). "Virar a mesa" (menu ☰, ou chacoalhar o celular) vira a mesa de todos, uma vez
+  por partida. Tudo por um canal só (`game:zoar` → `game:zoeira`), com os limites em
+  `packages/engine/src/zoeira.ts` (`ControleDaZoeira`, igual no servidor e contra os bots), e no
+  máximo três coisas voando ao mesmo tempo. Roteiro: `e2e/exploratorio/12-zoar.mjs`.
 - **Zoeira: uma coisa de cada vez em cada lugar.** O Thomas escolheu dezenas de ideias no caderno de
   zoeira (02/10/2026) com uma condição: o excesso não pode sobrecarregar nem atrapalhar a jogada, e as
   opções não podem se confundir entre si. As regras moram em `components/table/zoeira/diretor.ts` e

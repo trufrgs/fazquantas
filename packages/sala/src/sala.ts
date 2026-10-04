@@ -11,6 +11,7 @@ import {
   RANKED_MIN_HUMANS,
   ROOM_CAPACITY,
   WS_CLOSE,
+  ControleDaZoeira,
   createRng,
   currentActor,
   newSeries,
@@ -41,6 +42,7 @@ import {
   type SeriesState,
   type ServerToClientEvents,
   type ViewMessage,
+  type Zoeira,
 } from '@fodinha/engine';
 import { fail, MESSAGES } from './erros';
 import type { Logger } from './logger';
@@ -280,6 +282,8 @@ export class Sala {
   /** A vez que já virou aviso (`seq:jogador`): não avisa duas vezes a mesma. */
   private avisadoKey = '';
   private readonly lastReactionAt = new Map<string, number>();
+  /** Os limites da zoeira de cada um (tiros por rodada, uma virada de mesa por partida…). */
+  private readonly zoeira = new ControleDaZoeira();
   private stateDirty = false;
   private outbox: { playerId: string; message: ViewMessage }[] = [];
   private flushQueued = false;
@@ -936,6 +940,28 @@ export class Sala {
     if (last !== undefined && at - last < REACTION_INTERVAL_MS) return; // excesso: ignora em silêncio
     this.lastReactionAt.set(playerId, at);
     for (const seat of this.humans()) seat.conexao?.enviar('game:reaction', { playerId, reaction, at });
+  }
+
+  /**
+   * Zoeira para a mesa (atirar, cutucar, carimbar, gritar, bater a carta, virar a mesa): só enfeite,
+   * com a partida na mesa. Passou do limite, volta o recado (a mesa não recebe nada).
+   */
+  zoar(playerId: string, z: Zoeira): void {
+    const game = this.gameHost;
+    if (!game || this.currentStatus === 'lobby') throw fail('GAME_ERROR', MESSAGES.noGame);
+    if (!this.human(playerId)) throw fail('NOT_IN_ROOM', MESSAGES.notInRoom);
+    const at = this.deps.relogio.now();
+    const ctx = {
+      agora: at,
+      rodada: `${this.partida?.id ?? ''}:${game.state.round.number}`,
+      partida: this.partida?.id ?? '',
+      ator: currentActor(game.state)?.playerId ?? null,
+      alvos: new Set(this.seats.map((seat) => seat.playerId)),
+    };
+    const recado = this.zoeira.pode(playerId, z, ctx);
+    if (recado) throw fail('GAME_ERROR', recado);
+    this.zoeira.registrar(playerId, z, ctx);
+    for (const seat of this.humans()) seat.conexao?.enviar('game:zoeira', { ...z, de: playerId, at });
   }
 
   // ---------------------------------------------------------------------------

@@ -11,6 +11,7 @@ import {
   ROOM_CODE_LENGTH,
   TURN_TIMEOUT_OPTIONS,
   isCardId,
+  ITENS_DE_ATIRAR,
   type BestOf,
   type BotDifficulty,
   type CardId,
@@ -197,6 +198,16 @@ export const gameActionSchema = z.object({
 });
 
 export const reactSchema = z.object({ reaction: reactionSchema });
+
+const forcaSchema = z.union([z.literal(1), z.literal(2), z.literal(3)]);
+export const zoarSchema = z.discriminatedUnion('tipo', [
+  z.object({ tipo: z.literal('atirar'), alvo: playerIdSchema, item: z.enum(ITENS_DE_ATIRAR) }),
+  z.object({ tipo: z.literal('cutucar'), alvo: playerIdSchema }),
+  z.object({ tipo: z.literal('carimbo'), alvo: playerIdSchema, reaction: reactionSchema }),
+  z.object({ tipo: z.literal('grito'), reaction: reactionSchema, forca: forcaSchema }),
+  z.object({ tipo: z.literal('pancada'), forca: forcaSchema }),
+  z.object({ tipo: z.literal('virar') }),
+]);
 
 const FIELD_MESSAGES: Readonly<Record<string, string>> = {
   pace: MESSAGES.pace,

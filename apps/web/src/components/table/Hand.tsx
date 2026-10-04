@@ -20,6 +20,11 @@ export interface HandProps {
   oneTap: boolean;
   /** Atalhos de teclado ligados (desligados com menu/folha aberta por cima). */
   keyboard?: boolean;
+  /**
+   * Jogou a carta num arrasto rápido: bate na mesa (só enfeite; a carta vale o mesmo). `forca` de 1 a 3
+   * pela velocidade do arrasto.
+   */
+  onPancada?: (forca: 1 | 2 | 3) => void;
 }
 
 interface Slot {
@@ -134,7 +139,12 @@ export function Hand(p: HandProps) {
               dragElastic={0.2}
               dragSnapToOrigin
               onDragEnd={(_, info) => {
-                if (!hidden && p.canPlay && info.offset.y < -55) p.onPlay(id);
+                if (!hidden && p.canPlay && info.offset.y < -55) {
+                  p.onPlay(id);
+                  // Arrasto rápido para cima: a carta bate na mesa como no bolicho.
+                  const v = -info.velocity.y;
+                  if (v > 1600) p.onPancada?.(v > 3600 ? 3 : v > 2500 ? 2 : 1);
+                }
               }}
               className="absolute bottom-2 origin-bottom touch-none outline-offset-4 disabled:cursor-default"
               style={{ left: s.x, zIndex: (s.row + 1) * 100 + index, width: cw, height: ch, borderRadius: cw * 0.06 }}

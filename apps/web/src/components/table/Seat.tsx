@@ -193,23 +193,39 @@ export function ReactionBubble({
   edge?: BubbleEdge;
 }) {
   const info = reaction ? REACTIONS.find((r) => r.id === reaction.reaction) : undefined;
+  const forca = reaction?.forca ?? 0;
+  const escala = 1 + forca * 0.28;
   return (
     <AnimatePresence>
       {info && reaction && (
         <motion.span
           key={reaction.key}
-          className={`pointer-events-none absolute z-30 flex items-center gap-1 whitespace-nowrap rounded-2xl bg-papel px-2.5 py-1 text-sm font-bold text-tinta shadow-lg ${bubblePosition(placement, edge)}`}
+          className={`pointer-events-none absolute z-30 flex items-center gap-1 whitespace-nowrap rounded-2xl px-2.5 py-1 text-sm font-bold shadow-lg ${forca >= 2 ? 'bg-copas text-papel' : 'bg-papel text-tinta'} ${bubblePosition(placement, edge)}`}
+          style={{ transformOrigin: placement === 'below' ? '50% 0%' : '50% 100%' }}
           initial={{ opacity: 0, y: 8, scale: 0.6 }}
-          animate={{ opacity: 1, y: 0, scale: 1 }}
+          animate={forca >= 3 ? { opacity: 1, y: 0, scale: escala, rotate: [0, -4, 4, -3, 3, 0] } : { opacity: 1, y: 0, scale: escala }}
           exit={{ opacity: 0, y: -10, scale: 0.8 }}
-          transition={{ type: 'spring', stiffness: 420, damping: 20 }}
+          transition={{ type: 'spring', stiffness: 420, damping: 20, rotate: { duration: 0.5, repeat: 2 } }}
         >
           <span className="text-lg leading-none">{info.emoji}</span>
-          {info.label}
+          {forca > 0 ? gritado(info.label, forca) : info.label}
         </motion.span>
       )}
     </AnimatePresence>
   );
+}
+
+/** A frase gritada: a última vogal estica e, mais forte, vira maiúscula ("Cagão!" → "CAGÃÃÃÃO!"). */
+export function gritado(label: string, forca: number): string {
+  // Estica a vogal tônica: a acentuada da última palavra ("Cagão" → "Cagããão"), senão a última vogal.
+  const palavra = /(\p{L}+)[^\p{L}]*$/u.exec(label);
+  const ini = palavra ? palavra.index : 0;
+  const ultima = palavra?.[1] ?? '';
+  const acentuada = ultima.search(/[áàâãéêíóôõú]/i);
+  const vogais = [...ultima.matchAll(/[aeiouáàâãéêíóôõú]/gi)];
+  const i = acentuada >= 0 ? acentuada : (vogais.at(-1)?.index ?? -1);
+  const esticado = i >= 0 ? `${label.slice(0, ini + i)}${label[ini + i]!.repeat(1 + forca * 2)}${label.slice(ini + i + 1)}` : label;
+  return forca >= 2 ? esticado.toLocaleUpperCase('pt-BR') : esticado;
 }
 
 /** Como a cantada sai da boca: "Nenhuma!", "Faço 1!", "Faço 3!". */
@@ -293,6 +309,8 @@ export interface SeatProps {
   enfeites?: Enfeites;
   /** É patrão da mesa (manda na sala): o chapéu ao lado do nome. */
   patrao?: boolean;
+  /** Tocar no rosto abre o menu do amigo (atirar, cutucar, carimbar, ver a câmera). */
+  onZoar?: () => void;
 }
 
 /** Oponente ao redor da mesa. */
@@ -338,6 +356,18 @@ export const Seat = memo(function Seat(p: SeatProps) {
         </RostoZoado>
         {/* Quem demorou jogou: o palheiro some (a vez andou). */}
         <AnimatePresence>{p.pitando && !out && <Palheiro key="palheiro" size={avatarSize} atraso={p.pitandoAtraso} />}</AnimatePresence>
+        {p.onZoar && (
+          <button
+            type="button"
+            aria-label={`Zoar ${player.name}`}
+            aria-haspopup="dialog"
+            onClick={(e) => {
+              e.stopPropagation();
+              p.onZoar?.();
+            }}
+            className="absolute inset-0 z-[5] rounded-full"
+          />
+        )}
         {!out && (player.isDealer || p.isMao) && (
           <span className="absolute -left-2 -top-1">{player.isDealer ? <DealerChip size="sm" /> : <MaoChip size="sm" />}</span>
         )}

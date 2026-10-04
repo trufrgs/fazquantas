@@ -35,9 +35,14 @@ import { enfeitesDe } from './zoeira/diretor';
 import { CartaoDoFregues, CinzeiroDaMesa, FaixaDaMesa } from './zoeira/Palco';
 import { enfeitesDeTeste, useZoeiraDeTeste } from './zoeira/teste';
 import { useDiretor } from './zoeira/useDiretor';
+import { MenuDoAmigo, type AlvoDoMenu } from './zoeira/MenuDoAmigo';
+import { ZoeiraNaMesa } from './zoeira/ZoeiraNaMesa';
+import { useMidia } from '../../lib/midia';
+import { animate } from 'motion/react';
+import { pedirSensor, useChacoalhao } from '../../lib/chacoalhao';
 import { useAlgumaCamera, VideoAmpliado } from '../ui/Midia';
 import { useApp } from '../../stores/app';
-import { useGame, type LiveReaction } from '../../stores/game';
+import { useGame, type LiveReaction, type LiveZoeira } from '../../stores/game';
 import { ehPatrao, isHost, naPlateia, useOnline } from '../../stores/online';
 import { BotaoQueroJogar, cantoDaPlateia, PedidoDaPlateia, PlateiaNaMesa } from '../sala/Plateia';
 import { SenhaDaSala } from '../setup/RoomSettings';
@@ -165,6 +170,7 @@ export function GameScreen() {
   const update = useGame((s) => s.update);
   const seats = useGame((s) => s.seats);
   const reactions = useGame((s) => s.reactions);
+  const zoeiras = useGame((s) => s.zoeiras);
   const gameKey = useGame((s) => s.gameKey);
   const inRoom = useOnline((s) => s.room !== null);
   // O ritmo do jogo: o da sala, online; no local, o do jogo agora (o "Acelerar" muda sem mexer nos
@@ -188,7 +194,7 @@ export function GameScreen() {
     );
   }
   // Partida nova (inclusive revanche) remonta a mesa: nenhuma trava ou seleção sobra da anterior.
-  return <Table key={gameKey} conn={conn} update={update} seats={seats} reactions={reactions} ritmo={ritmo} />;
+  return <Table key={gameKey} conn={conn} update={update} seats={seats} reactions={reactions} zoeiras={zoeiras} ritmo={ritmo} />;
 }
 
 function Table({
@@ -196,12 +202,14 @@ function Table({
   update,
   seats,
   reactions,
+  zoeiras,
   ritmo,
 }: {
   conn: GameConnection;
   update: ViewUpdate;
   seats: SeatInfo[];
   reactions: LiveReaction[];
+  zoeiras: LiveZoeira[];
   /** O ritmo do jogo (1 = normal). */
   ritmo: number;
 }) {
@@ -217,6 +225,8 @@ function Table({
   const [score, setScore] = useState(false);
   const [forca, setForca] = useState(false);
   const [picker, setPicker] = useState(false);
+  // O menu do amigo aberto: o Esc fecha ele, não abre o menu da mesa.
+  const amigoAberto = useRef(false);
   // Trava a entrada entre mandar a jogada e a próxima visão chegar (derivado do `seq`).
   const [pendingAt, setPendingAt] = useState<number | null>(null);
   const [toast, setToast] = useState<string | null>(null);
@@ -248,7 +258,7 @@ function Table({
       else setMenu((m) => !m);
     };
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && !menu && !score && !forca && !picker) setMenu(true);
+      if (e.key === 'Escape' && !menu && !score && !forca && !picker && !amigoAberto.current) setMenu(true);
     };
     window.addEventListener('fodinha:voltar', back);
     window.addEventListener('keydown', onKey);
@@ -569,6 +579,7 @@ function Table({
   const frasesAMao = (
     <FrasesAMao
       onFrase={(r) => conn.react(r)}
+      onGrito={conn.zoar ? (reaction, forca) => void conn.zoar?.({ tipo: 'grito', reaction, forca }) : undefined}
       onMais={() => setPicker((v) => !v)}
       galo={() => galoDeUmToque(trickPlays.map((pl) => pl.cardId), contextoDaRodada(view.rules, view.vira))}
     />
@@ -598,6 +609,45 @@ function Table({
   }, [table.width, table.height, comVira, s, geometry, you, naPlateiaN]);
   // "As cantadas" e o narrador usam o mesmo lugar livre da mesa: com elas na mesa, ele espera calado.
   const cantadasNaMesa = view.phase === 'playing' && (view.trick?.plays.length ?? 0) === 0 && view.players.every((p) => !p.inRound || (p.bid !== null && p.tricks === 0));
+  // O menu do amigo e a zoeira que os jogadores mandam (tiro, cutucão, carimbo, pancada, virada).
+  const [amigo, setAmigo] = useState<string | null>(null);
+  useEffect(() => {
+    amigoAberto.current = amigo !== null;
+  }, [amigo]);
+  const fecharAmigo = useCallback(() => setAmigo(null), []);
+  const tamanhoDoRosto = (algumaCamera ? mesa.rosto : mesa.avatar) * s;
+  const pontoDe = useCallback(
+    (id: string) => {
+      if (id === you) return { x: 34 * s, y: table.height + 22 * s };
+      if ((room?.plateia ?? []).some((x) => x.playerId === id)) return { x: 28 * s, y: table.height - 34 * s };
+      const p = geometry.seats.get(id);
+      if (!p || p.y > table.height) return null;
+      return { x: p.x, y: p.y - geometry.seatBox.h / 2 + tamanhoDoRosto / 2 + 2 * s };
+    },
+    [you, s, table.height, room?.plateia, geometry, tamanhoDoRosto],
+  );
+  const sacudir = useCallback(
+    (tipo: 'pancada' | 'virar', forca: number) => {
+      const el = tableRef.current;
+      if (!el || reduzirMovimento) return;
+      if (tipo === 'pancada') {
+        const f = 3 + forca * 3;
+        void animate(el, { x: [0, -f, f, -f * 0.6, f * 0.4, 0], y: [0, f * 0.5, -f * 0.4, f * 0.3, 0, 0] }, { duration: 0.42, ease: 'linear' });
+      } else {
+        void animate(el, { transformPerspective: 900, rotateX: [0, -180, -360, -360], scale: [1, 0.55, 0.55, 1], rotate: [0, 12, -8, 0] }, { duration: 2, times: [0, 0.35, 0.7, 1], ease: 'easeInOut' });
+      }
+    },
+    [tableRef, reduzirMovimento],
+  );
+  // Chacoalhar o celular vira a mesa (uma vez por partida; o limite vem do servidor).
+  useChacoalhao(!!conn.zoar && view.phase !== 'gameOver' && !menu, () => void conn.zoar?.({ tipo: 'virar' }));
+  const alvoDoMenu: AlvoDoMenu | null = useMemo(() => {
+    if (!amigo) return null;
+    const p = pontoDe(amigo);
+    const nome = view.players.find((x) => x.id === amigo)?.name ?? room?.plateia?.find((x) => x.playerId === amigo)?.name;
+    if (!p || !nome) return null;
+    return { id: amigo, nome, p, cutucavel: demorando && view.actor?.playerId === amigo, camera: comCamera.split(',').includes(amigo) };
+  }, [amigo, pontoDe, view.players, view.actor, room?.plateia, demorando, comCamera]);
   const lugarDaFaixa = cantadasTop(geometry, reveal, view.players.filter((p) => p.inRound).length, s);
   const turnLeft = useTimeLeft(view.turnDeadline);
   // Vez com tempo (tua ou de outra pessoa): o tempo vai no aviso da tua faixa, nada por cima das
@@ -703,6 +753,7 @@ function Table({
                     pitandoAtraso={(view.order.indexOf(p.id) * 1.3) % 3.6}
                     enfeites={enfeites.get(p.id)}
                     patrao={online && ehPatrao(room, p.id)}
+                    onZoar={conn.zoar && view.phase !== 'gameOver' ? () => setAmigo(p.id) : undefined}
                   />
                 );
               })}
@@ -747,6 +798,15 @@ function Table({
           <CoachTip tip={bidding ? null : tip} />
           <VideoAmpliado fora={view.players.filter((x) => x.eliminated).map((x) => x.id)} pb={(room?.plateia ?? []).map((x) => x.playerId)} />
           {online && <PlateiaNaMesa room={room} reactions={reactions} tamanho={ROSTO_DA_PLATEIA} />}
+          <ZoeiraNaMesa zoeiras={zoeiras} pontoDe={pontoDe} tamanho={tamanhoDoRosto} youId={you} sacudir={sacudir} />
+          <MenuDoAmigo
+            alvo={alvoDoMenu}
+            largura={table.width}
+            altura={table.height}
+            onZoar={(z) => conn.zoar?.(z) ?? Promise.resolve(null)}
+            onCamera={(id) => useMidia.setState({ ampliado: id })}
+            onFechar={fecharAmigo}
+          />
           {online && <PedidoDaPlateia room={room} />}
           <BidPanel
             open={bidding}
@@ -864,6 +924,7 @@ function Table({
               dealFrom={dealFrom}
               oneTap={false}
               keyboard={!layerOpen}
+              onPancada={conn.zoar ? (forca) => void conn.zoar?.({ tipo: 'pancada', forca }) : undefined}
             />
           )}
         </div>
@@ -936,6 +997,14 @@ function Table({
         pace={online && isHost() ? room?.pace : undefined}
         onPace={online && isHost() ? (pace) => void useOnline.getState().update({ pace }) : undefined}
         senha={online && isHost() && room ? <SenhaNoMenu room={room} /> : undefined}
+        onVirar={
+          conn.zoar && view.phase !== 'gameOver'
+            ? () => {
+                pedirSensor();
+                return conn.zoar!({ tipo: 'virar' });
+              }
+            : undefined
+        }
       />
       {meAway && <AwayBanner />}
       {online && <AdminNotice />}

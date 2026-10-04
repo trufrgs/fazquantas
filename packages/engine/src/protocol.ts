@@ -8,6 +8,7 @@ import type { AutoReason } from './host';
 import type { Rules } from './rules';
 import type { BestOf, SeriesState } from './series';
 import type { PlayerView } from './view';
+import type { Zoeira, ZoeiraNaMesa } from './zoeira';
 
 export const PROTOCOL_VERSION = 2;
 export const ROOM_CAPACITY = 8;
@@ -340,6 +341,8 @@ export interface ClientToServerEvents {
   'midia:sinal': (p: { para: string; dados: unknown }) => void;
   /** "Voltei": para de jogar por mim. */
   'room:present': (ack?: (r: Ack) => void) => void;
+  /** Zoar alguém (atirar, cutucar, carimbar, gritar, bater a carta, virar a mesa): só enfeite. */
+  'game:zoar': (p: Zoeira, ack?: (r: Ack) => void) => void;
   /** Quem está na plateia pede (ou desiste de) jogar a próxima. */
   'room:querJogar': (p: { quer: boolean }, ack?: (r: Ack) => void) => void;
   /** Patrão: aceita (ou recusa) o pedido de quem está na plateia. */
@@ -357,6 +360,8 @@ export interface ServerToClientEvents {
   'room:replaced': () => void;
   'game:view': (m: ViewMessage) => void;
   'game:reaction': (r: { playerId: string; reaction: ReactionId; at: number }) => void;
+  /** A zoeira que alguém mandou para a mesa. */
+  'game:zoeira': (z: ZoeiraNaMesa) => void;
   /** O sinal do WebRTC de outro jogador da sala (microfone e câmera). */
   'midia:sinal': (p: { de: string; dados: unknown }) => void;
   /** Recado da administração do jogo para quem está na sala (ex.: "reinício em 5 min"). */

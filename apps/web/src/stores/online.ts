@@ -9,6 +9,8 @@ import {
   type RoomState,
   type RoomUpdatePayload,
   type ViewMessage,
+  type Zoeira,
+  type ZoeiraNaMesa,
 } from '@fodinha/engine';
 import { create } from 'zustand';
 import type { GameConnection, ReactionEvent, SeatInfo, ViewUpdate } from '../lib/connection';
@@ -123,6 +125,7 @@ class OnlineConnection implements GameConnection {
   private last: ViewUpdate | null = null;
   private readonly listeners = new Set<(u: ViewUpdate) => void>();
   private readonly reactionListeners = new Set<(r: ReactionEvent) => void>();
+  private readonly zoeiraListeners = new Set<(z: ZoeiraNaMesa) => void>();
   private seatsFor: RoomState | null = null;
   private seatsCache: SeatInfo[] = [];
 
@@ -144,6 +147,21 @@ class OnlineConnection implements GameConnection {
 
   pushReaction(r: ReactionEvent) {
     for (const l of [...this.reactionListeners]) l(r);
+  }
+
+  pushZoeira(z: ZoeiraNaMesa) {
+    for (const l of [...this.zoeiraListeners]) l(z);
+  }
+
+  onZoeira(listener: (z: ZoeiraNaMesa) => void) {
+    this.zoeiraListeners.add(listener);
+    return () => this.zoeiraListeners.delete(listener);
+  }
+
+  async zoar(z: Zoeira): Promise<string | null> {
+    if (!this.socket.connected) return 'Reconectando… tenta de novo em um instante.';
+    const r = await this.socket.request('game:zoar', z);
+    return r.ok ? null : r.error.message;
   }
 
   current() {
@@ -196,6 +214,7 @@ class OnlineConnection implements GameConnection {
   dispose() {
     this.listeners.clear();
     this.reactionListeners.clear();
+    this.zoeiraListeners.clear();
   }
 }
 
@@ -406,6 +425,7 @@ function openSocket(code: string): SalaSocket {
     else app.swap('lobby', 'game');
   });
   s.on('game:reaction', (r) => connection?.pushReaction({ playerId: r.playerId, reaction: r.reaction }));
+  s.on('game:zoeira', (z) => connection?.pushZoeira(z));
   s.on('midia:sinal', (p) => midia.receberSinal(p.de, p.dados));
   s.on('room:kicked', () => useOnline.setState({ kicked: true }));
   s.on('room:notice', (n) => {

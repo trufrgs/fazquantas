@@ -26,6 +26,7 @@ import {
   aceitarSchema,
   patraoSchema,
   querJogarSchema,
+  zoarSchema,
 } from './validacao';
 
 /** Os STUN públicos (Cloudflare e Google): bastam para a voz ligar direto na maioria das redes. */
@@ -99,6 +100,7 @@ const EVENTS: ReadonlySet<string> = new Set<EventName>([
   'room:patrao',
   'game:action',
   'game:react',
+  'game:zoar',
   'game:acelerar',
   'midia:ice',
   'midia:estado',
@@ -478,6 +480,12 @@ export class SalaServidor {
       case 'game:acelerar': {
         const { sala, playerId } = this.membership(conexao);
         sala.acelerar(playerId);
+        return;
+      }
+      case 'game:zoar': {
+        const z = parsePayload(zoarSchema, payload);
+        const { sala, playerId } = this.membership(conexao);
+        sala.zoar(playerId, z);
         return;
       }
       case 'game:react': {

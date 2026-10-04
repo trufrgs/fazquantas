@@ -203,3 +203,61 @@ export function Cinzeiro(p: Desenho & { bitucas: number }) {
     </svg>
   );
 }
+
+/** O tomate, para atirar em quem merece. */
+export function Tomate(p: Desenho) {
+  return (
+    <svg {...svg(p, '0 0 60 58')}>
+      <path d="M30 12 C48 10 58 24 56 36 C54 50 42 56 30 56 C16 56 4 48 4 34 C4 20 14 12 30 12 Z" fill={P.copas} {...s(5)} />
+      <path d="M14 26 C16 20 22 17 26 18" fill="none" stroke="#fff" strokeWidth={4} strokeLinecap="round" opacity={0.55} />
+      <path d="M30 14 L22 6 L28 10 L30 2 L33 10 L40 5 L35 14 Z" fill="#3D7A3A" {...s(4)} />
+    </svg>
+  );
+}
+
+/** O ovo. */
+export function Ovo(p: Desenho) {
+  return (
+    <svg {...svg(p, '0 0 48 60')}>
+      <path d="M24 4 C38 4 44 30 44 38 C44 50 35 56 24 56 C13 56 4 50 4 38 C4 30 10 4 24 4 Z" fill="#F7EFDE" {...s(5)} />
+      <path d="M14 22 C15 16 18 12 21 11" fill="none" stroke="#fff" strokeWidth={4} strokeLinecap="round" />
+    </svg>
+  );
+}
+
+/** A bergamota passada (a tangerina do Sul). */
+export function Bergamota(p: Desenho) {
+  return (
+    <svg {...svg(p, '0 0 60 56')}>
+      <path d="M30 10 C46 8 56 18 56 32 C56 46 44 54 30 54 C16 54 4 46 4 32 C4 18 14 10 30 10 Z" fill="#E98A1E" {...s(5)} />
+      <path d="M16 30 C16 26 18 24 20 24 M42 22 C44 24 44 26 44 28 M28 42 C30 44 32 44 34 42" fill="none" stroke="#B4600F" strokeWidth={3} strokeLinecap="round" />
+      <path d="M30 11 C32 5 38 2 44 4 C40 8 36 10 30 11 Z" fill="#3D7A3A" {...s(4)} />
+      <circle cx="44" cy="40" r="5" fill="#6B8E2A" opacity={0.8} />
+    </svg>
+  );
+}
+
+/** A mancha que fica no rosto de quem levou o tiro (cor de cada coisa). */
+export function Mancha({ cor, miolo, ...p }: Desenho & { cor: string; miolo?: string }) {
+  return (
+    <svg {...svg(p, '0 0 120 110')}>
+      <path
+        d="M58 8 C70 22 84 6 88 24 C102 22 98 40 112 44 C100 54 116 66 100 72 C104 90 84 86 80 100 C68 90 58 108 48 96 C36 104 30 88 18 90 C22 76 4 72 14 60 C2 50 16 40 10 30 C24 30 22 12 38 18 C42 6 52 18 58 8 Z"
+        fill={cor}
+        {...s(4)}
+      />
+      {miolo && <circle cx="58" cy="56" r="20" fill={miolo} {...s(4)} />}
+      <path d="M30 40 C34 34 40 32 44 34" fill="none" stroke="#fff" strokeWidth={5} strokeLinecap="round" opacity={0.45} />
+    </svg>
+  );
+}
+
+/** A rachadura que a pancada deixa na madeira. */
+export function Rachadura(p: Desenho) {
+  return (
+    <svg {...svg(p, '0 0 100 100')}>
+      <path d="M50 50 22 36 8 40M50 50l20-27-2-15M50 50l37 9 9-6M50 50 41 81l6 13M50 50 27 63l-9 12M50 50l14 22" fill="none" stroke="#1d120b" strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round" opacity={0.8} />
+      <path d="M50 50 22 36 8 40M50 50l20-27-2-15M50 50l37 9 9-6M50 50 41 81l6 13M50 50 27 63l-9 12M50 50l14 22" fill="none" stroke="#ffd9a0" strokeWidth={0.8} strokeLinecap="round" opacity={0.35} transform="translate(1 1)" />
+    </svg>
+  );
+}

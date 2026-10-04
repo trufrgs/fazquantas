@@ -1,4 +1,4 @@
-import type { AutoReason, BotDifficulty, ClientAction, PlayerView, ReactionId } from '@fodinha/engine';
+import type { AutoReason, BotDifficulty, ClientAction, PlayerView, ReactionId, Zoeira, ZoeiraNaMesa } from '@fodinha/engine';
 
 export interface SeatInfo {
   id: string;
@@ -36,6 +36,9 @@ export interface GameConnection {
   /** Resolve com a mensagem de erro, ou `null` se deu certo. */
   act(action: ClientAction): Promise<string | null>;
   react(reaction: ReactionId): void;
+  /** Zoar alguém (só enfeite): resolve com o recado do limite, ou `null` se foi. */
+  zoar?(z: Zoeira): Promise<string | null>;
+  onZoeira?(listener: (z: ZoeiraNaMesa) => void): () => void;
   /** Controles só do modo local. */
   pause?(): void;
   resume?(): void;
