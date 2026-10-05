@@ -55,9 +55,10 @@ export const CORO = { vozes: 3, janelaMs: 5000, descansoMs: 20000 } as const;
 
 /**
  * O estado de um assento, cada coisa no seu ponto: a coroa do líder em cima do rosto, a chama da mão
- * quente atrás dele, o gelo do pé-frio por cima (cor e tremor), o borracho no balanço do rosto, a
- * lanterna ao lado do nome, a lápide atrás de quem saiu. Mão quente e pé-frio nunca andam juntos.
- * "Líder e lanterna", como no campeonato: "patrão" é outra coisa, é quem manda na mesa (a sala).
+ * quente atrás dele (com a coroa, não acende), o gelo do pé-frio por cima (cor e tremor), o borracho
+ * no balanço do rosto (só no último palito), a lanterna ao lado do nome, a lápide atrás de quem saiu.
+ * Mão quente e pé-frio nunca andam juntos. "Líder e lanterna", como no campeonato: "patrão" é outra
+ * coisa, é quem manda na mesa (a sala).
  */
 export interface Enfeites {
   /** Palitos perdidos viram tragos: 0 sóbrio, 1 alegre, 2 soluçando, 3 no último palito. */

@@ -184,13 +184,23 @@ pnpm exec playwright test                  # E2E locais (sobem os servidores soz
   bolicho por baixo do tango (conversa, copo e sinuca, CC0; cala com microfone aberto). O rádio com
   estações ficou de fora: não há milonga nem vaneira com licença que permita uso comercial (a regra
   do `CREDITS.md`). Microfone: só volume, nada gravado; contas em `zoeira/microfone.ts` (testadas).
+- **A poda do assento** (04/10/2026, depois de partida de verdade no iPhone: "ficou um pouco
+  sobrecarregado"): o cusco ocupa o círculo do rosto de quem caiu (sem plaquinha por cima; a zoeira daquele
+  rosto espera a pessoa voltar), e nada cobre os selos (o "faz" é a informação mais importante do
+  assento); a tua faixa embaixo segue a ordem dos outros assentos (selos nos cantos do rosto, nome com os
+  palitos, o aviso à direita, sem chapéu de patrão, lanterna nem palheiro); o cinzeiro saiu da mesa (a
+  conta das bitucas fica para o fim de jogo); com a coroa do líder a chama não acende; o borracho só
+  balança no último palito; com o véu do pé-frio a máscara não entra; bater a carta é gesto de
+  propósito (levar a carta até o alto e soltar com força, uma por rodada; a rachadura só na pancada
+  forte). Regra para o que vier: cada assento tem quatro cantos de selo e um rosto; enfeite novo não
+  cobre selo e não briga com outro enfeite no mesmo ponto.
 - **Zoeira: uma coisa de cada vez em cada lugar.** O Thomas escolheu dezenas de ideias no caderno de
   zoeira (02/10/2026) com uma condição: o excesso não pode sobrecarregar nem atrapalhar a jogada, e as
   opções não podem se confundir entre si. As regras moram em `components/table/zoeira/diretor.ts` e
   valem para tudo o que entrar depois:
-  - *enfeite* (estado do assento, cada um no seu ponto): coroa do líder em palitos e lanterna do
-    último, chama da mão quente (3+ acertos seguidos) ou véu azul do pé-frio (3+ erros), balanço do
-    borracho (cada palito perdido é um trago), lápide, a galinha de quem só canta zero;
+  - *enfeite* (estado do assento, cada um no seu ponto): coroa do líder em palitos (com ela, sem
+    chama) e lanterna do último, chama da mão quente (3+ acertos seguidos) ou véu azul do pé-frio (3+
+    erros), balanço do borracho no último palito, lápide, a galinha de quem só canta zero;
   - *máscara* (o meio do rosto, uma por rosto): focinho ou nariz, do fim da rodada até a primeira
     carta da seguinte; jogando carta, os rostos ficam limpos;
   - *cena de assento* (um instante em cima de um rosto, no máximo duas na mesa, a mais pesada
@@ -200,8 +210,7 @@ pnpm exec playwright test                  # E2E locais (sobem os servidores soz
     pelo mesmo dono), o duelo, a cuia, o tropeço e o corte de novela (que tira o que estiver lá);
   - *faixa* (o único letreiro): o narrador de galpão, com ditado gaúcho, só em tempo morto e no
     máximo duas falas por rodada, e o coro (três mandam a mesma frase em cinco segundos);
-  - o cinzeiro da espera junta as bitucas no canto e a conta sai no fim de jogo, com o freguês da
-    noite.
+  - as bitucas da espera (o cinzeiro) e o freguês da noite saem no fim de jogo.
   Nada pega toque nem cobre a mão ou o painel; em câmera rápida não acontece nada; com "reduzir
   movimento" ficam os enfeites parados e a faixa. **Sem letrinha de gibi**: onomatopeia ("pá!",
   "cocoricó") o Thomas achou brega; palavra só quando é a piada (carimbo, epitáfio, ditado). Desenho

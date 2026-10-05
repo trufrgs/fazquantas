@@ -91,8 +91,13 @@ export function RostoZoado({
   }, [chave, tipo, animar, rosto]);
 
   const e = fora ? undefined : enfeites;
-  // A chama cresce um pouco com a sequência, até um teto: maior que isso, invadia o assento de cima e o alto da mesa.
-  const chama = e && e.quente > 0 ? 0.95 + Math.min(e.quente - 3, 1) * 0.15 : 0;
+  // A chama cresce um pouco com a sequência, até um teto: maior que isso, invadia o assento de cima e o
+  // alto da mesa. Com a coroa do líder, a chama não acende: as duas juntas embolavam (o Thomas,
+  // 04/10/2026); a coroa diz mais.
+  const chama = e && e.quente > 0 && !e.lider ? 0.74 + Math.min(e.quente - 3, 1) * 0.1 : 0;
+  // O borracho só balança no último palito: com um palito perdido, quase a mesa inteira balançava o
+  // jogo todo, e o balanço embaralhava o resto do assento.
+  const bebado = !!e && e.borracho >= 3;
   return (
     <span className="relative inline-block shrink-0 align-top" style={{ width: rem(size), height: rem(size) }}>
       {fora && (
@@ -112,16 +117,16 @@ export function RostoZoado({
         </span>
       )}
       {e?.galinha && (
-        <span className="zoeira-galinha pointer-events-none absolute" style={{ left: u(-0.32), top: u(0.46), width: u(0.4) }} aria-hidden="true">
+        <span className="zoeira-galinha pointer-events-none absolute" style={{ left: u(-0.3), top: u(0.3), width: u(0.34) }} aria-hidden="true">
           <Galinha w="100%" />
         </span>
       )}
       <span ref={rosto} className="relative block" style={{ transformOrigin: tipo === 'vaca' ? '50% 100%' : efeito === 'queixo' ? '50% 0%' : '50% 50%' }}>
-        <span className={`block ${e && e.borracho > 0 ? `zoeira-borracho zoeira-borracho-${e.borracho}` : ''}`}>
+        <span className={`block ${bebado ? 'zoeira-borracho zoeira-borracho-3' : ''}`}>
           <span className={`block ${e && e.frio > 0 ? 'zoeira-frio' : ''}`}>{children}</span>
         </span>
       </span>
-      {e && e.borracho >= 2 && (
+      {bebado && (
         <span className="pointer-events-none absolute" style={{ left: '70%', top: '46%' }} aria-hidden="true">
           {[0, 1].map((i) => (
             <span key={i} className="zoeira-bolha absolute block rounded-full" style={{ width: u(0.11 + i * 0.05), height: u(0.11 + i * 0.05), animationDelay: `${i * 1.3}s` }} />
@@ -137,7 +142,8 @@ export function RostoZoado({
         </span>
       )}
       <AnimatePresence>
-        {!fora && mascara && (
+        {/* Com o véu do pé-frio, a máscara não entra: os dois falam do mesmo erro, e um por cima do outro embolava. */}
+        {!fora && mascara && !(e && e.frio > 0) && (
           <motion.span
             key={mascara}
             className="pointer-events-none absolute left-1/2 z-[7] block"
@@ -191,7 +197,7 @@ export function RostoZoado({
       {e?.lider && (
         <motion.span
           className="pointer-events-none absolute left-1/2 z-10"
-          style={{ top: u(-0.3), width: u(0.62), marginLeft: u(-0.31) }}
+          style={{ top: u(-0.26), width: u(0.54), marginLeft: u(-0.27) }}
           initial={{ y: u(-0.9), opacity: 0, rotate: -20 }}
           animate={{ y: 0, opacity: 1, rotate: -5 }}
           transition={{ type: 'spring', stiffness: 420, damping: 18 }}

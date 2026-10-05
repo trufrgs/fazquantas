@@ -3,7 +3,7 @@ import { useEffect } from 'react';
 import { play } from '../../../lib/sound';
 import { rem } from '../../../lib/ui-scale';
 import { DURACAO_PALCO, useZoeira } from './agenda';
-import { Capim, Cinzeiro, CuiaDeCima, Espeto, Galo, GatoPreto, Suor } from './desenhos';
+import { Capim, CuiaDeCima, Espeto, Galo, GatoPreto, Suor } from './desenhos';
 import { Avatar } from '../../ui/Avatar';
 import { RostoNaMesa } from '../../ui/Midia';
 import { sintetizar } from '../../../lib/sintetizado';
@@ -130,32 +130,6 @@ export function CartaoDoFregues({ nameOf }: { nameOf: (id: string) => string }) 
         </motion.div>
       )}
     </AnimatePresence>
-  );
-}
-
-/**
- * O cinzeiro da espera: junta as bitucas dos palheiros fumados esperando alguém (por baixo de
- * assentos e cartas, como coisa em cima da mesa). A conta de quem fez a mesa esperar sai no fim.
- */
-export function CinzeiroDaMesa({ left, bottom, largura }: { left: number; bottom: number; largura: number }) {
-  const total = useZoeira((s) => s.cinzeiro.total);
-  if (total <= 0) return null;
-  return (
-    <motion.div
-      key={total}
-      role="img"
-      aria-label={`Cinzeiro da espera: ${total} ${total === 1 ? 'bituca' : 'bitucas'}`}
-      className="pointer-events-none absolute z-[1]"
-      style={{ left, bottom, width: largura }}
-      initial={{ scale: 1.25 }}
-      animate={{ scale: 1 }}
-      transition={{ type: 'spring', stiffness: 380, damping: 16 }}
-    >
-      <Cinzeiro w="100%" bitucas={total} />
-      <span className="absolute -right-1 -top-1 flex min-w-5 items-center justify-center rounded-full bg-noite/80 px-1 text-xs font-bold tabular-nums text-papel ring-1 ring-papel/25">
-        {total}
-      </span>
-    </motion.div>
   );
 }
 

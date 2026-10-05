@@ -74,4 +74,13 @@ describe('ControleDaZoeira: golpe and baforada', () => {
     expect(c.pode('a', { tipo: 'cutucar', alvo: 'b' }, ctx({ agora: 1000 }))).toBeNull();
     expect(c.pode('a', { tipo: 'baforada', alvo: 'b' }, ctx({ agora: 6000 }))).toBeNull();
   });
+
+  it('one card slam per round: it is for the big play, not for every card', () => {
+    const c = new ControleDaZoeira();
+    const z = { tipo: 'pancada', forca: 2 } as const;
+    expect(c.pode('a', z, ctx())).toBeNull();
+    c.registrar('a', z, ctx());
+    expect(c.pode('a', z, ctx({ agora: 10_000 }))).toBe(ZOEIRA_ESGOTADA.pancada);
+    expect(c.pode('a', z, ctx({ agora: 10_000, rodada: 'p:2' }))).toBeNull();
+  });
 });

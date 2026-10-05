@@ -54,12 +54,15 @@ export const LIMITES_DA_ZOEIRA = {
   cutucaoMs: 5000,
   /** Viradas de mesa por pessoa em cada partida. */
   viradasPorPartida: 1,
+  /** Cartas batidas na mesa por pessoa em cada rodada (a pancada é para o lance, não para toda jogada). */
+  pancadasPorRodada: 1,
   /** Entre um carimbo, grito ou pancada e outro da mesma pessoa (ms). */
   intervaloMs: 1500,
 } as const;
 
 export const ZOEIRA_ESGOTADA = {
   tiros: 'Acabou a munição desta rodada.',
+  pancada: 'Uma pancada por rodada já basta.',
   virar: 'Tu já virou a mesa nesta partida.',
   cutucao: 'Calma, deixa o vivente respirar.',
   alvo: 'Esse aí não está na mesa.',
@@ -87,6 +90,7 @@ const FRASES = new Set<string>(REACTIONS.map((r) => r.id));
 export class ControleDaZoeira {
   private tiros = new Map<string, number>();
   private viradas = new Map<string, number>();
+  private pancadas = new Map<string, number>();
   private ultimo = new Map<string, number>();
   private cutucou = new Map<string, number>();
 
@@ -102,6 +106,9 @@ export class ControleDaZoeira {
         return (this.tiros.get(`${c.rodada}:${de}`) ?? 0) >= LIMITES_DA_ZOEIRA.tirosPorRodada ? ZOEIRA_ESGOTADA.tiros : null;
       case 'atirar':
         return (this.tiros.get(`${c.rodada}:${de}`) ?? 0) >= LIMITES_DA_ZOEIRA.tirosPorRodada ? ZOEIRA_ESGOTADA.tiros : null;
+      case 'pancada':
+        if ((this.pancadas.get(`${c.rodada}:${de}`) ?? 0) >= LIMITES_DA_ZOEIRA.pancadasPorRodada) return ZOEIRA_ESGOTADA.pancada;
+        return c.agora - (this.ultimo.get(de) ?? -Infinity) < LIMITES_DA_ZOEIRA.intervaloMs ? ZOEIRA_ESGOTADA.cutucao : null;
       case 'virar':
         return (this.viradas.get(`${c.partida}:${de}`) ?? 0) >= LIMITES_DA_ZOEIRA.viradasPorPartida ? ZOEIRA_ESGOTADA.virar : null;
       case 'cutucar':
@@ -116,6 +123,10 @@ export class ControleDaZoeira {
   registrar(de: string, z: Zoeira, c: ContextoDaZoeira): void {
     if (z.tipo === 'atirar' || z.tipo === 'golpe') this.tiros.set(`${c.rodada}:${de}`, (this.tiros.get(`${c.rodada}:${de}`) ?? 0) + 1);
     else if (z.tipo === 'virar') this.viradas.set(`${c.partida}:${de}`, (this.viradas.get(`${c.partida}:${de}`) ?? 0) + 1);
+    else if (z.tipo === 'pancada') {
+      this.pancadas.set(`${c.rodada}:${de}`, (this.pancadas.get(`${c.rodada}:${de}`) ?? 0) + 1);
+      this.ultimo.set(de, c.agora);
+    }
     else if (z.tipo === 'cutucar' || z.tipo === 'baforada') this.cutucou.set(`${z.tipo}:${de}`, c.agora);
     else this.ultimo.set(de, c.agora);
   }

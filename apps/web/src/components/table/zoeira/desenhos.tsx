@@ -175,35 +175,6 @@ export function Chama(p: Desenho) {
   );
 }
 
-/** O cinzeiro da espera, com as bitucas que cabem à vista (`bitucas`, até nove). */
-export function Cinzeiro(p: Desenho & { bitucas: number }) {
-  const lugares = [
-    [44, 34, -24],
-    [70, 30, 18],
-    [58, 40, -6],
-    [84, 38, -30],
-    [36, 42, 12],
-    [62, 26, 40],
-    [50, 30, -48],
-    [76, 44, 4],
-    [90, 30, 30],
-  ] as const;
-  return (
-    <svg {...svg(p, '0 0 124 74')}>
-      <ellipse cx="62" cy="40" rx="56" ry="28" fill="#CFD6D2" {...s()} />
-      <ellipse cx="62" cy="36" rx="44" ry="19" fill="#3A332D" {...s(5)} />
-      <path d="M6 40 C6 58 30 68 62 68 C94 68 118 58 118 40" fill="none" stroke={T} strokeWidth={3} opacity={0.35} />
-      {lugares.slice(0, Math.min(p.bitucas, lugares.length)).map(([x, y, r], i) => (
-        <g key={i} transform={`translate(${x} ${y}) rotate(${r})`}>
-          <rect x="-11" y="-3.5" width="22" height="7" rx="3" fill="#F1EAD8" stroke={T} strokeWidth={2.5} />
-          <rect x="-11" y="-3.5" width="8" height="7" rx="3" fill="#D9A35B" stroke={T} strokeWidth={2.5} />
-          <rect x="8" y="-2.5" width="3" height="5" fill="#3A332D" />
-        </g>
-      ))}
-    </svg>
-  );
-}
-
 /** O tomate, para atirar em quem merece. */
 export function Tomate(p: Desenho) {
   return (

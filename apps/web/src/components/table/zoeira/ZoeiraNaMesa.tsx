@@ -95,7 +95,8 @@ export function ZoeiraNaMesa({
   const baforadas = ultimoPorAlvo(zoeiras.filter((x) => x.z.tipo === 'baforada'));
   const carimbos = ultimoPorAlvo(zoeiras.filter((x) => x.z.tipo === 'carimbo'));
   const cutucoes = ultimoPorAlvo(zoeiras.filter((x) => x.z.tipo === 'cutucar'));
-  const pancada = zoeiras.filter((x) => x.z.tipo === 'pancada').at(-1);
+  // A rachadura é só da pancada forte; a leve só treme a mesa.
+  const pancada = zoeiras.filter((x) => x.z.tipo === 'pancada' && x.z.forca >= 2).at(-1);
   return (
     <div className="pointer-events-none absolute inset-0 z-[35] overflow-visible" aria-hidden="true">
       <AnimatePresence>
@@ -130,6 +131,7 @@ export function ZoeiraNaMesa({
         {pancada && (
           <motion.span
             key={pancada.key}
+            data-rachadura
             className="absolute left-1/2 top-1/2 block -translate-x-1/2 -translate-y-1/2"
             style={{ width: '38%', maxWidth: 220 }}
             initial={{ opacity: 0, scale: 0.4 }}
@@ -285,7 +287,7 @@ function Golpe({ avatar, de, para, tamanho, liso }: { avatar: AvatarComGolpe; de
       return (
         <motion.span
           className="absolute block"
-          style={caixa(tamanho * 1.5)}
+          style={caixa(tamanho * 1.25)}
           initial={{ x: para.x, y: para.y, scale: 0.2, opacity: 0 }}
           animate={{ x: [para.x, para.x + 4, para.x - 4, para.x], scale: [0.2, 1, 1.05, 1.2], opacity: [0, 0.95, 0.9, 0] }}
           exit={{ opacity: 0 }}

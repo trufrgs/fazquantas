@@ -8,7 +8,6 @@ import { AVATAR_GRANDE } from './layout';
 import { Matches } from '../ui/Matches';
 import { Palheiro } from './Palheiro';
 import { Lanterna } from './zoeira/desenhos';
-import { ChapeuDePatrao } from '../sala/ChapeuDePatrao';
 import type { Enfeites, Mascara } from './zoeira/diretor';
 import { CuscoNaCadeira } from './zoeira/desenhos';
 import { RostoZoado } from './zoeira/RostoZoado';
@@ -308,8 +307,6 @@ export interface SeatProps {
   pitandoAtraso?: number;
   /** A zoeira deste assento (borracho, mão quente, líder, lanterna, lápide): ver `zoeira/diretor.ts`. */
   enfeites?: Enfeites;
-  /** É patrão da mesa (manda na sala): o chapéu ao lado do nome. */
-  patrao?: boolean;
   /** Tocar no rosto abre o menu do amigo (atirar, cutucar, carimbar, ver a câmera). */
   onZoar?: () => void;
   /** O que a última rodada deixou no rosto (focinho, nariz). */
@@ -328,6 +325,9 @@ export const Seat = memo(function Seat(p: SeatProps) {
   const out = player.eliminated;
   // Caiu ou estourou o tempo: a mesa joga por ele, e o cusco senta na cadeira até ele voltar.
   const longe = !!info && info.kind === 'human' && (!info.connected || !!info.away);
+  const cusco = longe && !out;
+  // O cusco não abre câmera: o círculo dele é do tamanho do avatar.
+  const rosto = cusco ? p.avatar : avatarSize;
 
   // Quem senta no alto não tem espaço em cima: o balão abre embaixo do assento, ou para o lado na
   // rodada da carta na testa (embaixo fica a carta dele).
@@ -355,13 +355,18 @@ export const Seat = memo(function Seat(p: SeatProps) {
         aria-label={`${player.name}${out ? ', fora do jogo' : ''}`}
       >
       <div className="relative z-10">
-        {p.isTurn && !out && <TurnRing size={avatarSize} deadline={p.deadline} />}
-        <RostoZoado id={player.id} size={avatarSize} enfeites={p.enfeites} mascara={p.mascara} frase={p.reaction}>
-          <RostoNaMesa playerId={player.id} seed={info?.avatar ?? player.id} size={p.avatar} tamanhoVideo={p.rosto} dim={out} fora={out} />
-        </RostoZoado>
-        <AnimatePresence>{longe && !out && <CuscoSentado key="cusco" id={player.id} size={avatarSize} caiu={!info?.connected} />}</AnimatePresence>
+        {p.isTurn && !out && <TurnRing size={rosto} deadline={p.deadline} />}
+        {cusco ? (
+          // O cusco senta no lugar (no próprio círculo do rosto): os selos do assento seguem por cima
+          // dele, e a zoeira daquele rosto (enfeites, máscara, palheiro) espera a pessoa voltar.
+          <CuscoNoLugar id={player.id} size={p.avatar} caiu={!info?.connected} />
+        ) : (
+          <RostoZoado id={player.id} size={avatarSize} enfeites={p.enfeites} mascara={p.mascara} frase={p.reaction}>
+            <RostoNaMesa playerId={player.id} seed={info?.avatar ?? player.id} size={p.avatar} tamanhoVideo={p.rosto} dim={out} fora={out} />
+          </RostoZoado>
+        )}
         {/* Quem demorou jogou: o palheiro some (a vez andou). */}
-        <AnimatePresence>{p.pitando && !out && <Palheiro key="palheiro" size={avatarSize} atraso={p.pitandoAtraso} />}</AnimatePresence>
+        <AnimatePresence>{p.pitando && !out && !cusco && <Palheiro key="palheiro" size={avatarSize} atraso={p.pitandoAtraso} />}</AnimatePresence>
         {p.onZoar && (
           <button
             type="button"
@@ -401,8 +406,7 @@ export const Seat = memo(function Seat(p: SeatProps) {
           out ? 'text-papel/70' : p.isTurn ? 'text-ouros' : 'text-papel'
         }`}
       >
-        {p.patrao && <ChapeuDePatrao w={grande ? 18 : 15} />}
-        {!out && p.enfeites?.lanterna && <Lanterna w={rem(grande ? 13 : 11)} className="shrink-0" />}
+        {!out && !cusco && p.enfeites?.lanterna && <Lanterna w={rem(grande ? 13 : 11)} className="shrink-0" />}
         <span className="truncate">{player.name}</span>
       </span>
       <div className="relative z-10 flex justify-center">
@@ -417,7 +421,7 @@ export const Seat = memo(function Seat(p: SeatProps) {
       {placement === 'below' ? (
         bubbles
       ) : (
-        <div className="pointer-events-none absolute inset-x-0 top-0 mx-auto" style={{ width: rem(avatarSize), height: rem(avatarSize) }}>
+        <div className="pointer-events-none absolute inset-x-0 top-0 mx-auto" style={{ width: rem(rosto), height: rem(rosto) }}>
           {bubbles}
         </div>
       )}
@@ -426,30 +430,30 @@ export const Seat = memo(function Seat(p: SeatProps) {
   );
 });
 
-/** O que diz a plaquinha do cusco (cada um tem a sua desculpa, sempre a mesma na partida). */
-const DESCULPAS = ['Foi buscar cerveja', 'Foi ver o churrasco', 'Tá no banheiro', 'Foi buscar erva', 'Foi buscar gelo'];
+/** A desculpa de quem saiu (cada um tem a sua, sempre a mesma na partida): vai no nome do cusco. */
+const DESCULPAS = ['foi buscar cerveja', 'foi ver o churrasco', 'tá no banheiro', 'foi buscar erva', 'foi buscar gelo'];
 
 /**
- * O cusco caramelo senta na cadeira de quem caiu ou sumiu e joga por ele (a mesa já joga sozinha:
- * é só a cara do bicho), com a plaquinha da desculpa. Quando a pessoa volta, ele sai correndo.
+ * O cusco caramelo no lugar de quem caiu ou estourou o tempo (a mesa joga por ele): ocupa o círculo
+ * do rosto, como se fosse o avatar, e nada mais. Antes ele sentava por cima do rosto com uma plaquinha,
+ * e cobria o "faz", o nome e o resto do assento (o Thomas, 04/10/2026). Quando a pessoa volta, o rosto
+ * dela volta junto.
  */
-function CuscoSentado({ id, size, caiu }: { id: string; size: number; caiu: boolean }) {
+function CuscoNoLugar({ id, size, caiu }: { id: string; size: number; caiu: boolean }) {
   const desculpa = DESCULPAS[[...id].reduce((n, c) => n + c.charCodeAt(0), 0) % DESCULPAS.length]!;
   return (
     <motion.span
-      className="pointer-events-none absolute left-1/2 top-[18%] z-[6] flex -translate-x-1/2 flex-col items-center"
-      style={{ width: rem(size * 0.86) }}
-      initial={{ y: rem(size * 0.5), opacity: 0 }}
-      animate={{ y: 0, opacity: 1 }}
-      exit={{ x: rem(size * 2.2), rotate: 12, opacity: 0, transition: { duration: 0.45, ease: 'easeIn' } }}
-      transition={{ type: 'spring', stiffness: 380, damping: 22 }}
+      className="relative block overflow-hidden rounded-full bg-[#E9D3A8] ring-2 ring-papel/40"
+      style={{ width: rem(size), height: rem(size) }}
+      initial={{ scale: 0.6, opacity: 0 }}
+      animate={{ scale: 1, opacity: 1 }}
+      transition={{ type: 'spring', stiffness: 420, damping: 22 }}
       title={caiu ? 'Saiu da tela: a mesa joga por ele até voltar' : 'Estourou o tempo: a mesa está jogando por ele'}
       role="img"
-      aria-label={`${caiu ? 'Caiu' : 'Ausente'}: ${desculpa.toLowerCase()}`}
+      aria-label={`${caiu ? 'Caiu' : 'Ausente'}: ${desculpa}. O cusco joga por ele.`}
     >
-      <CuscoNaCadeira w="100%" />
-      <span className="papel -mt-1 whitespace-nowrap rounded px-1 font-hand text-[0.7rem] font-bold leading-tight shadow ring-1 ring-black/15" style={{ rotate: '-4deg' }}>
-        {desculpa}
+      <span className="absolute inset-x-[8%] bottom-[-6%] block">
+        <CuscoNaCadeira w="100%" />
       </span>
     </motion.span>
   );

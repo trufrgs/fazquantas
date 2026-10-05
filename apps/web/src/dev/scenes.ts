@@ -246,13 +246,16 @@ function simulate(scene: Scene): { state: GameState; seats: SeatInfo[] } {
     if (!r.ok) break;
     state = r.state;
   }
+  // `&longe=1`: os dois primeiros adversários são gente que caiu (para ver o cusco no lugar deles).
+  const longe = typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('longe');
   const seats: SeatInfo[] = players.map((p, i) => ({
     id: p.id,
     name: p.name,
     avatar: i === 0 ? 'thomas' : `${p.name.toLowerCase()}-${scene.seed}`,
-    kind: i === 0 ? 'human' : 'bot',
+    kind: i === 0 || (longe && i <= 2) ? 'human' : 'bot',
     difficulty: 'medio',
-    connected: true,
+    connected: !(longe && i >= 1 && i <= 2),
+    away: longe && i === 2,
   }));
   return { state, seats };
 }

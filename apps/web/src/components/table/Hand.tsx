@@ -3,6 +3,9 @@ import { motion } from 'motion/react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Card, CARD_RATIO } from '../cards/Card';
 
+/** O gesto de bater a carta: arrastar até tanto (px) acima e soltar a tanto (px/s) ou mais. */
+export const PANCADA = { alto: 130, velocidade: 3200 } as const;
+
 export interface HandProps {
   cards: CardId[];
   /** Rodada às cegas: quantas cartas viradas para baixo mostrar. */
@@ -21,7 +24,7 @@ export interface HandProps {
   /** Atalhos de teclado ligados (desligados com menu/folha aberta por cima). */
   keyboard?: boolean;
   /**
-   * Jogou a carta num arrasto rápido: bate na mesa (só enfeite; a carta vale o mesmo). `forca` de 1 a 3
+   * Jogou a carta num arrasto forte até o alto: bate na mesa (só enfeite; a carta vale o mesmo). `forca` de 1 a 3
    * pela velocidade do arrasto.
    */
   onPancada?: (forca: 1 | 2 | 3) => void;
@@ -141,9 +144,11 @@ export function Hand(p: HandProps) {
               onDragEnd={(_, info) => {
                 if (!hidden && p.canPlay && info.offset.y < -55) {
                   p.onPlay(id);
-                  // Arrasto rápido para cima: a carta bate na mesa como no bolicho.
+                  // Bater a carta na mesa é gesto de propósito: levar a carta lá no alto e soltar com
+                  // força. O arrasto de jogar, mesmo rápido, não racha a mesa (rachava quase toda
+                  // jogada no iPhone, o Thomas, 04/10/2026).
                   const v = -info.velocity.y;
-                  if (v > 1600) p.onPancada?.(v > 3600 ? 3 : v > 2500 ? 2 : 1);
+                  if (info.offset.y < -PANCADA.alto && v > PANCADA.velocidade) p.onPancada?.(v > PANCADA.velocidade * 1.6 ? 3 : v > PANCADA.velocidade * 1.3 ? 2 : 1);
                 }
               }}
               className="absolute bottom-2 origin-bottom touch-none outline-offset-4 disabled:cursor-default"

@@ -32,7 +32,7 @@ import { galoDeUmToque } from './frases';
 import { FrasesAMao } from './FrasesAMao';
 import { FumacaNaMesa, FumacaPorCima } from './Fumaca';
 import { DEPOIS_DO_CORTE_MS, enfeitesDe, maoQueDecide, mascarasDe } from './zoeira/diretor';
-import { CartaoDoFregues, CinzeiroDaMesa, FaixaDaMesa, PalcoDaMesa, PassanteNaMesa, type PorUmFio } from './zoeira/Palco';
+import { CartaoDoFregues, FaixaDaMesa, PalcoDaMesa, PassanteNaMesa, type PorUmFio } from './zoeira/Palco';
 import { enfeitesDeTeste, mascarasDeTeste, useZoeiraDeTeste } from './zoeira/teste';
 import { useDiretor } from './zoeira/useDiretor';
 import { MenuDoAmigo, type AlvoDoMenu } from './zoeira/MenuDoAmigo';
@@ -48,7 +48,7 @@ import { pedirSensor, useChacoalhao } from '../../lib/chacoalhao';
 import { useAlgumaCamera, VideoAmpliado } from '../ui/Midia';
 import { useApp } from '../../stores/app';
 import { useGame, type LiveReaction, type LiveZoeira } from '../../stores/game';
-import { ehPatrao, isHost, naPlateia, useOnline } from '../../stores/online';
+import { isHost, naPlateia, useOnline } from '../../stores/online';
 import { BotaoQueroJogar, cantoDaPlateia, PedidoDaPlateia, PlateiaNaMesa } from '../sala/Plateia';
 import { ChegadaNaSala } from '../sala/Chegada';
 import { SenhaDaSala } from '../setup/RoomSettings';
@@ -670,13 +670,6 @@ function Table({
     },
     [view.players, seatOf, comCamera],
   );
-  // O cinzeiro fica no canto de baixo, à esquerda, quando o canto está livre (sem a vira e sem assento).
-  const cinzeiro = useMemo(() => {
-    if (table.width === 0 || comVira || naPlateiaN > 0) return null;
-    const r = { l: 8 * s, r: 66 * s, t: table.height - 46 * s };
-    const coberto = [...geometry.seats.entries()].some(([id, p]) => id !== you && p.x - geometry.seatBox.w / 2 < r.r && p.y + geometry.seatBox.h / 2 > r.t);
-    return coberto ? null : { left: 8 * s, bottom: 8 * s, largura: 58 * s };
-  }, [table.width, table.height, comVira, s, geometry, you, naPlateiaN]);
   // "As cantadas" e o narrador usam o mesmo lugar livre da mesa: com elas na mesa, ele espera calado.
   const cantadasNaMesa = view.phase === 'playing' && (view.trick?.plays.length ?? 0) === 0 && view.players.every((p) => !p.inRound || (p.bid !== null && p.tricks === 0));
   // O menu do amigo e a zoeira que os jogadores mandam (tiro, cutucão, carimbo, pancada, virada).
@@ -826,13 +819,11 @@ function Table({
                     pitando={pitando(p.id)}
                     pitandoAtraso={(view.order.indexOf(p.id) * 1.3) % 3.6}
                     enfeites={enfeites.get(p.id)}
-                    patrao={online && ehPatrao(room, p.id)}
                     onZoar={conn.zoar && view.phase !== 'gameOver' ? () => setAmigo(p.id) : undefined}
                     mascara={mascaras.get(p.id)}
                   />
                 );
               })}
-          {cinzeiro && <CinzeiroDaMesa {...cinzeiro} />}
           <PassanteNaMesa altura={table.height} />
           {/* A fumaça de quem espera: por cima dos assentos, por baixo das cartas que quem joga precisa ver. */}
           <AnimatePresence>{fumaca && <FumacaNaMesa key="fumaca" abano={abano} />}</AnimatePresence>
@@ -965,9 +956,7 @@ function Table({
                 deadline={myTurn ? view.turnDeadline : null}
                 isMao={!!you && view.order[0] === you}
                 round={view.roundNumber}
-                pitando={pitando(me.id)}
                 enfeites={enfeites.get(me.id)}
-                patrao={online && ehPatrao(room, me.id)}
                 mascara={mascaras.get(me.id)}
               />
             </div>
